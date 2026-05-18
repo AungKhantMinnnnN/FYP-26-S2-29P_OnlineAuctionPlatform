@@ -11,6 +11,9 @@ class Settings(BaseSettings):
 
     LOG_DIR: str = "logs/backend_logs"
 
+    BIDDING_SERVICE_URL: str = "http://bidding-engine:8001"
+    RECOMMENDATION_SERVICE_URL: str = "http://recommendation-engine:8002"
+
     class Config:
         env_file = ".env"
 

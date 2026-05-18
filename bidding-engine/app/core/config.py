@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Online Auction Platform - Bidding-Engine"
     API_VERSION: str = "v1.0.0"
+    DATABASE_URL: str = "postgresql://user:password@db:5432/auction_db"
     REDIS_URL: str = "redis://redis:6379/1"  # Separate DB for bidding engine locks/state
     BACKEND_URL: str = "http://backend:8000" # Internal communication
     SECRET_KEY: str = "your-secret-key-change-me"
