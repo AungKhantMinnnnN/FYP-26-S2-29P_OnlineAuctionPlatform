@@ -13,11 +13,11 @@ export default function ListingFormPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Create Listing</h1>
-        <p className="text-sm text-gray-500">Fill in the details below to publish your auction.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">Create Listing</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Fill in the details below to publish your auction.</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm space-y-5 dark:border-slate-800 dark:bg-slate-900/70">
         <FormInput label="Title" placeholder="e.g. Vintage Film Camera" />
         <TextAreaField label="Description" placeholder="Describe the item condition, history, and any defects..." rows={4} />
 
@@ -38,10 +38,10 @@ export default function ListingFormPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Images</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {images.map((_, i) => (
-              <button key={i} className="aspect-square bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-accent-400 hover:text-accent-600 transition-colors">
+              <button key={i} className="aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-400 transition-colors hover:border-accent-400 hover:bg-accent-50/50 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-950/50 dark:hover:border-accent-700 dark:hover:bg-accent-950/30 dark:hover:text-accent-300">
                 <Image size={24} />
                 <span className="text-xs mt-1">Upload</span>
               </button>
@@ -49,7 +49,7 @@ export default function ListingFormPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
           <SecondaryButton><Save size={16} className="mr-1" /> Save Draft</SecondaryButton>
           <PrimaryButton><Upload size={16} className="mr-1" /> Publish Listing</PrimaryButton>
         </div>

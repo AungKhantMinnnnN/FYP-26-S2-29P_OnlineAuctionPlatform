@@ -9,8 +9,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-sm text-gray-500">Platform oversight, moderation, and analytics.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">Admin Dashboard</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Platform oversight, moderation, and analytics.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -21,7 +21,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <SectionHeader title="User Management" actionText="View all" actionTo="/admin-dashboard" />
           <DataTable
             headers={['Name', 'Email', 'Role', 'Status', 'Joined']}
@@ -35,7 +35,7 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <SectionHeader title="Listing Moderation" />
           <DataTable
             headers={['Title', 'Seller', 'Submitted', 'Status', 'Action']}
@@ -45,8 +45,8 @@ export default function AdminDashboardPage() {
               l.submitted,
               <StatusBadge key={l.id} status={l.status} />,
               <div key={l.id} className="flex gap-2">
-                <button className="text-xs text-accent-600 hover:underline">Approve</button>
-                <button className="text-xs text-red-600 hover:underline">Remove</button>
+                <button className="text-xs font-semibold text-accent-600 hover:underline dark:text-accent-300">Approve</button>
+                <button className="text-xs font-semibold text-red-600 hover:underline dark:text-red-400">Remove</button>
               </div>
             ])}
           />
@@ -54,7 +54,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <SectionHeader title="Case Queue" />
           <DataTable
             headers={['Case ID', 'User', 'Type', 'Subject', 'Status']}
@@ -68,23 +68,23 @@ export default function AdminDashboardPage() {
           />
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <SectionHeader title="Category Management" />
           <div className="space-y-2 mb-4">
             {categories.map(c => (
-              <div key={c} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
-                <span>{c}</span>
-                <button className="text-xs text-red-500 hover:underline">Delete</button>
+              <div key={c} className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/50">
+                <span className="font-medium text-slate-700 dark:text-slate-300">{c}</span>
+                <button className="text-xs font-semibold text-red-500 hover:underline dark:text-red-400">Delete</button>
               </div>
             ))}
           </div>
           <div className="flex gap-2">
-            <input type="text" placeholder="New category" className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-accent-500 focus:border-accent-500" />
-            <button className="px-3 py-2 rounded-lg bg-accent-600 text-white text-sm font-medium hover:bg-accent-700">Add</button>
+            <input type="text" placeholder="New category" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100" />
+            <button className="rounded-xl bg-accent-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700">Add</button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <SectionHeader title="Audit Logs" />
           <DataTable
             headers={['Admin', 'Action', 'Time']}
@@ -93,25 +93,25 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
         <SectionHeader title="Analytics Overview" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2 text-gray-500 text-sm"><BarChart3 size={16} /> Bid Volume</div>
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+            <div className="flex items-center gap-2 mb-2 text-slate-500 text-sm dark:text-slate-400"><BarChart3 size={16} /> Bid Volume</div>
             <div className="h-24 flex items-end gap-1">
-              {[40,60,30,80,50,90,70].map((h,i) => <div key={i} style={{height:`${h}%`}} className="flex-1 bg-accent-200 rounded-sm" />)}
+              {[40,60,30,80,50,90,70].map((h,i) => <div key={i} style={{height:`${h}%`}} className="flex-1 rounded-t-md bg-accent-300 dark:bg-accent-700" />)}
             </div>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2 text-gray-500 text-sm"><Activity size={16} /> User Growth</div>
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+            <div className="flex items-center gap-2 mb-2 text-slate-500 text-sm dark:text-slate-400"><Activity size={16} /> User Growth</div>
             <div className="h-24 flex items-end gap-1">
-              {[20,35,45,40,60,75,85].map((h,i) => <div key={i} style={{height:`${h}%`}} className="flex-1 bg-accent-300 rounded-sm" />)}
+              {[20,35,45,40,60,75,85].map((h,i) => <div key={i} style={{height:`${h}%`}} className="flex-1 rounded-t-md bg-accent-400 dark:bg-accent-600" />)}
             </div>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2 text-gray-500 text-sm"><Users size={16} /> Active Sessions</div>
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+            <div className="flex items-center gap-2 mb-2 text-slate-500 text-sm dark:text-slate-400"><Users size={16} /> Active Sessions</div>
             <div className="h-24 flex items-end gap-1">
-              {[50,55,60,58,70,65,80].map((h,i) => <div key={i} style={{height:`${h}%`}} className="flex-1 bg-accent-400 rounded-sm" />)}
+              {[50,55,60,58,70,65,80].map((h,i) => <div key={i} style={{height:`${h}%`}} className="flex-1 rounded-t-md bg-accent-500 dark:bg-accent-500" />)}
             </div>
           </div>
         </div>

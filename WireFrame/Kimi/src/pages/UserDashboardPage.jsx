@@ -15,8 +15,8 @@ export default function UserDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Dashboard</h1>
-        <p className="text-sm text-gray-500">Welcome back, {currentUser.fullName}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-1 dark:text-slate-50">Dashboard</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Welcome back, {currentUser.fullName}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -28,7 +28,7 @@ export default function UserDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <SectionHeader title="My Bids" actionText="View history" actionTo="/bid-history" />
             <DataTable
               headers={['Item', 'Amount', 'Status', 'Result']}
@@ -36,14 +36,14 @@ export default function UserDashboardPage() {
             />
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <SectionHeader title="Recommended for You" subtitle="Based on your browsing history" />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {recommended.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={false} />)}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <SectionHeader title="Trending Items" actionText="Browse all" actionTo="/browse" />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {auctions.slice(0, 3).map(a => <AuctionCard key={a.id} auction={a} showWatchlist={false} />)}
@@ -52,14 +52,14 @@ export default function UserDashboardPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <div className="flex items-center gap-2 mb-4">
-              <Bell size={18} className="text-accent-600" />
-              <h3 className="font-semibold text-gray-900">Notifications</h3>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700 dark:bg-accent-950/40 dark:text-accent-300"><Bell size={18} /></span>
+              <h3 className="font-semibold text-slate-950 dark:text-slate-50">Notifications</h3>
             </div>
             <div className="space-y-3">
               {notifications.map(n => (
-                <div key={n.id} className={`text-sm p-3 rounded-lg ${n.read ? 'bg-gray-50 text-gray-600' : 'bg-accent-50 text-accent-900'}`}>
+                <div key={n.id} className={`text-sm p-3 rounded-xl border ${n.read ? 'border-slate-200/80 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400' : 'border-accent-200 bg-accent-50 text-accent-900 dark:border-accent-900/60 dark:bg-accent-950/40 dark:text-accent-200'}`}>
                   <p className="font-medium">{n.text}</p>
                   <p className="text-xs opacity-75 mt-1">{n.time}</p>
                 </div>
@@ -67,18 +67,18 @@ export default function UserDashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <div className="flex items-center gap-2 mb-4">
-              <Activity size={18} className="text-accent-600" />
-              <h3 className="font-semibold text-gray-900">Recent Activity</h3>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700 dark:bg-accent-950/40 dark:text-accent-300"><Activity size={18} /></span>
+              <h3 className="font-semibold text-slate-950 dark:text-slate-50">Recent Activity</h3>
             </div>
             <div className="space-y-3">
               {recentActivity.map((a, i) => (
                 <div key={i} className="flex items-start gap-3 text-sm">
                   <div className="w-2 h-2 mt-1.5 rounded-full bg-accent-400" />
                   <div>
-                    <p className="text-gray-800">{a.text}</p>
-                    <p className="text-xs text-gray-500">{a.time}</p>
+                    <p className="text-slate-800 dark:text-slate-200">{a.text}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{a.time}</p>
                   </div>
                 </div>
               ))}
