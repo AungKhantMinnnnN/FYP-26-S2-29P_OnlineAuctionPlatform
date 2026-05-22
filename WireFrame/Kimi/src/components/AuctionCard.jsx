@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Image, Heart, Eye } from 'lucide-react'
+import { Image, Heart, Eye, Gavel } from 'lucide-react'
 import CountdownBadge from './CountdownBadge'
 import StatusBadge from './StatusBadge'
 
@@ -34,6 +34,10 @@ export default function AuctionCard({ auction, showWatchlist = true }) {
               {auction.watchers}
             </div>
           </div>
+          <Link to={`/auction/${auction.id}`} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-700 dark:bg-accent-500 dark:text-slate-950 dark:hover:bg-accent-400">
+            <Gavel size={15} />
+            View & Bid
+          </Link>
         </div>
       </div>
     </div>

@@ -27,14 +27,14 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
       </Route>
-      <Route element={<ProtectedRoute roles={['bidder', 'seller']} />}>
+      <Route element={<ProtectedRoute roles={['user']} />}>
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<UserDashboardPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/bid-history" element={<BidHistoryPage />} />
       </Route>
       </Route>
-      <Route element={<ProtectedRoute roles={['seller']} />}>
+      <Route element={<ProtectedRoute roles={['user']} />}>
       <Route element={<DashboardLayout />}>
         <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
         <Route path="/create-listing" element={<ListingFormPage />} />

@@ -1,9 +1,9 @@
 export const categories = ["Electronics", "Collectibles", "Fashion", "Home & Garden", "Sports", "Books", "Automotive", "Toys"]
 export const users = [
-  { user_id: 1, full_name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'bidder', status: 'active', created_at: '2026-01-10' },
-  { user_id: 2, full_name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'seller', status: 'active', created_at: '2026-02-15' },
+  { user_id: 1, full_name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'user', status: 'active', created_at: '2026-01-10' },
+  { user_id: 2, full_name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'user', status: 'active', created_at: '2026-02-15' },
   { user_id: 3, full_name: 'Admin User', email: 'admin@auctionhub.test', role: 'admin', status: 'active', created_at: '2025-12-01' },
-  { user_id: 4, full_name: 'Mike Ross', email: 'mike@example.com', role: 'bidder', status: 'suspended', created_at: '2026-03-03' },
+  { user_id: 4, full_name: 'Mike Ross', email: 'mike@example.com', role: 'user', status: 'suspended', created_at: '2026-03-03' },
 ]
 
 export const conditions = ["New", "Used", "Refurbished"]

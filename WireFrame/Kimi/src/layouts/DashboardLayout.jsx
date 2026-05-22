@@ -1,10 +1,49 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Gavel, LogOut, Menu, X } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import MarketplaceNav from '../components/MarketplaceNav'
+import { useAuth } from '../context/AuthContext'
 
 export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { role, logout } = useAuth()
+  const navigate = useNavigate()
+
+  if (role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex h-16 items-center justify-between gap-4">
+              <Link to="/browse" className="group flex items-center gap-2 text-accent-700 dark:text-accent-300">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-accent-600 text-white shadow-soft transition-transform group-hover:-rotate-6 group-hover:scale-105 dark:bg-accent-500">
+                  <Gavel size={20} />
+                </span>
+                <span className="hidden font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:inline">AuctionHub</span>
+              </Link>
+
+              <div className="min-w-0 flex-1">
+                <MarketplaceNav compact />
+              </div>
+
+              <button
+                onClick={() => { logout(); navigate('/') }}
+                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 dark:bg-slate-100 dark:text-slate-950"
+              >
+                <LogOut size={16} />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <Outlet />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 flex dark:bg-slate-950 dark:text-slate-100">

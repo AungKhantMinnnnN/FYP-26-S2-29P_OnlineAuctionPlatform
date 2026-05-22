@@ -1,8 +1,8 @@
 import { createContext, useContext, useMemo, useState } from 'react'
 
 const USERS = {
-  bidder: { id: 1, name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'bidder' },
-  seller: { id: 2, name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'seller' },
+  bidder: { id: 1, name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'user' },
+  seller: { id: 2, name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'user' },
   admin: { id: 3, name: 'Admin User', email: 'admin@auctionhub.test', role: 'admin' },
 }
 

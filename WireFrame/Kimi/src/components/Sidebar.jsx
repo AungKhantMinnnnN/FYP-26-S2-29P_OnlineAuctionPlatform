@@ -3,11 +3,11 @@ import { LayoutDashboard, Gavel, User, History, Store, PlusCircle, Shield, LogOu
 import { useAuth } from '../context/AuthContext'
 
 const links = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['bidder', 'seller'] },
-  { to: '/bid-history', label: 'Bid History', icon: History, roles: ['bidder', 'seller'] },
-  { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store, roles: ['seller'] },
-  { to: '/create-listing', label: 'Create Listing', icon: PlusCircle, roles: ['seller'] },
-  { to: '/profile', label: 'Profile', icon: User, roles: ['bidder', 'seller'] },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['user'] },
+  { to: '/bid-history', label: 'Bid History', icon: History, roles: ['user'] },
+  { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store, roles: ['user'] },
+  { to: '/create-listing', label: 'Create Listing', icon: PlusCircle, roles: ['user'] },
+  { to: '/profile', label: 'Profile', icon: User, roles: ['user'] },
   { to: '/admin-dashboard', label: 'Admin Panel', icon: Shield, roles: ['admin'] },
   { to: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { to: '/admin/listings', label: 'Listings', icon: Gavel, roles: ['admin'] },
