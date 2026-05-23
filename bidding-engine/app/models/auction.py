@@ -10,7 +10,7 @@ import enum
 class UserRole(enum.Enum):
     ADMIN = "admin"
     SELLER = "seller"
-    BUYER = "buyer"
+    BIDDER = "bidder"
 
 class UserStatus(enum.Enum):
     ACTIVE = "active"
@@ -67,7 +67,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, unique=True, nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.BUYER, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.BIDDER, nullable=False)
     status = Column(Enum(UserStatus), default=UserStatus.ACTIVE, nullable=False)
     balance = Column(Float, default=0.0, nullable=False)
     avatar_key = Column(String)
@@ -80,7 +80,7 @@ class UserProfiles(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
     full_name = Column(String, nullable=False)
-    phone = Column(String, nullable=False)
+    phone = Column(String, nullable=True)
     address = Column(String)
     bio = Column(String)
     updated_at = Column(DateTime, default=datetime.timezone.utc, nullable=False)

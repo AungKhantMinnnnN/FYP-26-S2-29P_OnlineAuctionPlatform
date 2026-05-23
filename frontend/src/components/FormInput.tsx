@@ -1,41 +1,31 @@
 import React from 'react'
 
-interface FormInputProps {
-  label: string
-  type?: string
-  placeholder?: string
-  value?: any
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string
   error?: string
-  icon?: any
-  defaultValue?: any
+  icon?: React.ComponentType<any>
 }
 
-export default function FormInput({ 
-  label, 
-  type = 'text', 
-  placeholder, 
-  value, 
-  onChange, 
-  error, 
-  icon: Icon,
-  defaultValue
-}: FormInputProps) {
+export default function FormInput({ label, type = 'text', placeholder, value, onChange, error, icon: Icon, className = '', ...props }: FormInputProps) {
   return (
     <div>
-      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+      {label && <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>}
       <div className="relative">
-        {Icon && <Icon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
+        {Icon && <Icon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />}
         <input
           type={type}
           value={value}
-          defaultValue={defaultValue}
           onChange={onChange}
           placeholder={placeholder}
-          className={`w-full px-3 py-2 rounded-lg border ${error ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-accent-500 focus:border-accent-500'} text-sm focus:outline-none focus:ring-2 ${Icon ? 'pl-10' : ''}`}
+          {...props}
+          className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:outline-none focus:ring-4 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 ${
+            error
+              ? 'border-red-300 focus:border-red-500 focus:ring-red-500/15 dark:border-red-900'
+              : 'border-slate-200 focus:border-accent-500 focus:ring-accent-500/15 dark:border-slate-800'
+          } ${Icon ? 'pl-10' : ''} ${className}`}
         />
       </div>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">{error}</p>}
     </div>
   )
 }
