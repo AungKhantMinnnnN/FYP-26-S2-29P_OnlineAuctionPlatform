@@ -92,3 +92,18 @@ export const auditLogs = [
   { id: 3, admin: "SuperAdmin", action: "Removed listing #998 (policy violation)", timestamp: "13 May 2026, 16:20" },
   { id: 4, admin: "SuperAdmin", action: "Overrode bid on auction #45", timestamp: "13 May 2026, 14:10" },
 ]
+
+export const users = [
+  { user_id: 1, full_name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'user', status: 'active', created_at: '2026-01-10' },
+  { user_id: 2, full_name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'user', status: 'active', created_at: '2026-02-15' },
+  { user_id: 3, full_name: 'Admin User', email: 'admin@auctionhub.test', role: 'admin', status: 'active', created_at: '2025-12-01' },
+  { user_id: 4, full_name: 'Mike Ross', email: 'mike@example.com', role: 'user', status: 'suspended', created_at: '2026-03-03' },
+]
+
+export const bids = bidHistory.map((b) => ({ bid_id: b.id, listing_title: b.item, bidder_id: 1, bid_amount: b.amount, status: b.status, created_at: b.timestamp }))
+
+export const adminCases = [
+  { case_id: 'CASE-001', user_id: 1, case_type: 'Dispute', subject: 'Item not as described', status: 'open', created_at: '12 May 2026' },
+  { case_id: 'CASE-002', user_id: 2, case_type: 'Feedback', subject: 'Request refund', status: 'open', created_at: '13 May 2026' },
+  { case_id: 'CASE-003', user_id: 4, case_type: 'Dispute', subject: 'Accidental bid', status: 'resolved', created_at: '10 May 2026' },
+]
