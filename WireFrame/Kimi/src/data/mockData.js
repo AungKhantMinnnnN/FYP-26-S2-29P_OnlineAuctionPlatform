@@ -1,4 +1,10 @@
 export const categories = ["Electronics", "Collectibles", "Fashion", "Home & Garden", "Sports", "Books", "Automotive", "Toys"]
+export const users = [
+  { user_id: 1, full_name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'user', status: 'active', created_at: '2026-01-10' },
+  { user_id: 2, full_name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'user', status: 'active', created_at: '2026-02-15' },
+  { user_id: 3, full_name: 'Admin User', email: 'admin@auctionhub.test', role: 'admin', status: 'active', created_at: '2025-12-01' },
+  { user_id: 4, full_name: 'Mike Ross', email: 'mike@example.com', role: 'user', status: 'suspended', created_at: '2026-03-03' },
+]
 
 export const conditions = ["New", "Used", "Refurbished"]
 
@@ -37,6 +43,12 @@ export const bidHistory = [
   { id: 3, item: "Mid-Century Modern Lounge Chair", amount: 120.00, timestamp: "10 May 2026, 18:00", status: "won", result: "Won" },
   { id: 4, item: "Rare 1998 Pokémon Charizard Card", amount: 75.00, timestamp: "12 May 2026, 11:20", status: "outbid", result: "Lost" },
   { id: 5, item: "Dyson V12 Detect Slim Vacuum", amount: 310.00, timestamp: "14 May 2026, 08:45", status: "active", result: "Leading" },
+]
+export const bids = bidHistory.map((b) => ({ bid_id: b.id, listing_title: b.item, bidder_id: 1, bid_amount: b.amount, status: b.status, created_at: b.timestamp }))
+export const adminCases = [
+  { case_id: 'CASE-001', user_id: 1, case_type: 'Dispute', subject: 'Item not as described', status: 'open', created_at: '12 May 2026' },
+  { case_id: 'CASE-002', user_id: 2, case_type: 'Feedback', subject: 'Request refund', status: 'open', created_at: '13 May 2026' },
+  { case_id: 'CASE-003', user_id: 4, case_type: 'Dispute', subject: 'Accidental bid', status: 'resolved', created_at: '10 May 2026' },
 ]
 
 export const sellerListings = auctions.filter(a => a.status === "active").slice(0, 4)

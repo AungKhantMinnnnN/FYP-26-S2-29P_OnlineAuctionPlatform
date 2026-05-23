@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'media',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -19,6 +20,9 @@ export default {
           800: '#3730a3',
           900: '#312e81',
         }
+      },
+      boxShadow: {
+        soft: '0 18px 45px -24px rgba(15, 23, 42, 0.45)',
       }
     },
   },
