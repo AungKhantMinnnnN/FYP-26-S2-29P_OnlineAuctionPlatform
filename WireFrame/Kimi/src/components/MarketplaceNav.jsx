@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { Grid3X3, History, LayoutDashboard, PlusCircle, Store, User } from 'lucide-react'
+import { Grid3X3, Heart, History, LayoutDashboard, PlusCircle, Store, User, Wallet } from 'lucide-react'
 
 const marketplaceLinks = [
   { to: '/browse', label: 'Products', icon: Grid3X3 },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/bid-history', label: 'Bid History', icon: History },
+  { to: '/watchlist', label: 'Watchlist', icon: Heart },
+  { to: '/wallet', label: 'Wallet', icon: Wallet },
   { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store },
   { to: '/create-listing', label: 'Create Listing', icon: PlusCircle },
   { to: '/profile', label: 'Profile', icon: User },

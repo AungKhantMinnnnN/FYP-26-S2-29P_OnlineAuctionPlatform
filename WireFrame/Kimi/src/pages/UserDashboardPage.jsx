@@ -6,12 +6,16 @@ import AuctionCard from '../components/AuctionCard'
 import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
 import { currentUser, bidHistory, auctions, notifications, recentActivity } from '../data/mockData'
+import { useAuth } from '../context/AuthContext'
 
 export default function UserDashboardPage() {
+  const { user } = useAuth()
   const myBids = bidHistory.slice(0, 3)
   const watchlist = auctions.filter(a => [1,3,5].includes(a.id))
   const recommended = auctions.filter(a => a.category === 'Electronics').slice(0, 3)
   const liveAuctions = auctions.filter(a => a.status === 'active').slice(0, 6)
+  const balance = user?.Balance ?? currentUser.balance
+  const displayName = user?.name || currentUser.fullName
 
   return (
     <div className="space-y-8">
@@ -20,7 +24,7 @@ export default function UserDashboardPage() {
           <div>
             <p className="mb-3 inline-flex rounded-full bg-accent-50 px-3 py-1 text-xs font-semibold text-accent-700 dark:bg-accent-950/40 dark:text-accent-300">Marketplace user</p>
             <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-slate-50">Find products and place bids</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">Welcome back, {currentUser.fullName}. Your main flow is browsing active auctions, checking product details, and bidding. Selling tools are available in the same user account from the navigation bar.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">Welcome back, {displayName}. Your main flow is browsing active auctions, checking product details, and bidding. Selling tools are available in the same user account from the navigation bar.</p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <Link to="/browse" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-accent-700 dark:bg-accent-500 dark:text-slate-950 dark:hover:bg-accent-400">
                 <Search size={16} /> Browse Products
@@ -44,7 +48,7 @@ export default function UserDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardStatCard title="Active Bids" value={currentUser.bidsActive} icon={Gavel} trend="3 auctions" />
         <DashboardStatCard title="Watchlist" value={currentUser.watchlistCount} icon={Heart} trend="2 ending soon" />
-        <DashboardStatCard title="Balance" value={`$${currentUser.balance.toFixed(2)}`} icon={Wallet} trend="Available" />
+        <DashboardStatCard title="Balance" value={`$${balance.toFixed(2)}`} icon={Wallet} trend="Available" />
         <DashboardStatCard title="Wins" value={currentUser.wins} icon={Trophy} trend="This month" />
       </div>
 
