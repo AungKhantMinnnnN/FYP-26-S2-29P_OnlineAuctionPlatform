@@ -21,7 +21,7 @@ BEGIN
         'testuser', 
         'test@example.com', 
         '$2b$12$FUBDxAsvJ7pvKVJn6grBpenXNvyL/lK2PgBqW5JObpwJ9nIBUFxkS', -- Password123!
-        'seller', 
+        'user', 
         1000.00, 
         'active'
     );

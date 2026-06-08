@@ -107,3 +107,43 @@ export const adminCases = [
   { case_id: 'CASE-002', user_id: 2, case_type: 'Feedback', subject: 'Request refund', status: 'open', created_at: '13 May 2026' },
   { case_id: 'CASE-003', user_id: 4, case_type: 'Dispute', subject: 'Accidental bid', status: 'resolved', created_at: '10 May 2026' },
 ]
+
+export interface WatchListItem {
+  WatchListID: number;
+  UserID: number;
+  ListingID: number;
+}
+
+export interface WalletTransactionItem {
+  TransactionID: string | number;
+  UserID: number;
+  TransactionType: string;
+  Amount: number;
+  TransactionStatus: string;
+  Method: string;
+  Created_at: string;
+}
+
+export const WatchList: WatchListItem[] = [
+  { WatchListID: 1, UserID: 1, ListingID: 1 },
+  { WatchListID: 2, UserID: 1, ListingID: 2 },
+  { WatchListID: 3, UserID: 1, ListingID: 3 },
+  { WatchListID: 4, UserID: 1, ListingID: 5 },
+  { WatchListID: 5, UserID: 1, ListingID: 7 },
+  { WatchListID: 6, UserID: 2, ListingID: 4 },
+  { WatchListID: 7, UserID: 2, ListingID: 6 },
+  { WatchListID: 8, UserID: 2, ListingID: 8 },
+]
+
+export const WalletTransactions: WalletTransactionItem[] = [
+  { TransactionID: 1, UserID: 1, TransactionType: 'top-up', Amount: 100, TransactionStatus: 'completed', Method: 'Credit Card', Created_at: '22 May 2026, 10:15' },
+  { TransactionID: 2, UserID: 1, TransactionType: 'bid-hold', Amount: -145, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '22 May 2026, 11:20' },
+  { TransactionID: 3, UserID: 1, TransactionType: 'refund', Amount: 210, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '21 May 2026, 16:45' },
+  { TransactionID: 4, UserID: 1, TransactionType: 'withdrawal', Amount: -50, TransactionStatus: 'pending', Method: 'Bank Transfer', Created_at: '20 May 2026, 09:30' },
+  { TransactionID: 5, UserID: 1, TransactionType: 'top-up', Amount: 250, TransactionStatus: 'completed', Method: 'PayNow', Created_at: '19 May 2026, 14:10' },
+  { TransactionID: 6, UserID: 2, TransactionType: 'top-up', Amount: 500, TransactionStatus: 'completed', Method: 'Credit Card', Created_at: '22 May 2026, 12:00' },
+  { TransactionID: 7, UserID: 2, TransactionType: 'withdrawal', Amount: -120, TransactionStatus: 'completed', Method: 'Bank Transfer', Created_at: '21 May 2026, 13:25' },
+  { TransactionID: 8, UserID: 2, TransactionType: 'seller-credit', Amount: 350, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '20 May 2026, 18:35' },
+  { TransactionID: 9, UserID: 1, TransactionType: 'bid-hold', Amount: -85, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '18 May 2026, 08:55' },
+  { TransactionID: 10, UserID: 2, TransactionType: 'top-up', Amount: 75, TransactionStatus: 'failed', Method: 'PayNow', Created_at: '17 May 2026, 19:05' },
+]

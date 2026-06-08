@@ -1,16 +1,64 @@
+import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronRight, Image, Heart, User, TrendingUp, Shield } from 'lucide-react'
+import { ChevronRight, Image, Heart, User, TrendingUp, Shield, Wallet } from 'lucide-react'
 import CountdownBadge from '../components/CountdownBadge'
 import StatusBadge from '../components/StatusBadge'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
 import AuctionCard from '../components/AuctionCard'
 import { auctions } from '../data/mockData'
+import { useAuth } from '../context/AuthContext'
 
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const auction = auctions.find((a) => String(a.id) === String(id)) || auctions[0]
+  
+  const { user, adjustBalance } = useAuth()
+  const [currentBid, setCurrentBid] = useState(auction.currentBid)
+  const [bidsPlaced, setBidsPlaced] = useState(auction.bids)
+  const [bidHistory, setBidHistory] = useState(auction.bidHistory)
+  const [bidAmount, setBidAmount] = useState('')
+  const [bidMessage, setBidMessage] = useState('')
+  const [bidError, setBidError] = useState('')
+  const [watched, setWatched] = useState(false)
+  
   const related = auctions.filter((a) => String(a.id) !== String(auction.id) && a.category === auction.category).slice(0, 3)
+  const minimumBid = useMemo(() => Number((currentBid + auction.minIncrement).toFixed(2)), [auction.minIncrement, currentBid])
+  const balance = user?.balance ?? 0
+
+  const handleBid = (e: React.FormEvent) => {
+    e.preventDefault()
+    setBidMessage('')
+    setBidError('')
+    const amount = Number(bidAmount)
+    
+    if (!user) {
+      setBidError('Please log in before placing a bid.')
+      return
+    }
+    if (auction.status !== 'active') {
+      setBidError('This auction is no longer active.')
+      return
+    }
+    if (!amount || amount < minimumBid) {
+      setBidError(`Bid must be at least $${minimumBid.toFixed(2)}.`)
+      return
+    }
+    if (amount > balance) {
+      setBidError('Insufficient Balance. Please top up your wallet first.')
+      return
+    }
+
+    setCurrentBid(amount)
+    setBidsPlaced((count) => count + 1)
+    setBidHistory((history) => [
+      { bidder: user.username || user.email, amount, time: 'just now' },
+      ...history
+    ])
+    adjustBalance(-amount)
+    setBidAmount('')
+    setBidMessage(`Bid placed successfully. $${amount.toFixed(2)} has been held from your Balance.`)
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -57,7 +105,7 @@ export default function AuctionDetailPage() {
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <h3 className="font-semibold text-slate-950 mb-3 dark:text-slate-50">Bid History</h3>
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {auction.bidHistory.map((b, i) => (
+              {bidHistory.map((b, i) => (
                 <div key={i} className="flex items-center justify-between py-3 text-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-accent-50 flex items-center justify-center text-accent-700 text-xs font-bold dark:bg-accent-950/40 dark:text-accent-300">
@@ -79,31 +127,45 @@ export default function AuctionDetailPage() {
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sticky top-24 dark:border-slate-800 dark:bg-slate-900/70">
             <div className="mb-4">
               <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Current highest bid</p>
-              <p className="text-3xl font-bold text-slate-950 dark:text-slate-50">${auction.currentBid.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-slate-950 dark:text-slate-50">${currentBid.toFixed(2)}</p>
             </div>
             <div className="mb-4">
               <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Minimum next bid</p>
               <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">
-                ${(auction.currentBid + auction.minIncrement).toFixed(2)}
+                ${minimumBid.toFixed(2)}
               </p>
             </div>
+            {user && (
+              <div className="mb-4 rounded-2xl bg-accent-50 p-3 text-sm text-accent-800 ring-1 ring-accent-100 dark:bg-accent-950/30 dark:text-accent-200 dark:ring-accent-900/50">
+                <p className="flex items-center justify-between font-semibold">
+                  <span className="inline-flex items-center gap-2"><Wallet size={15} /> Your Balance</span>
+                  <span>${balance.toFixed(2)}</span>
+                </p>
+              </div>
+            )}
             <div className="mb-6">
               <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Time remaining</p>
               <CountdownBadge endTime={auction.endTime} className="text-sm px-3 py-1.5" />
             </div>
 
-            <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-3" onSubmit={handleBid}>
               <input
                 type="number"
-                placeholder="Enter bid amount"
+                min={minimumBid}
+                step={auction.minIncrement}
+                value={bidAmount}
+                onChange={(e) => setBidAmount(e.target.value)}
+                placeholder={`Enter at least $${minimumBid.toFixed(2)}`}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
               />
-              <PrimaryButton fullWidth>Place Bid</PrimaryButton>
+              {bidError && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:bg-red-950/30 dark:text-red-300">{bidError}</p>}
+              {bidMessage && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{bidMessage}</p>}
+              <PrimaryButton fullWidth type="submit">Place Bid</PrimaryButton>
             </form>
 
             <div className="flex items-center gap-2 mt-3">
-              <SecondaryButton fullWidth onClick={() => {}}>
-                <Heart size={16} className="mr-1" /> Watchlist
+              <SecondaryButton fullWidth onClick={() => setWatched(!watched)}>
+                <Heart size={16} className={`mr-1 ${watched ? 'fill-red-500 text-red-500' : ''}`} /> {watched ? 'Added to Watchlist' : 'Watchlist'}
               </SecondaryButton>
             </div>
 
@@ -112,7 +174,7 @@ export default function AuctionDetailPage() {
                 <Shield size={12} /> Secure bidding with bid history logs
               </p>
               <p className="flex items-center gap-1">
-                <TrendingUp size={12} /> {auction.bids} bids placed
+                <TrendingUp size={12} /> {bidsPlaced} bids placed
               </p>
             </div>
           </div>

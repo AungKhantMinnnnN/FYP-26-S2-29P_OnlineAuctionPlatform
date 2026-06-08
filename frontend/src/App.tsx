@@ -15,6 +15,8 @@ import SellerDashboardPage from './pages/SellerDashboardPage'
 import ListingFormPage from './pages/ListingFormPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
+import WatchlistPage from './pages/WatchlistPage'
+import WalletPage from './pages/WalletPage'
 
 import AdminManagementPage from './pages/AdminManagementPage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -50,6 +52,9 @@ export default function App() {
               <Route path="/bid-history" element={<BidHistoryPage />} />
               <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
               <Route path="/create-listing" element={<ListingFormPage />} />
+              <Route path="/watchlist" element={<WatchlistPage />} />
+              <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/wallet/top-up" element={<WalletPage mode="top-up" />} />
             </Route>
           </Route>
 

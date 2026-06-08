@@ -35,6 +35,7 @@ interface AuthContextType {
     bio?: string
   ) => Promise<void>;
   refreshUser: () => Promise<void>;
+  adjustBalance: (amount: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -148,8 +149,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token]);
 
+  const adjustBalance = useCallback((amount: number) => {
+    setUser((current) => {
+      if (!current) return current;
+      const nextBalance = Number(((current.balance ?? 0) + amount).toFixed(2));
+      return { ...current, balance: nextBalance };
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAuthenticated: !!user, role: user?.role, login, logout, register, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated: !!user, role: user?.role, login, logout, register, refreshUser, adjustBalance }}>
       {children}
     </AuthContext.Provider>
   );
