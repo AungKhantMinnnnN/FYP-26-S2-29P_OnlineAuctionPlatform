@@ -9,7 +9,7 @@ export default function SelectField({ label, value, onChange, options, placehold
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(o => (
-          <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>
+          <option key={o.value ?? o.id ?? o} value={o.value ?? o.slug ?? o.name ?? o}>{o.label ?? o.name ?? o}</option>
         ))}
       </select>
     </div>

@@ -27,9 +27,9 @@ export default function FilterPanel({ className = '' }) {
       <Section title="Category" id="category">
         <div className="space-y-2">
           {categories.map(c => (
-            <label key={c} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/70">
+            <label key={c.id ?? c} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/70">
               <input type="checkbox" className="rounded border-slate-300 text-accent-600 focus:ring-accent-500 dark:border-slate-700 dark:bg-slate-900" />
-              {c}
+              {c.name ?? c}
             </label>
           ))}
         </div>

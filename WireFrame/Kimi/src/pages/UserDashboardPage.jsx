@@ -14,7 +14,7 @@ export default function UserDashboardPage() {
   const watchlist = auctions.filter(a => [1,3,5].includes(a.id))
   const recommended = auctions.filter(a => a.category === 'Electronics').slice(0, 3)
   const liveAuctions = auctions.filter(a => a.status === 'active').slice(0, 6)
-  const balance = user?.Balance ?? currentUser.balance
+  const balance = user?.balance ?? currentUser.balance
   const displayName = user?.name || currentUser.fullName
 
   return (

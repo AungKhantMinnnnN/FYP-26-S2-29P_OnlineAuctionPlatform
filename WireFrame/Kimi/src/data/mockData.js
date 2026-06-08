@@ -1,9 +1,15 @@
-export const categories = ["Electronics", "Collectibles", "Fashion", "Home & Garden", "Sports", "Books", "Automotive", "Toys"]
+export const categoryOptions = ["Electronics", "Collectibles", "Fashion", "Home & Garden", "Sports", "Books", "Automotive", "Toys"]
+export const categories = categoryOptions.map((name, index) => ({ id: index + 1, name, slug: name.toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '-'), parent_id: null, is_active: true, created_at: '2026-01-01' }))
 export const users = [
-  { user_id: 1, full_name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'user', status: 'active', created_at: '2026-01-10' },
-  { user_id: 2, full_name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'user', status: 'active', created_at: '2026-02-15' },
-  { user_id: 3, full_name: 'Admin User', email: 'admin@auctionhub.test', role: 'admin', status: 'active', created_at: '2025-12-01' },
-  { user_id: 4, full_name: 'Mike Ross', email: 'mike@example.com', role: 'user', status: 'suspended', created_at: '2026-03-03' },
+  { id: 1, username: 'ethan_bidder', email: 'bidder@auctionhub.test', role: 'normal_user', status: 'active', balance: 500, avatar_key: null, created_at: '2026-01-10', updated_at: '2026-05-22' },
+  { id: 2, username: 'sarah_seller', email: 'seller@auctionhub.test', role: 'normal_user', status: 'active', balance: 780, avatar_key: null, created_at: '2026-02-15', updated_at: '2026-05-22' },
+  { id: 3, username: 'admin_user', email: 'admin@auctionhub.test', role: 'admin', status: 'active', balance: 0, avatar_key: null, created_at: '2025-12-01', updated_at: '2026-05-22' },
+  { id: 4, username: 'mike_ross', email: 'mike@example.com', role: 'normal_user', status: 'suspended', balance: 40, avatar_key: null, created_at: '2026-03-03', updated_at: '2026-05-22' },
+]
+
+export const user_profiles = [
+  { id: 1, user_id: 1, full_name: 'Ethan Bidder', phone: '+65 9123 4567', address: '123 Bukit Timah Rd, Singapore', bio: 'Casual collector of vintage electronics and sneakers.', updated_at: '2026-05-22' },
+  { id: 2, user_id: 2, full_name: 'Sarah Seller', phone: '+65 9234 5678', address: 'Orchard Road, Singapore', bio: 'Trusted marketplace seller.', updated_at: '2026-05-22' },
 ]
 
 export const conditions = ["New", "Used", "Refurbished"]
@@ -23,34 +29,59 @@ export const auctions = [
   { id: 8, title: "Signed Stephen King Novel (1st Ed)", category: "Books", condition: "Used", currentBid: 450.00, startingPrice: 300.00, minIncrement: 20.00, reservePrice: 500.00, endTime: new Date(now + 12 * 60 * 60 * 1000), seller: { name: "BookWorm", rating: 5.0 }, bids: 3, watchers: 15, status: "active", description: "The Shining, first edition, signed by author. Includes COA.", bidHistory: [{ bidder: "horrorFan", amount: 450.00, time: "3 hours ago" }] },
 ]
 
-export const WatchList = [
-  { WatchListID: 1, UserID: 1, ListingID: 1 },
-  { WatchListID: 2, UserID: 1, ListingID: 2 },
-  { WatchListID: 3, UserID: 1, ListingID: 3 },
-  { WatchListID: 4, UserID: 1, ListingID: 5 },
-  { WatchListID: 5, UserID: 1, ListingID: 7 },
-  { WatchListID: 6, UserID: 2, ListingID: 4 },
-  { WatchListID: 7, UserID: 2, ListingID: 6 },
-  { WatchListID: 8, UserID: 2, ListingID: 8 },
-]
+export const listings = auctions.map((auction) => ({
+  ...auction,
+  seller_id: auction.id === 6 ? 2 : 2,
+  category_id: categories.find((category) => category.name === auction.category)?.id,
+  condition: auction.condition.toLowerCase(),
+  bidding_type: 'price_up',
+  starting_price: auction.startingPrice,
+  reserve_price: auction.reservePrice,
+  current_price: auction.currentBid,
+  min_increment: auction.minIncrement,
+  is_draft: false,
+  start_time: new Date(now - 24 * 60 * 60 * 1000),
+  end_time: auction.endTime,
+  created_at: '2026-05-20',
+  updated_at: '2026-05-22',
+}))
 
-export const WalletTransactions = [
-  { TransactionID: 1, UserID: 1, TransactionType: 'top-up', Amount: 100, TransactionStatus: 'completed', Method: 'Credit Card', Created_at: '22 May 2026, 10:15' },
-  { TransactionID: 2, UserID: 1, TransactionType: 'bid-hold', Amount: -145, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '22 May 2026, 11:20' },
-  { TransactionID: 3, UserID: 1, TransactionType: 'refund', Amount: 210, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '21 May 2026, 16:45' },
-  { TransactionID: 4, UserID: 1, TransactionType: 'withdrawal', Amount: -50, TransactionStatus: 'pending', Method: 'Bank Transfer', Created_at: '20 May 2026, 09:30' },
-  { TransactionID: 5, UserID: 1, TransactionType: 'top-up', Amount: 250, TransactionStatus: 'completed', Method: 'PayNow', Created_at: '19 May 2026, 14:10' },
-  { TransactionID: 6, UserID: 2, TransactionType: 'top-up', Amount: 500, TransactionStatus: 'completed', Method: 'Credit Card', Created_at: '22 May 2026, 12:00' },
-  { TransactionID: 7, UserID: 2, TransactionType: 'withdrawal', Amount: -120, TransactionStatus: 'completed', Method: 'Bank Transfer', Created_at: '21 May 2026, 13:25' },
-  { TransactionID: 8, UserID: 2, TransactionType: 'seller-credit', Amount: 350, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '20 May 2026, 18:35' },
-  { TransactionID: 9, UserID: 1, TransactionType: 'bid-hold', Amount: -85, TransactionStatus: 'completed', Method: 'Wallet', Created_at: '18 May 2026, 08:55' },
-  { TransactionID: 10, UserID: 2, TransactionType: 'top-up', Amount: 75, TransactionStatus: 'failed', Method: 'PayNow', Created_at: '17 May 2026, 19:05' },
+export const listing_images = listings.map((listing) => ({
+  id: listing.id,
+  listing_id: listing.id,
+  s3_key: `mock/listings/${listing.id}.jpg`,
+  sort_order: 0,
+  is_primary: true,
+  uploaded_at: '2026-05-20',
+}))
+
+export const watchlist = [
+  { id: 1, user_id: 1, listing_id: 1, added_at: '2026-05-22, 10:10' },
+  { id: 2, user_id: 1, listing_id: 2, added_at: '2026-05-22, 10:25' },
+  { id: 3, user_id: 1, listing_id: 3, added_at: '2026-05-22, 11:00' },
+  { id: 4, user_id: 1, listing_id: 5, added_at: '2026-05-22, 12:40' },
+  { id: 5, user_id: 1, listing_id: 7, added_at: '2026-05-22, 13:05' },
+  { id: 6, user_id: 2, listing_id: 4, added_at: '2026-05-22, 14:00' },
+  { id: 7, user_id: 2, listing_id: 6, added_at: '2026-05-22, 15:35' },
+  { id: 8, user_id: 2, listing_id: 8, added_at: '2026-05-22, 16:20' },
 ]
+export const WatchList = watchlist.map((item) => ({ WatchListID: item.id, UserID: item.user_id, ListingID: item.listing_id }))
+
+export const wallet_transactions = [
+  { id: 1, user_id: 1, type: 'topup', amount: 100, reference: 'Credit Card', status: 'completed', created_at: '22 May 2026, 10:15' },
+  { id: 2, user_id: 1, type: 'bid_hold', amount: -145, reference: 'Wallet hold for listing #1', status: 'completed', created_at: '22 May 2026, 11:20' },
+  { id: 3, user_id: 1, type: 'bid_release', amount: 210, reference: 'Released bid hold', status: 'completed', created_at: '21 May 2026, 16:45' },
+  { id: 4, user_id: 1, type: 'topup', amount: 250, reference: 'PayNow', status: 'completed', created_at: '19 May 2026, 14:10' },
+  { id: 5, user_id: 2, type: 'topup', amount: 500, reference: 'Credit Card', status: 'completed', created_at: '22 May 2026, 12:00' },
+  { id: 6, user_id: 2, type: 'settlement', amount: 350, reference: 'Auction settlement', status: 'completed', created_at: '20 May 2026, 18:35' },
+  { id: 7, user_id: 1, type: 'bid_hold', amount: -85, reference: 'Wallet hold for listing #3', status: 'completed', created_at: '18 May 2026, 08:55' },
+]
+export const WalletTransactions = wallet_transactions.map((transaction) => ({ TransactionID: transaction.id, UserID: transaction.user_id, TransactionType: transaction.type, Amount: transaction.amount, TransactionStatus: transaction.status, Method: transaction.reference, Created_at: transaction.created_at }))
 
 export const Bids = [
-  { BidID: 1, ListingID: 1, UserID: 1, BidAmount: 145, BidStatus: 'active', Created_at: '10 min ago' },
-  { BidID: 2, ListingID: 2, UserID: 1, BidAmount: 210, BidStatus: 'outbid', Created_at: '20 min ago' },
-  { BidID: 3, ListingID: 3, UserID: 1, BidAmount: 75, BidStatus: 'outbid', Created_at: '12 May 2026, 11:20' },
+  { id: 1, listing_id: 1, bidder_id: 1, amount: 145, status: 'accepted', placed_at: '10 min ago' },
+  { id: 2, listing_id: 2, bidder_id: 1, amount: 210, status: 'accepted', placed_at: '20 min ago' },
+  { id: 3, listing_id: 3, bidder_id: 1, amount: 75, status: 'accepted', placed_at: '12 May 2026, 11:20' },
 ]
 
 export const currentUser = {
@@ -68,13 +99,22 @@ export const currentUser = {
 }
 
 export const bidHistory = [
-  { id: 1, item: "Vintage Canon AE-1 Film Camera", amount: 145.00, timestamp: "14 May 2026, 14:30", status: "active", result: "Leading" },
-  { id: 2, item: "Nike Air Jordan 1 Retro High", amount: 210.00, timestamp: "13 May 2026, 09:15", status: "outbid", result: "Outbid" },
-  { id: 3, item: "Mid-Century Modern Lounge Chair", amount: 120.00, timestamp: "10 May 2026, 18:00", status: "won", result: "Won" },
-  { id: 4, item: "Rare 1998 Pokémon Charizard Card", amount: 75.00, timestamp: "12 May 2026, 11:20", status: "outbid", result: "Lost" },
-  { id: 5, item: "Dyson V12 Detect Slim Vacuum", amount: 310.00, timestamp: "14 May 2026, 08:45", status: "active", result: "Leading" },
+  { id: 1, item: "Vintage Canon AE-1 Film Camera", amount: 145.00, timestamp: "14 May 2026, 14:30", status: "accepted", result: "Leading" },
+  { id: 2, item: "Nike Air Jordan 1 Retro High", amount: 210.00, timestamp: "13 May 2026, 09:15", status: "accepted", result: "Outbid" },
+  { id: 3, item: "Mid-Century Modern Lounge Chair", amount: 120.00, timestamp: "10 May 2026, 18:00", status: "accepted", result: "Won" },
+  { id: 4, item: "Rare 1998 Pokémon Charizard Card", amount: 75.00, timestamp: "12 May 2026, 11:20", status: "accepted", result: "Lost" },
+  { id: 5, item: "Dyson V12 Detect Slim Vacuum", amount: 310.00, timestamp: "14 May 2026, 08:45", status: "accepted", result: "Leading" },
 ]
-export const bids = bidHistory.map((b) => ({ bid_id: b.id, listing_title: b.item, bidder_id: 1, bid_amount: b.amount, status: b.status, created_at: b.timestamp }))
+export const bids = Bids
+
+export const auction_results = [
+  { id: 1, listing_id: 6, winner_id: 1, winning_bid_id: 3, final_price: 120, reserve_met: false, ended_at: '22 May 2026, 09:00' },
+]
+
+export const user_interactions = [
+  { id: 1, user_id: 1, listing_id: 1, action: 'view', occurred_at: '22 May 2026, 10:00' },
+  { id: 2, user_id: 1, listing_id: 2, action: 'watchlist', occurred_at: '22 May 2026, 10:25' },
+]
 export const adminCases = [
   { case_id: 'CASE-001', user_id: 1, case_type: 'Dispute', subject: 'Item not as described', status: 'open', created_at: '12 May 2026' },
   { case_id: 'CASE-002', user_id: 2, case_type: 'Feedback', subject: 'Request refund', status: 'open', created_at: '13 May 2026' },
@@ -117,9 +157,9 @@ export const adminUsers = [
 ]
 
 export const listingModeration = [
-  { id: 1, title: "Vintage Rolex Submariner", seller: "WatchDealer", submitted: "14 May 2026", status: "pending" },
-  { id: 2, title: "Handmade Ceramic Vase", seller: "ArtisanSG", submitted: "14 May 2026", status: "pending" },
-  { id: 3, title: "Gaming Laptop RTX 4090", seller: "PCBuildz", submitted: "13 May 2026", status: "reported" },
+  { id: 1, title: "Vintage Rolex Submariner", seller: "WatchDealer", submitted: "14 May 2026", status: "pending_review" },
+  { id: 2, title: "Handmade Ceramic Vase", seller: "ArtisanSG", submitted: "14 May 2026", status: "pending_review" },
+  { id: 3, title: "Gaming Laptop RTX 4090", seller: "PCBuildz", submitted: "13 May 2026", status: "removed" },
 ]
 
 export const caseQueue = [

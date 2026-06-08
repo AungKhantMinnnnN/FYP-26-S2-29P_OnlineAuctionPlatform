@@ -1,9 +1,9 @@
 import { createContext, useContext, useMemo, useState } from 'react'
 
 const USERS = {
-  bidder: { id: 1, UserID: 1, name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'user', status: 'active', Balance: 500 },
-  seller: { id: 2, UserID: 2, name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'user', status: 'active', Balance: 780 },
-  admin: { id: 3, UserID: 3, name: 'Admin User', email: 'admin@auctionhub.test', role: 'admin', status: 'active', Balance: 0 },
+  bidder: { id: 1, username: 'ethan_bidder', name: 'Ethan Bidder', email: 'bidder@auctionhub.test', role: 'normal_user', status: 'active', balance: 500 },
+  seller: { id: 2, username: 'sarah_seller', name: 'Sarah Seller', email: 'seller@auctionhub.test', role: 'normal_user', status: 'active', balance: 780 },
+  admin: { id: 3, username: 'admin_user', name: 'Admin User', email: 'admin@auctionhub.test', role: 'admin', status: 'active', balance: 0 },
 }
 
 const AuthContext = createContext(null)
@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
   const updateBalance = (nextBalance) => {
     setUser((current) => {
       if (!current) return current
-      const nextUser = { ...current, Balance: Number(nextBalance.toFixed ? nextBalance.toFixed(2) : nextBalance) }
+      const nextUser = { ...current, balance: Number(nextBalance.toFixed ? nextBalance.toFixed(2) : nextBalance) }
       localStorage.setItem('auctionhub_user', JSON.stringify(nextUser))
       return nextUser
     })
@@ -40,8 +40,8 @@ export function AuthProvider({ children }) {
   const adjustBalance = (amount) => {
     setUser((current) => {
       if (!current) return current
-      const nextBalance = Number(((current.Balance ?? current.balance ?? 0) + amount).toFixed(2))
-      const nextUser = { ...current, Balance: nextBalance }
+      const nextBalance = Number(((current.balance ?? 0) + amount).toFixed(2))
+      const nextUser = { ...current, balance: nextBalance }
       localStorage.setItem('auctionhub_user', JSON.stringify(nextUser))
       return nextUser
     })

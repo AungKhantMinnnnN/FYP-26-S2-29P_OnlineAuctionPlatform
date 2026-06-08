@@ -6,40 +6,43 @@ import StatusBadge from '../components/StatusBadge'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
 import AuctionCard from '../components/AuctionCard'
-import { auctions } from '../data/mockData'
+import { bids, listings, user_interactions, wallet_transactions } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
 
 export default function AuctionDetailPage() {
   const { id } = useParams()
-  const auction = auctions.find(a => a.id === Number(id)) || auctions[0]
+  const auction = listings.find(a => a.id === Number(id)) || listings[0]
   const { user, adjustBalance } = useAuth()
-  const [currentBid, setCurrentBid] = useState(auction.currentBid)
+  const [currentBid, setCurrentBid] = useState(auction.current_price)
   const [bidsPlaced, setBidsPlaced] = useState(auction.bids)
   const [bidHistory, setBidHistory] = useState(auction.bidHistory)
-  const [bidAmount, setBidAmount] = useState('')
+  const [localBids, setLocalBids] = useState([])
+  const [, setLocalTransactions] = useState(wallet_transactions)
+  const [, setLocalInteractions] = useState(user_interactions)
   const [bidMessage, setBidMessage] = useState('')
   const [bidError, setBidError] = useState('')
   const [watched, setWatched] = useState(false)
-  const related = auctions.filter(a => a.id !== auction.id && a.category === auction.category).slice(0, 3)
-  const minimumBid = useMemo(() => Number((currentBid + auction.minIncrement).toFixed(2)), [auction.minIncrement, currentBid])
-  const balance = user?.Balance ?? user?.balance ?? 0
+  const related = listings.filter(a => a.id !== auction.id && a.category_id === auction.category_id).slice(0, 3)
+  const nextBid = useMemo(() => Number((currentBid + auction.min_increment).toFixed(2)), [auction.min_increment, currentBid])
+  const balance = user?.balance ?? 0
+  const hasEnded = auction.end_time && new Date(auction.end_time).getTime() <= Date.now()
+  const bidDisabled = !user || user.role === 'admin' || ['suspended', 'deleted'].includes(user.status) || auction.status !== 'active' || hasEnded || balance < nextBid
+  const disabledReason = !user ? 'Please log in before placing a bid.' : user.role === 'admin' ? 'Admins cannot place bids.' : ['suspended', 'deleted'].includes(user.status) ? 'Your account cannot place bids.' : auction.status !== 'active' || hasEnded ? 'This auction is no longer active.' : balance < nextBid ? 'Insufficient Balance. Please top up your wallet first.' : ''
 
-  const handleBid = (e) => {
-    e.preventDefault()
+  const handleBid = () => {
     setBidMessage('')
     setBidError('')
-    const amount = Number(bidAmount)
-    if (!user) return setBidError('Please log in before placing a bid.')
-    if (auction.status !== 'active') return setBidError('This auction is no longer active.')
-    if (!amount || amount < minimumBid) return setBidError(`Bid must be at least $${minimumBid.toFixed(2)}.`)
-    if (amount > balance) return setBidError('Insufficient Balance. Please top up your wallet first.')
+    if (bidDisabled) return setBidError(disabledReason)
 
-    setCurrentBid(amount)
+    const bid = { id: `local-${Date.now()}`, listing_id: auction.id, bidder_id: user.id, amount: nextBid, status: 'accepted', placed_at: 'just now' }
+    setLocalBids((items) => [bid, ...items])
+    setLocalTransactions((items) => [{ id: `local-hold-${Date.now()}`, user_id: user.id, type: 'bid_hold', amount: -nextBid, reference: `Wallet hold for listing #${auction.id}`, status: 'completed', created_at: 'just now' }, ...items])
+    setLocalInteractions((items) => [{ id: `local-bid-${Date.now()}`, user_id: user.id, listing_id: auction.id, action: 'bid', occurred_at: 'just now' }, ...items])
+    setCurrentBid(nextBid)
     setBidsPlaced((count) => count + 1)
-    setBidHistory((history) => [{ bidder: user.name || user.email, amount, time: 'just now' }, ...history])
-    adjustBalance(-amount)
-    setBidAmount('')
-    setBidMessage(`Bid placed successfully. $${amount.toFixed(2)} has been held from your Balance.`)
+    setBidHistory((history) => [{ bidder: user.username || user.email, amount: nextBid, time: 'just now' }, ...history])
+    adjustBalance(-nextBid)
+    setBidMessage(`Bid placed successfully. $${nextBid.toFixed(2)} has been held from your Balance.`)
   }
 
   return (
@@ -49,7 +52,7 @@ export default function AuctionDetailPage() {
         <ChevronRight size={14} />
         <Link to="/browse" className="hover:text-slate-700 dark:hover:text-slate-200">Browse</Link>
         <ChevronRight size={14} />
-        <Link to={`/browse?cat=${auction.category}`} className="hover:text-slate-700 dark:hover:text-slate-200">{auction.category}</Link>
+        <Link to="/browse" className="hover:text-slate-700 dark:hover:text-slate-200">Browse</Link>
         <ChevronRight size={14} />
         <span className="text-slate-950 truncate max-w-xs dark:text-slate-100">{auction.title}</span>
       </nav>
@@ -110,23 +113,27 @@ export default function AuctionDetailPage() {
               <p className="text-3xl font-bold text-slate-950 dark:text-slate-50">${currentBid.toFixed(2)}</p>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Minimum next bid</p>
-              <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">${minimumBid.toFixed(2)}</p>
+              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Minimum Increment</p>
+              <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">${auction.min_increment.toFixed(2)}</p>
+            </div>
+            <div className="mb-4">
+              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Next Bid</p>
+              <p className="text-2xl font-bold text-accent-700 dark:text-accent-300">${nextBid.toFixed(2)}</p>
             </div>
             <div className="mb-4 rounded-2xl bg-accent-50 p-3 text-sm text-accent-800 ring-1 ring-accent-100 dark:bg-accent-950/30 dark:text-accent-200 dark:ring-accent-900/50">
               <p className="flex items-center justify-between font-semibold"><span className="inline-flex items-center gap-2"><Wallet size={15} /> Your Balance</span><span>${balance.toFixed(2)}</span></p>
             </div>
             <div className="mb-6">
               <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Time remaining</p>
-              <CountdownBadge endTime={auction.endTime} className="text-sm px-3 py-1.5" />
+              <CountdownBadge endTime={auction.end_time} className="text-sm px-3 py-1.5" />
             </div>
 
-            <form className="space-y-3" onSubmit={handleBid}>
-              <input type="number" min={minimumBid} step={auction.minIncrement} value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} placeholder={`Enter at least $${minimumBid.toFixed(2)}`} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100" />
+            <div className="space-y-3">
               {bidError && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:bg-red-950/30 dark:text-red-300">{bidError}</p>}
               {bidMessage && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{bidMessage}</p>}
-              <PrimaryButton fullWidth type="submit">Place Bid</PrimaryButton>
-            </form>
+              <PrimaryButton fullWidth disabled={bidDisabled} onClick={handleBid}>Place Bid ${nextBid.toFixed(2)}</PrimaryButton>
+              {disabledReason && <p className="text-xs text-slate-500 dark:text-slate-400">{disabledReason}</p>}
+            </div>
 
             <div className="flex items-center gap-2 mt-3">
               <SecondaryButton fullWidth onClick={() => setWatched(!watched)}>

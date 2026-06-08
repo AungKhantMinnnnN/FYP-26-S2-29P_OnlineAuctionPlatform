@@ -3,13 +3,14 @@ import { LayoutDashboard, Gavel, History, Store, PlusCircle, Shield, Users, Tags
 import { useAuth } from '../context/AuthContext'
 
 const links = [
-  { to: '/browse', label: 'Home', icon: Home, roles: ['user'] },
-  { to: '/create-listing', label: 'Create Listing', icon: PlusCircle, roles: ['user'] },
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['user'] },
-  { to: '/bid-history', label: 'Bid History', icon: History, roles: ['user'] },
-  { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store, roles: ['user'] },
-  { to: '/watchlist', label: 'Watchlist', icon: Heart, roles: ['user'] },
-  { to: '/wallet', label: 'Wallet', icon: Wallet, roles: ['user'] },
+  { to: '/browse', label: 'Home', icon: Home, roles: ['normal_user'] },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['normal_user'] },
+  { to: '/bid-history', label: 'Bid History', icon: History, roles: ['normal_user'] },
+  { to: '/watchlist', label: 'Watchlist', icon: Heart, roles: ['normal_user'] },
+  { to: '/wallet', label: 'Wallet', icon: Wallet, roles: ['normal_user'] },
+  { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store, roles: ['normal_user'] },
+  { to: '/create-listing', label: 'Create Listing', icon: PlusCircle, roles: ['normal_user'] },
+  { to: '/wallet/top-up', label: 'Top Up', icon: Wallet, roles: ['normal_user'] },
   { to: '/admin-dashboard', label: 'Admin Panel', icon: Shield, roles: ['admin'] },
   { to: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { to: '/admin/listings', label: 'Listings', icon: Gavel, roles: ['admin'] },

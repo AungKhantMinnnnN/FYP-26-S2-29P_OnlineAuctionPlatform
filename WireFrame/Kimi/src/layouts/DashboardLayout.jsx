@@ -21,7 +21,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 flex dark:bg-slate-950 dark:text-slate-100">
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 border-r border-slate-200/80 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-auto lg:flex lg:flex-col lg:w-64 lg:shadow-none dark:bg-slate-950/95 dark:border-slate-800 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 border-r border-slate-200/80 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-200 ease-in-out lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:translate-x-0 lg:flex lg:flex-col lg:w-64 lg:shadow-none lg:overflow-y-auto dark:bg-slate-950/95 dark:border-slate-800 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200/80 lg:hidden dark:border-slate-800">
           <span className="font-semibold text-slate-900 dark:text-slate-100">Menu</span>
           <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-100"><X size={20} /></button>

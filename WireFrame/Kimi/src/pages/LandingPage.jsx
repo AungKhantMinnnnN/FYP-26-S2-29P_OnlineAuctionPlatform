@@ -56,8 +56,8 @@ export default function LandingPage() {
           <h2 className="text-lg font-semibold tracking-tight text-slate-950 mb-4 dark:text-slate-50">Browse by Category</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {categories.map(c => (
-              <Link key={c} to={`/browse?cat=${c}`} className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-200 hover:shadow-soft dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-accent-800">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{c}</span>
+              <Link key={c.id} to={`/browse?cat=${c.slug}`} className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-200 hover:shadow-soft dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-accent-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{c.name}</span>
                 <ChevronRight size={16} className="text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-accent-600 dark:group-hover:text-accent-300" />
               </Link>
             ))}

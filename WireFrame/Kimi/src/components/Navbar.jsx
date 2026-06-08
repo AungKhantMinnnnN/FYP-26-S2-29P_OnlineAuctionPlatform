@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Menu, X, Gavel, ChevronDown, Wallet } from 'lucide-react'
 import SearchBar from './SearchBar'
@@ -8,6 +8,7 @@ import MarketplaceNav from './MarketplaceNav'
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const accountRef = useRef(null)
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -18,8 +19,16 @@ export default function Navbar() {
     navigate('/')
   }
 
-  const accountLabel = user?.name || user?.email || 'Account'
-  const balance = user?.Balance ?? user?.balance ?? 0
+  const accountLabel = user?.username || user?.name || user?.email || 'Account'
+  const balance = user?.balance ?? 0
+
+  useEffect(() => {
+    const closeAccount = (event) => {
+      if (accountRef.current && !accountRef.current.contains(event.target)) setAccountOpen(false)
+    }
+    document.addEventListener('mousedown', closeAccount)
+    return () => document.removeEventListener('mousedown', closeAccount)
+  }, [])
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85">
@@ -39,9 +48,9 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-1">
             {user?.role !== 'admin' && <Link to="/browse" className="rounded-full px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-accent-700 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-accent-300">Browse</Link>}
             {user ? (
-              <div className="relative" onMouseEnter={() => setAccountOpen(true)} onMouseLeave={() => setAccountOpen(false)}>
+              <div ref={accountRef} className="relative">
                 <button onClick={() => setAccountOpen(!accountOpen)} className="ml-2 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 dark:bg-slate-100 dark:text-slate-950">
-                  <span>{user.role === 'admin' ? 'Admin' : accountLabel}</span>
+                  <span>{user.role === 'admin' ? accountLabel : accountLabel}</span>
                   {user.role === 'admin' && <span className="rounded-full bg-accent-500/20 px-2 py-0.5 text-[10px] font-bold text-accent-200 dark:text-accent-700">ADMIN</span>}
                   <ChevronDown size={15} />
                 </button>
@@ -57,7 +66,7 @@ export default function Navbar() {
                             <span className="font-semibold text-slate-950 dark:text-slate-50">${balance.toFixed(2)}</span>
                           </Link>
                           <Link to="/wallet/top-up" onClick={() => setAccountOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900">Top Up</Link>
-                          <button onClick={handleLogout} className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">Sign Out</button>
+                          <button onClick={handleLogout} className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">Logout</button>
                         </>
                       )}
                     </div>
@@ -73,7 +82,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {user?.role === 'user' && (
+      {user?.role === 'normal_user' && (
         <div className="border-t border-slate-200/70 bg-white/70 dark:border-slate-800 dark:bg-slate-950/70">
           <div className="max-w-7xl mx-auto px-4 py-2 sm:px-6 lg:px-8">
             <MarketplaceNav compact />
@@ -85,7 +94,7 @@ export default function Navbar() {
         <div className="md:hidden border-t border-slate-200/80 bg-white/95 px-4 py-4 space-y-2 shadow-xl shadow-slate-900/5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
           <SearchBar />
           {!user && <Link to="/browse" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => setOpen(false)}>Browse Auctions</Link>}
-          {user ? <><div className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900 dark:bg-slate-900 dark:text-slate-100">{accountLabel} {user.role === 'admin' && <span className="ml-2 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] text-accent-700 dark:bg-accent-950 dark:text-accent-300">ADMIN</span>}</div>{user.role === 'admin' ? <button className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50" onClick={handleLogout}>Logout</button> : <><Link to="/wallet" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => setOpen(false)}>Balance: ${balance.toFixed(2)}</Link><Link to="/wallet/top-up" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => setOpen(false)}>Top Up</Link><button className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50" onClick={handleLogout}>Sign Out</button></>}</> : <><Link to="/login" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => setOpen(false)}>Log In</Link><Link to="/register" className="block rounded-xl px-3 py-2 text-sm font-semibold text-accent-700 hover:bg-accent-50 dark:text-accent-300 dark:hover:bg-accent-950/40" onClick={() => setOpen(false)}>Register</Link></>}
+          {user ? <><div className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900 dark:bg-slate-900 dark:text-slate-100">{accountLabel} {user.role === 'admin' && <span className="ml-2 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] text-accent-700 dark:bg-accent-950 dark:text-accent-300">ADMIN</span>}</div>{user.role === 'admin' ? <button className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50" onClick={handleLogout}>Logout</button> : <><Link to="/wallet" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => setOpen(false)}>Balance: ${balance.toFixed(2)}</Link><Link to="/wallet/top-up" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => setOpen(false)}>Top Up</Link><button className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50" onClick={handleLogout}>Logout</button></>}</> : <><Link to="/login" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900" onClick={() => setOpen(false)}>Log In</Link><Link to="/register" className="block rounded-xl px-3 py-2 text-sm font-semibold text-accent-700 hover:bg-accent-50 dark:text-accent-300 dark:hover:bg-accent-950/40" onClick={() => setOpen(false)}>Register</Link></>}
         </div>
       )}
     </nav>
