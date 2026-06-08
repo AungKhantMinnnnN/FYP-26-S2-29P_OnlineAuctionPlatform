@@ -30,7 +30,7 @@ class RegisterRequest(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     bio: Optional[str] = None
-    role: str
+    role: Optional[str] = "user"
 
 class UserProfileResponse(BaseModel):
     full_name: str

@@ -1,6 +1,7 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
+from app.api.v1.endpoints import bids
 from app.core.config import settings
 from app.core.logger import setup_logging
 
@@ -24,16 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=f"/{settings.API_VERSION}/bids")
-
-@app.websocket("/ws/{listing_id}")
-async def websocket_endpoint(websocket: WebSocket, listing_id: str):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await websocket.send_text(f"Bid update for {listing_id}: {data}")
-    except WebSocketDisconnect:
-        pass
+app.include_router(bids.router)  # Register bids router at root for /ws/{listing_id} and other root paths
 
 @app.get("/")
 async def root():
