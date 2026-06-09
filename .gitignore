@@ -49,3 +49,4 @@ logs
 
 # React
 node_modules
+/WireFrame/Kimi/node_modules
