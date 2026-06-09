@@ -3,7 +3,14 @@ import { useParams } from 'react-router-dom'
 import DataTable from '../components/DataTable'
 import SectionHeader from '../components/SectionHeader'
 import StatusBadge from '../components/StatusBadge'
-import { auctions, categories, users, bids, adminCases, auditLogs } from '../data/mockData'
+
+// TODO: Replace with actual data from backend
+const auctions: any[] = []
+const categories: any[] = []
+const users: any[] = []
+const bids: any[] = []
+const adminCases: any[] = []
+const auditLogs: any[] = []
 
 const titleMap: Record<string, string> = {
   users: 'User Management',

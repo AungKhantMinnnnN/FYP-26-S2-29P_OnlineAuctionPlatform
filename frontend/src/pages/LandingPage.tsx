@@ -6,7 +6,9 @@ import type { AuctionListing } from '../api/auctionsApi'
 import SearchBar from '../components/SearchBar'
 import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
-import { categories } from '../data/mockData'
+
+// TODO: Replace with actual data from backend
+const categories: string[] = []
 
 export default function LandingPage() {
   const { data: auctionsData, isLoading } = useQuery({

@@ -5,7 +5,11 @@ import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
-import { sellerListings, soldItems, drafts } from '../data/mockData'
+
+// TODO: Replace with actual data from backend
+const sellerListings: any[] = []
+const soldItems: any[] = []
+const drafts: any[] = []
 
 export default function SellerDashboardPage() {
   return (
@@ -21,10 +25,10 @@ export default function SellerDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <DashboardStatCard title="Active Listings" value={sellerListings.length} icon={Package} />
-        <DashboardStatCard title="Total Sales" value={soldItems.length} icon={DollarSign} />
-        <DashboardStatCard title="Revenue" value="$1,240.00" icon={BarChart3} />
-        <DashboardStatCard title="Avg. Sell Price" value="$310.00" icon={Tag} />
+        <DashboardStatCard title="Active Listings" value={0} icon={Package} />
+        <DashboardStatCard title="Total Sales" value={0} icon={DollarSign} />
+        <DashboardStatCard title="Revenue" value="$0.00" icon={BarChart3} />
+        <DashboardStatCard title="Avg. Sell Price" value="$0.00" icon={Tag} />
       </div>
 
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">

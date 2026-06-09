@@ -5,12 +5,23 @@ import SectionHeader from '../components/SectionHeader'
 import AuctionCard from '../components/AuctionCard'
 import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
-import { currentUser, bidHistory, auctions, notifications, recentActivity } from '../data/mockData'
+import { useAuth } from '../context/AuthContext'
+
+// TODO: Replace with actual data from backend
+const bidHistory: any[] = []
+const auctions: any[] = []
+const notifications: any[] = []
+const recentActivity: any[] = []
 
 export default function UserDashboardPage() {
+  const { user } = useAuth()
+  
   const myBids = bidHistory.slice(0, 3)
   const recommended = auctions.filter(a => a.category === 'Electronics').slice(0, 3)
   const liveAuctions = auctions.filter(a => a.status === 'active').slice(0, 6)
+  
+  const balance = user?.balance ?? 0
+  const fullName = user?.username || user?.email || 'User'
 
   return (
     <div className="space-y-8">
@@ -19,7 +30,7 @@ export default function UserDashboardPage() {
           <div>
             <p className="mb-3 inline-flex rounded-full bg-accent-50 px-3 py-1 text-xs font-semibold text-accent-700 dark:bg-accent-950/40 dark:text-accent-300">Marketplace user</p>
             <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-slate-50">Find products and place bids</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">Welcome back, {currentUser.fullName}. Your main flow is browsing active auctions, checking product details, and bidding. Selling tools are available in the same user account from the navigation bar.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">Welcome back, {fullName}. Your main flow is browsing active auctions, checking product details, and bidding. Selling tools are available in the same user account from the navigation bar.</p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <Link to="/browse" className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-accent-700 dark:bg-accent-500 dark:text-slate-950 dark:hover:bg-accent-400">
                 <Search size={16} /> Browse Products
@@ -31,20 +42,22 @@ export default function UserDashboardPage() {
           </div>
           <div className="rounded-2xl bg-slate-50 p-5 dark:bg-slate-950/60">
             <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">Next bid starts from</p>
-            <p className="mt-2 text-4xl font-bold text-accent-700 dark:text-accent-300">${(liveAuctions[0].currentBid + liveAuctions[0].minIncrement).toFixed(2)}</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{liveAuctions[0].title}</p>
-            <Link to={`/auction/${liveAuctions[0].id}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 dark:bg-slate-100 dark:text-slate-950">
-              <Gavel size={16} /> Bid Now
-            </Link>
+            <p className="mt-2 text-4xl font-bold text-accent-700 dark:text-accent-300">${liveAuctions.length > 0 ? (liveAuctions[0].currentBid + liveAuctions[0].minIncrement).toFixed(2) : '0.00'}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{liveAuctions.length > 0 ? liveAuctions[0].title : 'No active auctions'}</p>
+            {liveAuctions.length > 0 && (
+              <Link to={`/auction/${liveAuctions[0].id}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 dark:bg-slate-100 dark:text-slate-950">
+                <Gavel size={16} /> Bid Now
+              </Link>
+            )}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <DashboardStatCard title="Active Bids" value={currentUser.bidsActive} icon={Gavel} trend="3 auctions" />
-        <DashboardStatCard title="Watchlist" value={currentUser.watchlistCount} icon={Heart} trend="2 ending soon" />
-        <DashboardStatCard title="Balance" value={`$${currentUser.balance.toFixed(2)}`} icon={Wallet} trend="Available" />
-        <DashboardStatCard title="Wins" value={currentUser.wins} icon={Trophy} trend="This month" />
+        <DashboardStatCard title="Active Bids" value={0} icon={Gavel} trend="0 auctions" />
+        <DashboardStatCard title="Watchlist" value={0} icon={Heart} trend="0 ending soon" />
+        <DashboardStatCard title="Balance" value={`$${balance.toFixed(2)}`} icon={Wallet} trend="Available" />
+        <DashboardStatCard title="Wins" value={0} icon={Trophy} trend="This month" />
       </div>
 
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">

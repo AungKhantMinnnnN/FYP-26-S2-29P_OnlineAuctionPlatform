@@ -5,7 +5,11 @@ import SelectField from '../components/SelectField'
 import TextAreaField from '../components/TextAreaField'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
-import { categories, conditions, biddingTypes } from '../data/mockData'
+
+// TODO: Replace with actual data from backend
+const categories: string[] = []
+const conditions: string[] = []
+const biddingTypes: string[] = []
 
 export default function ListingFormPage() {
   const [images] = useState<(null | string)[]>([null, null, null, null])

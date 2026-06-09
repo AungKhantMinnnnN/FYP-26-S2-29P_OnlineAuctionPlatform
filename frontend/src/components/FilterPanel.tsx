@@ -1,6 +1,9 @@
 import React, { useState } from 'react'
 import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
-import { categories, conditions } from '../data/mockData'
+
+// TODO: Replace with actual data from backend
+const categories: string[] = []
+const conditions: string[] = []
 
 interface FilterPanelProps {
   className?: string

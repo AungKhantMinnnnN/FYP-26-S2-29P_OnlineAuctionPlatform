@@ -3,7 +3,19 @@ import DashboardStatCard from '../components/DashboardStatCard'
 import SectionHeader from '../components/SectionHeader'
 import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
-import { adminStats, adminUsers, listingModeration, caseQueue, auditLogs, categories } from '../data/mockData'
+
+// TODO: Replace with actual data from backend
+const adminStats = {
+  totalUsers: 0,
+  activeAuctions: 0,
+  pendingModeration: 0,
+  openCases: 0
+}
+const adminUsers: any[] = []
+const listingModeration: any[] = []
+const caseQueue: any[] = []
+const auditLogs: any[] = []
+const categories: any[] = []
 
 export default function AdminDashboardPage() {
   return (

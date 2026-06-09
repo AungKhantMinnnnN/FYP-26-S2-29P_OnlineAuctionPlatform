@@ -6,25 +6,31 @@ import StatusBadge from '../components/StatusBadge'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
 import AuctionCard from '../components/AuctionCard'
-import { auctions } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
 
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const auction = auctions.find((a) => String(a.id) === String(id)) || auctions[0]
+  // TODO: Replace with actual backend fetch
+  const auction: any = null
+
   
   const { user, adjustBalance } = useAuth()
-  const [currentBid, setCurrentBid] = useState(auction.currentBid)
-  const [bidsPlaced, setBidsPlaced] = useState(auction.bids)
-  const [bidHistory, setBidHistory] = useState(auction.bidHistory)
+  const [currentBid, setCurrentBid] = useState(auction?.currentBid || 0)
+  const [bidsPlaced, setBidsPlaced] = useState(auction?.bids || 0)
+  const [bidHistory, setBidHistory] = useState<any[]>(auction?.bidHistory || [])
   const [bidAmount, setBidAmount] = useState('')
   const [bidMessage, setBidMessage] = useState('')
   const [bidError, setBidError] = useState('')
   const [watched, setWatched] = useState(false)
   
-  const related = auctions.filter((a) => String(a.id) !== String(auction.id) && a.category === auction.category).slice(0, 3)
-  const minimumBid = useMemo(() => Number((currentBid + auction.minIncrement).toFixed(2)), [auction.minIncrement, currentBid])
+  // TODO: Replace with actual backend fetch
+  const related: any[] = []
+  const minimumBid = useMemo(() => auction ? Number((currentBid + auction.minIncrement).toFixed(2)) : 0, [auction, currentBid])
   const balance = user?.balance ?? 0
+
+  if (!auction) {
+    return <div className="text-center py-20 text-slate-500">Loading auction details or not found...</div>
+  }
 
   const handleBid = (e: React.FormEvent) => {
     e.preventDefault()

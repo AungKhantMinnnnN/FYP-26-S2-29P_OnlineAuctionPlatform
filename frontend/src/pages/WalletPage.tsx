@@ -5,7 +5,15 @@ import DataTable from '../components/DataTable'
 import PrimaryButton from '../components/PrimaryButton'
 import SectionHeader from '../components/SectionHeader'
 import StatusBadge from '../components/StatusBadge'
-import { WalletTransactions, type WalletTransactionItem } from '../data/mockData'
+export interface WalletTransactionItem {
+  id: string;
+  user_id: string;
+  transaction_type: 'top-up' | 'bid-hold' | 'refund' | 'withdrawal' | string;
+  amount: number;
+  status: 'pending' | 'completed' | 'failed' | string;
+  method: string;
+  created_at: string;
+}
 import { useAuth } from '../context/AuthContext'
 
 interface WalletPageProps {
@@ -22,22 +30,19 @@ export default function WalletPage({ mode }: WalletPageProps) {
   const balance = user?.balance ?? 0
   
   const transactions = useMemo(() => {
-    const matchedMock = WalletTransactions.filter(
-      (transaction) => String(transaction.UserID) === String(userId)
-    )
-    return [...localTransactions, ...matchedMock]
+    return [...localTransactions]
   }, [localTransactions, userId])
 
   const totalTopUps = useMemo(() => {
     return transactions
-      .filter((transaction) => transaction.TransactionType === 'top-up' && transaction.TransactionStatus === 'completed')
-      .reduce((sum, transaction) => sum + transaction.Amount, 0)
+      .filter((transaction) => transaction.transaction_type === 'top-up' && transaction.status === 'completed')
+      .reduce((sum, transaction) => sum + transaction.amount, 0)
   }, [transactions])
 
   const pendingAmount = useMemo(() => {
     return transactions
-      .filter((transaction) => transaction.TransactionStatus === 'pending')
-      .reduce((sum, transaction) => sum + Math.abs(transaction.Amount), 0)
+      .filter((transaction) => transaction.status === 'pending')
+      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0)
   }, [transactions])
 
   const handleTopUp = (e: React.FormEvent) => {
@@ -51,13 +56,13 @@ export default function WalletPage({ mode }: WalletPageProps) {
     adjustBalance(value)
     setLocalTransactions((items) => [
       {
-        TransactionID: `local-${Date.now()}`,
-        UserID: typeof userId === 'number' ? userId : 1, // fallback to number for mock schema compatibility if needed
-        TransactionType: 'top-up',
-        Amount: value,
-        TransactionStatus: 'completed',
-        Method: 'Wireframe Card',
-        Created_at: 'just now',
+        id: `local-${Date.now()}`,
+        user_id: userId,
+        transaction_type: 'top-up',
+        amount: value,
+        status: 'completed',
+        method: 'Wireframe Card',
+        created_at: 'just now',
       },
       ...items,
     ])
@@ -103,11 +108,11 @@ export default function WalletPage({ mode }: WalletPageProps) {
         <DataTable
           headers={['Type', 'Amount', 'Method', 'Status', 'Date']}
           rows={transactions.map((transaction) => [
-            <span key={`${transaction.TransactionID}-type`} className="inline-flex items-center gap-2 font-medium capitalize"><ShieldCheck size={15} className="text-accent-600 dark:text-accent-300" /> {transaction.TransactionType.replace('-', ' ')}</span>,
-            <span key={`${transaction.TransactionID}-amount`} className={transaction.Amount >= 0 ? 'font-semibold text-emerald-600 dark:text-emerald-300' : 'font-semibold text-red-600 dark:text-red-300'}>{transaction.Amount >= 0 ? '+' : '-'}${Math.abs(transaction.Amount).toFixed(2)}</span>,
-            transaction.Method,
-            <StatusBadge key={`${transaction.TransactionID}-status`} status={transaction.TransactionStatus} />,
-            transaction.Created_at,
+            <span key={`${transaction.id}-type`} className="inline-flex items-center gap-2 font-medium capitalize"><ShieldCheck size={15} className="text-accent-600 dark:text-accent-300" /> {transaction.transaction_type.replace('-', ' ')}</span>,
+            <span key={`${transaction.id}-amount`} className={transaction.amount >= 0 ? 'font-semibold text-emerald-600 dark:text-emerald-300' : 'font-semibold text-red-600 dark:text-red-300'}>{transaction.amount >= 0 ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}</span>,
+            transaction.method,
+            <StatusBadge key={`${transaction.id}-status`} status={transaction.status} />,
+            transaction.created_at,
           ])}
         />
       </div>

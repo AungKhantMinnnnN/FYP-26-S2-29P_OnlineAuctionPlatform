@@ -32,9 +32,9 @@ export default function Navbar() {
             <span className="font-bold text-lg tracking-tight text-slate-950 dark:text-slate-50">AuctionHub</span>
           </Link>
 
-          <div className="hidden md:flex flex-1 max-w-md mx-8">
+          {/* <div className="hidden md:flex flex-1 max-w-md mx-8">
             <SearchBar />
-          </div>
+          </div> */}
 
           <div className="hidden md:flex items-center gap-1">
             {role !== 'admin' && (

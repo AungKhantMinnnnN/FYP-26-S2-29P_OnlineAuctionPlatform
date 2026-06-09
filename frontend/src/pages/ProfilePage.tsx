@@ -4,9 +4,10 @@ import FormInput from '../components/FormInput'
 import TextAreaField from '../components/TextAreaField'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
-import { currentUser } from '../data/mockData'
+import { useAuth } from '../context/AuthContext'
 
 export default function ProfilePage() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('profile')
 
   return (
@@ -51,13 +52,13 @@ export default function ProfilePage() {
           {tab === 'profile' && (
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormInput label="Full Name" defaultValue={currentUser.fullName} />
-                <FormInput label="Username" defaultValue={currentUser.username} />
+                <FormInput label="Full Name" defaultValue={user?.profile?.full_name || ''} />
+                <FormInput label="Username" defaultValue={user?.username || ''} />
               </div>
-              <FormInput label="Email" type="email" defaultValue={currentUser.email} />
-              <FormInput label="Phone" defaultValue={currentUser.phone} />
-              <FormInput label="Address" defaultValue={currentUser.address} />
-              <TextAreaField label="Bio" defaultValue={currentUser.bio} rows={3} />
+              <FormInput label="Email" type="email" defaultValue={user?.email || ''} />
+              <FormInput label="Phone" defaultValue={user?.profile?.phone || ''} />
+              <FormInput label="Address" defaultValue={user?.profile?.address || ''} />
+              <TextAreaField label="Bio" defaultValue={user?.profile?.bio || ''} rows={3} />
               <div className="flex justify-end">
                 <PrimaryButton type="submit">Save Changes</PrimaryButton>
               </div>

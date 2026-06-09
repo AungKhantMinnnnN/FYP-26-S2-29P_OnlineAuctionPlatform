@@ -1,7 +1,9 @@
 import SectionHeader from '../components/SectionHeader'
 import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
-import { bidHistory } from '../data/mockData'
+
+// TODO: Replace with actual data from backend
+const bidHistory: any[] = []
 
 export default function BidHistoryPage() {
   return (

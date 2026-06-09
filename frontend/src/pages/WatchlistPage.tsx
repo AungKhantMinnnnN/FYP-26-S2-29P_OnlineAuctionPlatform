@@ -4,8 +4,11 @@ import SectionHeader from '../components/SectionHeader'
 import AuctionCard from '../components/AuctionCard'
 import EmptyState from '../components/EmptyState'
 import SecondaryButton from '../components/SecondaryButton'
-import { auctions, WatchList } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
+
+// TODO: Replace with actual data from backend
+const auctions = []
+const WatchList = []
 
 export default function WatchlistPage() {
   const { user } = useAuth()
