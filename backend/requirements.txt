@@ -13,3 +13,4 @@ redis==5.0.1
 celery==5.3.6
 asyncpg==0.29.0
 greenlet==3.0.3
+minio==7.1.0
