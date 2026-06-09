@@ -16,6 +16,7 @@ interface AuctionType {
   watchers: number
   status: string
   description: string
+  image?: string
 }
 
 interface AuctionCardProps {
@@ -27,7 +28,11 @@ export default function AuctionCard({ auction, showWatchlist = true }: AuctionCa
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent-200 hover:shadow-soft dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-accent-800">
       <div className="relative h-40 bg-gradient-to-br from-slate-100 via-slate-50 to-accent-50 flex items-center justify-center dark:from-slate-800 dark:via-slate-900 dark:to-accent-950/30">
-        <Image size={34} className="text-slate-300 transition-transform group-hover:scale-110 dark:text-slate-600" />
+        {auction.image ? (
+          <img src={auction.image} alt={auction.title} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300" />
+        ) : (
+          <Image size={34} className="text-slate-300 transition-transform group-hover:scale-110 dark:text-slate-600" />
+        )}
         <div className="absolute top-2 left-2">
           <StatusBadge status={auction.status} />
         </div>

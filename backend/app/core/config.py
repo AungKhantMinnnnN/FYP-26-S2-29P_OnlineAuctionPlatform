@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     REDIS_URL: str
     
+    # S3 / MinIO
+    S3_ENDPOINT: str
+    S3_ACCESS_KEY: str
+    S3_SECRET_KEY: str
+    S3_BUCKET_ASSETS: str
+    
     # Security
     JWT_SECRET: str
     ALGORITHM: str = "HS256"

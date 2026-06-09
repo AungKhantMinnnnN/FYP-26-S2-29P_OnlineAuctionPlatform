@@ -1,13 +1,38 @@
 import { Link } from 'react-router-dom'
 import { Search, Gavel, Zap, ChevronRight } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { getAuctions } from '../api/auctionsApi'
+import type { AuctionListing } from '../api/auctionsApi'
 import SearchBar from '../components/SearchBar'
 import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
-import { auctions, categories } from '../data/mockData'
+import { categories } from '../data/mockData'
 
 export default function LandingPage() {
-  const featured = auctions.slice(0, 4)
-  const trending = auctions.slice(2, 6)
+  const { data: auctionsData, isLoading } = useQuery({
+    queryKey: ['auctions', 'landing'],
+    queryFn: () => getAuctions({ size: 20 })
+  })
+
+  const mapToCardType = (listing: AuctionListing) => ({
+    id: listing.id,
+    title: listing.title,
+    category: 'Other', // We'll need a category map later, fallback for now
+    condition: listing.condition,
+    currentBid: listing.current_price || 0,
+    startingPrice: listing.starting_price || 0,
+    endTime: new Date(listing.end_time),
+    seller: { name: 'Seller', rating: 5.0 },
+    bids: 0,
+    watchers: 0,
+    status: listing.status,
+    description: listing.description || '',
+    image: listing.images.length > 0 ? listing.images[0].image_url : undefined
+  })
+
+  const auctionsList = auctionsData ? auctionsData.items.map(mapToCardType) : []
+  const featured = auctionsList.slice(0, 10)
+  const trending = auctionsList.slice(10, 20)
 
   return (
     <div className="overflow-hidden">
@@ -36,18 +61,26 @@ export default function LandingPage() {
       <section className="py-12 bg-slate-50 dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <SectionHeader title="Featured Auctions" actionText="View all" actionTo="/browse" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {featured.map(a => <AuctionCard key={a.id} auction={a} />)}
-          </div>
+          {isLoading ? (
+            <div className="text-center py-10 text-slate-500">Loading auctions...</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {featured.length > 0 ? featured.map(a => <AuctionCard key={a.id} auction={a} />) : <div className="col-span-4 text-center text-slate-500">No featured auctions found.</div>}
+            </div>
+          )}
         </div>
       </section>
 
       <section className="py-12 bg-white border-y border-slate-200/80 dark:border-slate-800 dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <SectionHeader title="Trending Items" subtitle="Most bid-on auctions in the last 24 hours" actionText="See trends" actionTo="/browse" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {trending.map(a => <AuctionCard key={a.id} auction={a} />)}
-          </div>
+          {isLoading ? (
+            <div className="text-center py-10 text-slate-500">Loading auctions...</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {trending.length > 0 ? trending.map(a => <AuctionCard key={a.id} auction={a} />) : <div className="col-span-4 text-center text-slate-500">No trending items right now.</div>}
+            </div>
+          )}
         </div>
       </section>
 

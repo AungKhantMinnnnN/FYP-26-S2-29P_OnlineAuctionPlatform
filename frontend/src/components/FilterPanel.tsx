@@ -6,21 +6,29 @@ interface FilterPanelProps {
   className?: string
 }
 
+interface SectionProps {
+  title: string
+  children: React.ReactNode
+  isOpen: boolean
+  onToggle: () => void
+}
+
+const Section = ({ title, children, isOpen, onToggle }: SectionProps) => (
+  <div className="border-b border-slate-200/80 last:border-0 dark:border-slate-800">
+    <button
+      onClick={onToggle}
+      className="flex items-center justify-between w-full py-3 text-sm font-semibold text-slate-900 transition-colors hover:text-accent-700 dark:text-slate-100 dark:hover:text-accent-300"
+    >
+      {title}
+      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+    </button>
+    {isOpen && <div className="pb-4">{children}</div>}
+  </div>
+)
+
 export default function FilterPanel({ className = '' }: FilterPanelProps) {
   const [open, setOpen] = useState<Record<string, boolean>>({ category: true, condition: true, price: true })
 
-  const Section = ({ title, id, children }: { title: string; id: string; children: React.ReactNode }) => (
-    <div className="border-b border-slate-200/80 last:border-0 dark:border-slate-800">
-      <button
-        onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))}
-        className="flex items-center justify-between w-full py-3 text-sm font-semibold text-slate-900 transition-colors hover:text-accent-700 dark:text-slate-100 dark:hover:text-accent-300"
-      >
-        {title}
-        {open[id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </button>
-      {open[id] && <div className="pb-4">{children}</div>}
-    </div>
-  )
 
   return (
     <div className={`rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 ${className}`}>
@@ -31,7 +39,7 @@ export default function FilterPanel({ className = '' }: FilterPanelProps) {
         <h3 className="font-semibold text-slate-950 dark:text-slate-50">Filters</h3>
       </div>
 
-      <Section title="Category" id="category">
+      <Section title="Category" isOpen={open['category']} onToggle={() => setOpen(o => ({...o, category: !o.category}))}>
         <div className="space-y-2">
           {categories.map((c) => (
             <label key={c} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/70">
@@ -42,7 +50,7 @@ export default function FilterPanel({ className = '' }: FilterPanelProps) {
         </div>
       </Section>
 
-      <Section title="Condition" id="condition">
+      <Section title="Condition" isOpen={open['condition']} onToggle={() => setOpen(o => ({...o, condition: !o.condition}))}>
         <div className="space-y-2">
           {conditions.map((c) => (
             <label key={c} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/70">
@@ -53,7 +61,7 @@ export default function FilterPanel({ className = '' }: FilterPanelProps) {
         </div>
       </Section>
 
-      <Section title="Price Range" id="price">
+      <Section title="Price Range" isOpen={open['price']} onToggle={() => setOpen(o => ({...o, price: !o.price}))}>
         <div className="flex items-center gap-2">
           <input
             type="number"

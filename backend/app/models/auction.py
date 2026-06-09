@@ -70,8 +70,8 @@ class User(Base):
     status = Column(Enum(UserStatus, name="user_status"), default=UserStatus.active, nullable=False)
     balance = Column(Float, default=0.0, nullable=False)
     avatar_key = Column(String)
-    created_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
     profile = relationship("UserProfiles", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
 
@@ -84,7 +84,7 @@ class UserProfiles(Base):
     phone = Column(String, nullable=True)
     address = Column(String)
     bio = Column(String)
-    updated_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
     user = relationship("User", back_populates="profile")
 
@@ -96,7 +96,7 @@ class Categories(Base):
     slug = Column(String, unique=True, nullable=False)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Listing(Base):
     __tablename__ = "listings"
@@ -115,8 +115,10 @@ class Listing(Base):
     status = Column(Enum(ListingStatus, name="listing_status"), default=ListingStatus.draft, nullable=False)
     start_time = Column(DateTime(timezone=True), nullable=False)
     end_time = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    images = relationship("ListingImages", back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
 
 class ListingImages(Base):
     __tablename__ = "listing_images"
@@ -126,7 +128,14 @@ class ListingImages(Base):
     s3_key = Column(String, nullable=False)
     sort_order = Column(Integer, default=0, nullable=False)
     is_primary = Column(Boolean, default=False, nullable=False)
-    uploaded_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    uploaded_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    listing = relationship("Listing", back_populates="images")
+
+    @property
+    def image_url(self):
+        from app.core.config import settings
+        return f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET_ASSETS}/{self.s3_key}"
 
 class Bid(Base):
     __tablename__ = "bids"
@@ -136,7 +145,7 @@ class Bid(Base):
     bidder_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     amount = Column(Float, nullable=False)
     status = Column(Enum(BidStatus, name="bid_status"), default=BidStatus.accepted, nullable=False)
-    placed_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    placed_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class AuctionResult(Base):
     __tablename__ = "auction_results"
@@ -146,7 +155,7 @@ class AuctionResult(Base):
     winner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     winning_bid_id = Column(UUID(as_uuid=True), ForeignKey("bids.id"), nullable=True)
     final_price = Column(Float, nullable=False)
-    ended_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    ended_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Watchlist(Base):
     __tablename__ = "watchlist"
@@ -154,7 +163,7 @@ class Watchlist(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
-    added_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    added_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class WalletTransaction(Base):
     __tablename__ = "wallet_transactions"
@@ -164,7 +173,7 @@ class WalletTransaction(Base):
     amount = Column(Float, nullable=False)
     type = Column(Enum(TransactionType, name="transaction_type"), nullable=False)
     reference_id = Column(UUID(as_uuid=True))
-    created_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -174,7 +183,7 @@ class Notification(Base):
     title = Column(String, nullable=False)
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Dispute(Base):
     __tablename__ = "disputes"
@@ -184,7 +193,7 @@ class Dispute(Base):
     reporter_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     reason = Column(Text, nullable=False)
     status = Column(Enum(DisputeStatus, name="dispute_status"), default=DisputeStatus.open, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     resolved_at = Column(DateTime(timezone=True))
 
 class AdminLog(Base):
@@ -195,7 +204,7 @@ class AdminLog(Base):
     action = Column(String, nullable=False)
     target_id = Column(UUID(as_uuid=True))
     details = Column(Text)
-    created_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class UserInteraction(Base):
     __tablename__ = "user_interactions"
@@ -204,5 +213,5 @@ class UserInteraction(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
     action = Column(Enum(InteractionAction, name="interaction_action"), nullable=False)
-    occurred_at = Column(DateTime(timezone=True), default=datetime.timezone.utc, nullable=False)
+    occurred_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 #endregion
