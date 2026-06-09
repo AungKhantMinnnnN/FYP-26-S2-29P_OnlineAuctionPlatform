@@ -1,20 +1,38 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 class Settings(BaseSettings):
+    # API Gateway Configuration
     PROJECT_NAME: str = "Online Auction Platform - API Gateway"
     API_VERSION: str = "v1.0.0"
-    DATABASE_URL: str = "postgresql://user:password@db:5432/auction_db"
-    REDIS_URL: str = "redis://redis:6379/0"
-    JWT_SECRET: str = "c32a0d43f2ea872d7a671f444c89eb5f73f45be7e3553385c1d02a04e81b3e52066393e2b8d71d542b84a51db532c5f27f71512b48e06a34cfc76cba22304ce3"
+    
+    # Database and Redis
+    DATABASE_URL: str
+    REDIS_URL: str
+    
+    # S3 / MinIO
+    S3_ENDPOINT: str
+    S3_ACCESS_KEY: str
+    S3_SECRET_KEY: str
+    S3_BUCKET_ASSETS: str
+    
+    # Security
+    JWT_SECRET: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-
+    
+    # Logging
     LOG_DIR: str = "logs/backend_logs"
-
+    
+    # Microservices URLs
     BIDDING_SERVICE_URL: str = "http://bidding-engine:8001"
     RECOMMENDATION_SERVICE_URL: str = "http://recommendation-engine:8002"
 
-    class Config:
-        env_file = ".env"
+    # Load from root .env or local .env
+    model_config = SettingsConfigDict(
+        env_file=(".env", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), ".env")),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 settings = Settings()

@@ -41,6 +41,7 @@ Thumbs.db
 
 # Project Specific
 .gemini/
+.antigravitycli
 backend/alembic/versions/*.pyc
 recommendation-engine/ml/model_store/*.pkl
 
