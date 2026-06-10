@@ -27,7 +27,16 @@ export default function AuctionDetailPage() {
   const [watched, setWatched] = useState(false)
   
   const related = []
-  const minimumBid = useMemo(() => auction ? Number((currentBid + (auction.minIncrement || 1)).toFixed(2)) : 0, [auction, currentBid])
+  const minimumBid = useMemo(() => {
+    if (!auction) return 0;
+    if (auction.bidding_type === 'public') {
+      return Number((currentBid + 1.0).toFixed(2));
+    }
+    if (auction.bidding_type === 'low_start' && bidsPlaced === 0) {
+      return Number(auction.starting_price.toFixed(2));
+    }
+    return bidsPlaced === 0 ? Number(auction.starting_price.toFixed(2)) : Number((currentBid + (auction.minIncrement || 1)).toFixed(2));
+  }, [auction, currentBid, bidsPlaced])
   const balance = user?.balance ?? 0
 
   useEffect(() => {
@@ -215,13 +224,18 @@ export default function AuctionDetailPage() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sticky top-24 dark:border-slate-800 dark:bg-slate-900/70">
             <div className="mb-4">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Current highest bid</p>
+              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">
+                {auction.bidding_type === 'low_start' && bidsPlaced === 0 ? 'Starting price' : 'Current highest bid'}
+              </p>
               <p className="text-3xl font-bold text-slate-950 dark:text-slate-50">${currentBid.toFixed(2)}</p>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Minimum next bid</p>
+              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">
+                {auction.bidding_type === 'public' ? 'Minimum required bid' : 'Minimum next bid'}
+              </p>
               <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">
                 ${minimumBid.toFixed(2)}
+                {auction.bidding_type === 'public' && <span className="text-sm text-slate-500 font-normal ml-2">(Any higher amount)</span>}
               </p>
             </div>
             {user && (
@@ -241,7 +255,7 @@ export default function AuctionDetailPage() {
               <input
                 type="number"
                 min={minimumBid}
-                step={auction.minIncrement}
+                step={auction.bidding_type === 'public' ? 1.0 : auction.minIncrement}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={`Enter at least $${minimumBid.toFixed(2)}`}

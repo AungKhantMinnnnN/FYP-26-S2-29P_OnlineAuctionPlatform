@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import WebSocket
 
-from app.models.auction import Listing, User, Bid, WalletTransaction, ListingStatus, BidStatus, TransactionType
+from app.models.auction import Listing, User, Bid, WalletTransaction, ListingStatus, BidStatus, TransactionType, BiddingType
 from app.core.redis import redis_client
 
 logger = logging.getLogger("BiddingEngine")
@@ -72,13 +72,27 @@ class BiddingService:
             logger.error("Seller cannot bid on their own listing")
             return {"success": False, "error": "Seller cannot bid on their own listing"}
 
-        # 2. Check if amount is high enough
-        min_required = listing.current_price + listing.min_increment if listing.current_price > 0 else listing.starting_price
+        # 2. Fetch the previous highest bid (to check state and eventually release funds)
+        result = await db.execute(
+            select(Bid).where(Bid.listing_id == listing_uuid, Bid.status == BidStatus.accepted)
+            .order_by(Bid.amount.desc()).limit(1)
+        )
+        previous_highest_bid = result.scalars().first()
+        has_bids = previous_highest_bid is not None
+
+        # 3. Check if amount is high enough
+        if listing.bidding_type == BiddingType.public:
+            min_required = listing.current_price + 1.0 # Implement $1 as minimum increment for public auctions
+        elif listing.bidding_type == BiddingType.low_start and not has_bids:
+            min_required = listing.starting_price # In low_start auction, any price can be the lowest price until someone else has already placed a bet
+        else:
+            min_required = listing.current_price + listing.min_increment if has_bids else listing.starting_price
+
         if amount < min_required:
             logger.error(f"Listing ID: [{listing_id}] Bid amount must be at least {min_required:.2f}")
             return {"success": False, "error": f"Bid amount must be at least {min_required:.2f}"}
 
-        # 3. Fetch current user (bidder)
+        # 4. Fetch current user (bidder)
         result = await db.execute(select(User).where(User.id == user_uuid))
         current_user = result.scalars().first()
         if not current_user:
@@ -88,13 +102,6 @@ class BiddingService:
         if current_user.balance < amount:
             logger.error("Insufficient wallet balance")
             return {"success": False, "error": "Insufficient wallet balance"}
-
-        # 4. Find the previous highest bid (to release their held funds)
-        result = await db.execute(
-            select(Bid).where(Bid.listing_id == listing_uuid, Bid.status == BidStatus.accepted)
-            .order_by(Bid.amount.desc()).limit(1)
-        )
-        previous_highest_bid = result.scalars().first()
 
         logger.info(f"Previous highest bid: {previous_highest_bid}")
 
