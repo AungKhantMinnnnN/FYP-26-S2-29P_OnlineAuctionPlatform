@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
+from uuid import UUID
 from app.db.session import get_db
-from app.models.auction import Listing, ListingStatus
-from app.schemas.auction import PaginatedAuctionResponse
+from app.models.auction import Listing, ListingStatus, Bid
+from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse
 
 router = APIRouter()
 
@@ -17,7 +18,10 @@ async def get_auctions(
     listing_status: Optional[ListingStatus] = Query(None, alias="status"),
     search: Optional[str] = None
 ):
-    query = select(Listing).options(selectinload(Listing.images))
+    query = select(Listing).options(
+        selectinload(Listing.images),
+        selectinload(Listing.seller)
+    )
     
     if listing_status:
         query = query.where(Listing.status == listing_status)
@@ -45,3 +49,27 @@ async def get_auctions(
         "size": size,
         "pages": pages
     }
+
+@router.get("/{id}", response_model=AuctionListingResponse)
+async def get_auction(id: UUID, db: AsyncSession = Depends(get_db)):
+    query = select(Listing).options(
+        selectinload(Listing.images),
+        selectinload(Listing.seller)
+    ).where(Listing.id == id)
+    
+    result = await db.execute(query)
+    listing = result.scalars().first()
+    
+    if not listing:
+        raise HTTPException(status_code=404, detail="Auction listing not found")
+        
+    return listing
+
+@router.get("/{id}/bids", response_model=List[BidResponse])
+async def get_auction_bids(id: UUID, db: AsyncSession = Depends(get_db)):
+    query = select(Bid).options(
+        selectinload(Bid.bidder)
+    ).where(Bid.listing_id == id).order_by(Bid.amount.desc())
+    
+    result = await db.execute(query)
+    return result.scalars().all()

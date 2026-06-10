@@ -119,6 +119,8 @@ class Listing(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
     images = relationship("ListingImages", back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
+    seller = relationship("User", foreign_keys=[seller_id])
+    bids = relationship("Bid", back_populates="listing")
 
 class ListingImages(Base):
     __tablename__ = "listing_images"
@@ -147,6 +149,9 @@ class Bid(Base):
     status = Column(Enum(BidStatus, name="bid_status"), default=BidStatus.accepted, nullable=False)
     placed_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
+    listing = relationship("Listing", back_populates="bids")
+    bidder = relationship("User", foreign_keys=[bidder_id])
+
 class AuctionResult(Base):
     __tablename__ = "auction_results"
 
@@ -172,7 +177,7 @@ class WalletTransaction(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     amount = Column(Float, nullable=False)
     type = Column(Enum(TransactionType, name="transaction_type"), nullable=False)
-    reference_id = Column(UUID(as_uuid=True))
+    reference = Column(String(255))
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Notification(Base):

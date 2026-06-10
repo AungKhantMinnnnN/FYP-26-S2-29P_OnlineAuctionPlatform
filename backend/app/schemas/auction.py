@@ -4,6 +4,24 @@ from datetime import datetime
 from uuid import UUID
 from app.models.auction import ItemConditions, BiddingType, ListingStatus
 
+class UserSellerResponse(BaseModel):
+    id: UUID
+    username: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class BidResponse(BaseModel):
+    id: UUID
+    listing_id: UUID
+    bidder_id: UUID
+    amount: float
+    status: str
+    placed_at: datetime
+    bidder: Optional[UserSellerResponse] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 class ListingImageResponse(BaseModel):
     id: UUID
     s3_key: str
@@ -32,6 +50,7 @@ class AuctionListingResponse(BaseModel):
     updated_at: datetime
     
     images: List[ListingImageResponse] = []
+    seller: Optional[UserSellerResponse] = None
 
     model_config = ConfigDict(from_attributes=True)
 
