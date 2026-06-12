@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     BIDDING_SERVICE_URL: str = "http://bidding-engine:8001"
     RECOMMENDATION_SERVICE_URL: str = "http://recommendation-engine:8002"
 
+    ALLOWED_ORIGINS: str = "http://localhost:5173"
+    
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+
     # Load from root .env or local .env
     model_config = SettingsConfigDict(
         env_file=(".env", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), ".env")),
