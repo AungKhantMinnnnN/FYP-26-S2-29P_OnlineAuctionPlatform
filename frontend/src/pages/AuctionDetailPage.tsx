@@ -43,8 +43,8 @@ export default function AuctionDetailPage() {
     const fetchAuction = async () => {
       try {
         const [listingRes, bidsRes] = await Promise.all([
-          apiClient.get(`/auctions/${id}`),
-          apiClient.get(`/auctions/${id}/bids`)
+          apiClient.get(`/auctions/get_auction/${id}`),
+          apiClient.get(`/auctions/get_auction_bids/${id}/bids`)
         ])
         const data = listingRes.data
         const bidsData = bidsRes.data

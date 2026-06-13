@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
     if (token) {
-      apiClient.get<User>('/auth/me', {
+      apiClient.get<User>('/auth/get_current_user', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.setItem('token', newToken);
       setToken(newToken);
       
-      const profileResponse = await apiClient.get<User>('/auth/me', {
+      const profileResponse = await apiClient.get<User>('/auth/get_current_user', {
         headers: {
           Authorization: `Bearer ${newToken}`
         }
@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUser = useCallback(async () => {
     if (token) {
       try {
-        const response = await apiClient.get<User>('/auth/me');
+        const response = await apiClient.get<User>('/auth/get_current_user');
         setUser(response.data);
       } catch (error) {
         console.error('Failed to refresh user profile:', error);

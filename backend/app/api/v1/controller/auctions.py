@@ -3,8 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
 from app.db.session import get_db
-from app.models.auction import ListingStatus
-from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse
+from app.models.auction import ListingStatus, User
+from app.api.deps import get_current_user
+from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate
 from app.services.auction_service import AuctionService
 
 router = APIRouter()
@@ -25,10 +26,32 @@ async def get_auctions(
         search=search
     )
 
-@router.get("/{id}", response_model=AuctionListingResponse)
+@router.post("/create_listing", response_model=AuctionListingResponse, status_code=status.HTTP_201_CREATED)
+async def create_listing(
+    listing_in: ListingCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await AuctionService.create_listing(db=db, user_id=current_user.id, listing_in=listing_in)
+
+@router.get("/get_user_listings", response_model=PaginatedAuctionResponse)
+async def get_user_listings(
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
+):
+    return await AuctionService.get_user_listings(
+        db=db,
+        user_id=current_user.id,
+        page=page,
+        size=size
+    )
+
+@router.get("get_auction/{id}", response_model=AuctionListingResponse)
 async def get_auction(id: UUID, db: AsyncSession = Depends(get_db)):
     return await AuctionService.get_auction(db=db, auction_id=id)
 
-@router.get("/{id}/bids", response_model=List[BidResponse])
+@router.get("get_auction_bids/{id}/bids", response_model=List[BidResponse])
 async def get_auction_bids(id: UUID, db: AsyncSession = Depends(get_db)):
     return await AuctionService.get_auction_bids(db=db, auction_id=id)

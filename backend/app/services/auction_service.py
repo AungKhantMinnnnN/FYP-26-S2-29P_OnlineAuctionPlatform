@@ -4,8 +4,10 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
+from datetime import datetime, timezone
 
 from app.models.auction import Listing, ListingStatus, Bid
+from app.schemas.auction import ListingCreate
 
 class AuctionService:
     @staticmethod
@@ -71,3 +73,58 @@ class AuctionService:
         
         result = await db.execute(query)
         return result.scalars().all()
+
+    @staticmethod
+    async def create_listing(db: AsyncSession, user_id: UUID, listing_in: ListingCreate) -> Listing:
+        listing = Listing(
+            seller_id=user_id,
+            title=listing_in.title,
+            description=listing_in.description,
+            condition=listing_in.condition,
+            bidding_type=listing_in.bidding_type,
+            starting_price=listing_in.starting_price,
+            current_price=listing_in.starting_price,
+            reserve_price=listing_in.reserve_price,
+            min_increment=listing_in.min_increment,
+            start_time=listing_in.start_time,
+            end_time=listing_in.end_time,
+            category_id=listing_in.category_id,
+            status=ListingStatus.active
+        )
+        db.add(listing)
+        await db.commit()
+        await db.refresh(listing)
+        return listing
+
+    @staticmethod
+    async def get_user_listings(
+        db: AsyncSession,
+        user_id: UUID,
+        page: int,
+        size: int
+    ) -> Dict[str, Any]:
+        query = select(Listing).options(
+            selectinload(Listing.images),
+            selectinload(Listing.seller)
+        ).where(Listing.seller_id == user_id)
+        
+        # Count total
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query)
+        
+        # Pagination
+        query = query.order_by(Listing.created_at.desc())
+        query = query.offset((page - 1) * size).limit(size)
+        
+        result = await db.execute(query)
+        listings = result.scalars().all()
+        
+        pages = (total + size - 1) // size if total > 0 else 0
+            
+        return {
+            "items": listings,
+            "total": total,
+            "page": page,
+            "size": size,
+            "pages": pages
+        }
