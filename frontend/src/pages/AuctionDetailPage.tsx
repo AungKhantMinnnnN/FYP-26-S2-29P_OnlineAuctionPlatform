@@ -76,7 +76,8 @@ export default function AuctionDetailPage() {
     const token = sessionStorage.getItem('token')
     if (!token) return
 
-    const wsUrl = `ws://localhost:8001/v1.0.0/bids/ws/${id}?token=${token}`
+    const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8001/v1.0.0/bids/ws'
+    const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${id}?token=${token}`
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onmessage = (event) => {
