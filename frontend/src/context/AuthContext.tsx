@@ -95,7 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newToken = response.data.access_token;
       sessionStorage.setItem('token', newToken);
       setToken(newToken);
-      
       const profileResponse = await apiClient.get<User>('/auth/get_current_user', {
         headers: {
           Authorization: `Bearer ${newToken}`

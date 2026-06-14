@@ -66,10 +66,10 @@ async def get_user_listings(
         size=size
     )
 
-@router.get("get_auction/{id}", response_model=AuctionListingResponse)
+@router.get("/get_auction/{id}", response_model=AuctionListingResponse)
 async def get_auction(id: UUID, db: AsyncSession = Depends(get_db)):
     return await AuctionService.get_auction(db=db, auction_id=id)
 
-@router.get("get_auction_bids/{id}/bids", response_model=List[BidResponse])
+@router.get("/get_auction_bids/{id}/bids", response_model=List[BidResponse])
 async def get_auction_bids(id: UUID, db: AsyncSession = Depends(get_db)):
     return await AuctionService.get_auction_bids(db=db, auction_id=id)
