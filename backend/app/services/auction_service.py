@@ -6,8 +6,11 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
-from app.models.auction import Listing, ListingStatus, Bid
+from app.models.auction import Listing, ListingStatus, Bid, ListingImages
 from app.schemas.auction import ListingCreate
+from app.core.storage import storage_service
+from fastapi import UploadFile
+import uuid
 
 class AuctionService:
     @staticmethod
@@ -128,3 +131,55 @@ class AuctionService:
             "size": size,
             "pages": pages
         }
+
+    @staticmethod
+    async def upload_listing_images(
+        db: AsyncSession,
+        user_id: UUID,
+        auction_id: UUID,
+        files: List[UploadFile]
+    ) -> List[ListingImages]:
+        # 1. Fetch listing
+        query = select(Listing).options(selectinload(Listing.images)).where(Listing.id == auction_id)
+        result = await db.execute(query)
+        listing = result.scalars().first()
+        
+        if not listing:
+            raise HTTPException(status_code=404, detail="Auction listing not found")
+            
+        if listing.seller_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to upload images for this listing")
+            
+        uploaded_images = []
+        current_images_count = len(listing.images)
+        
+        for index, file in enumerate(files):
+            # Generate unique object name
+            ext = file.filename.split('.')[-1] if '.' in file.filename else ''
+            unique_filename = f"{uuid.uuid4()}.{ext}"
+            s3_key = f"listings/{auction_id}/{unique_filename}"
+            
+            # Read file bytes
+            file_bytes = await file.read()
+            
+            # Upload to MinIO
+            storage_service.upload_file(file_bytes, s3_key, file.content_type)
+            
+            # Create DB record
+            is_primary = (current_images_count == 0 and index == 0)
+            sort_order = current_images_count + index
+            
+            listing_image = ListingImages(
+                listing_id=auction_id,
+                s3_key=s3_key,
+                sort_order=sort_order,
+                is_primary=is_primary
+            )
+            db.add(listing_image)
+            uploaded_images.append(listing_image)
+            
+        await db.commit()
+        for img in uploaded_images:
+            await db.refresh(img)
+            
+        return uploaded_images

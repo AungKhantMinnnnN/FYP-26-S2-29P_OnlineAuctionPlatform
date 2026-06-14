@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, status, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
 from app.db.session import get_db
 from app.models.auction import ListingStatus, User
 from app.api.deps import get_current_user
-from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate
+from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingImageResponse
 from app.services.auction_service import AuctionService
 
 router = APIRouter()
@@ -33,6 +33,24 @@ async def create_listing(
     current_user: User = Depends(get_current_user)
 ):
     return await AuctionService.create_listing(db=db, user_id=current_user.id, listing_in=listing_in)
+
+@router.post("/upload_auction_images/{id}", response_model=List[ListingImageResponse])
+async def upload_auction_images(
+    id: UUID,
+    files: List[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    for file in files:
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Only image files are allowed")
+            
+    return await AuctionService.upload_listing_images(
+        db=db,
+        user_id=current_user.id,
+        auction_id=id,
+        files=files
+    )
 
 @router.get("/get_user_listings", response_model=PaginatedAuctionResponse)
 async def get_user_listings(
