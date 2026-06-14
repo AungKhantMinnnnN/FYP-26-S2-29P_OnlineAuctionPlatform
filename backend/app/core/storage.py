@@ -5,11 +5,12 @@ from app.core.config import settings
 
 class StorageService:
     def __init__(self):
+        endpoint = settings.S3_ENDPOINT.replace("http://", "").replace("https://", "").rstrip("/")
         self.client = Minio(
-            settings.S3_ENDPOINT,
+            endpoint,
             access_key=settings.S3_ACCESS_KEY,
             secret_key=settings.S3_SECRET_KEY,
-            secure=False  # Set to True if using HTTPS
+            secure=settings.S3_ENDPOINT.startswith("https://")
         )
         self.bucket_name = settings.S3_BUCKET_ASSETS
         self._ensure_bucket_exists()
