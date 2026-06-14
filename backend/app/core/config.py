@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
     S3_BUCKET_ASSETS: str
+    S3_PUBLIC_URL: str | None = None
     
     # Security
     JWT_SECRET: str

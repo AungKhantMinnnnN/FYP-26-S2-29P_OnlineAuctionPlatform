@@ -137,6 +137,8 @@ class ListingImages(Base):
     @property
     def image_url(self):
         from app.core.config import settings
+        if settings.S3_PUBLIC_URL:
+            return f"{settings.S3_PUBLIC_URL}/{self.s3_key}"
         return f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET_ASSETS}/{self.s3_key}"
 
 class Bid(Base):
