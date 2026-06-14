@@ -70,17 +70,19 @@ export default function BrowseAuctionsPage() {
         </div>
       </div>
 
-      <div className="flex gap-6">
-        <div className={`fixed bottom-0 left-0 top-16 z-40 w-72 bg-white/95 border-r border-slate-200/80 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-200 md:static md:transform-none md:border-0 md:p-0 md:w-64 md:block md:bg-transparent md:shadow-none dark:bg-slate-950/95 dark:border-slate-800 ${mobileFilters ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="flex flex-col md:flex-row gap-6">
+        <aside className={`fixed inset-y-0 left-0 z-40 w-72 pt-16 bg-white/95 border-r border-slate-200/80 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-300 ease-in-out md:sticky md:top-20 md:z-auto md:h-[calc(100vh-6rem)] md:transform-none md:border-0 md:w-64 md:shrink-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none dark:bg-slate-950/95 dark:border-slate-800 md:dark:bg-transparent ${mobileFilters ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
           <div className="md:hidden flex items-center justify-between mb-4">
             <span className="font-semibold text-slate-950 dark:text-slate-50">Filters</span>
             <button onClick={() => setMobileFilters(false)} className="text-sm font-semibold text-accent-600 dark:text-accent-300">Close</button>
           </div>
-          <FilterPanel />
-        </div>
+          <div className="md:h-full md:overflow-y-auto md:pr-2">
+            <FilterPanel />
+          </div>
+        </aside>
         {mobileFilters && <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm md:hidden" onClick={() => setMobileFilters(false)} />}
 
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {isLoading ? 'Loading...' : `${totalItems} results found`}

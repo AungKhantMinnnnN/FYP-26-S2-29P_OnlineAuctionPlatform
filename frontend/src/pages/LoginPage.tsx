@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <div className="max-w-md mx-auto px-4 py-12">
       <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sm:p-8 dark:border-slate-800 dark:bg-slate-900/70">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-1 dark:text-slate-55 mb-1 dark:text-slate-50">Welcome back</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-1 dark:text-slate-50">Welcome back</h1>
         <p className="text-sm text-slate-500 mb-6 dark:text-slate-400">Log in to your AuctionHub account.</p>
 
         {error && (

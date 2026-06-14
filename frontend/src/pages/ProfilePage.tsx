@@ -12,7 +12,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-55 dark:text-slate-50">My Profile</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">My Profile</h1>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex border-b border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/40">

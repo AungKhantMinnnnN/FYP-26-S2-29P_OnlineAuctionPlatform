@@ -21,11 +21,31 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-950 antialiased dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-slate-50 text-slate-700 antialiased dark:bg-slate-950 dark:text-slate-100;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  h1 { @apply text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50; }
+  h2 { @apply text-lg font-semibold tracking-tight text-slate-950 dark:text-slate-50; }
+  h3 { @apply text-base font-semibold text-slate-950 dark:text-slate-50; }
 
   ::selection {
     @apply bg-accent-200 text-accent-900 dark:bg-accent-500/40 dark:text-white;
   }
+}
+
+/* ── Card hover lift ──────────────────────────── */
+@layer utilities {
+  .card-hover-lift {
+    @apply transition-all hover:-translate-y-0.5 hover:shadow-md;
+  }
+}
+
+/* ── Loading skeleton pulse ────────────────────── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.15; }
+}
+.animate-pulse-slow {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

@@ -5,6 +5,7 @@ import SectionHeader from '../components/SectionHeader'
 import AuctionCard from '../components/AuctionCard'
 import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
+import EmptyState from '../components/EmptyState'
 import { useAuth } from '../context/AuthContext'
 
 // TODO: Replace with actual data from backend
@@ -62,8 +63,8 @@ export default function UserDashboardPage() {
 
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
         <SectionHeader title="Live Products to Bid On" subtitle="Active auctions are the main marketplace experience" actionText="Browse all" actionTo="/browse" />
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {liveAuctions.map(a => <AuctionCard key={a.id} auction={a} />)}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {liveAuctions.length > 0 ? liveAuctions.map(a => <AuctionCard key={a.id} auction={a} />) : <EmptyState message="No active auctions right now." actionText="Browse auctions" actionTo="/browse" />}
         </div>
       </div>
 
@@ -80,7 +81,7 @@ export default function UserDashboardPage() {
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <SectionHeader title="Recommended for You" subtitle="Based on your browsing history" />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {recommended.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={false} />)}
+              {recommended.length > 0 ? recommended.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={false} />) : <EmptyState message="No recommendations yet." actionText="Browse auctions" actionTo="/browse" />}
             </div>
           </div>
 

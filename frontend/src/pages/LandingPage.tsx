@@ -6,6 +6,7 @@ import type { AuctionListing } from '../api/auctionsApi'
 import SearchBar from '../components/SearchBar'
 import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
+import EmptyState from '../components/EmptyState'
 
 // TODO: Replace with actual data from backend
 const categories: string[] = []
@@ -44,7 +45,7 @@ export default function LandingPage() {
           <div className="relative mx-auto mb-5 inline-flex items-center rounded-full border border-accent-200 bg-white/80 px-3 py-1 text-xs font-semibold text-accent-700 shadow-sm backdrop-blur dark:border-accent-900/60 dark:bg-slate-950/70 dark:text-accent-300">
             Secure C2C auctions for Singapore sellers and buyers
           </div>
-          <h1 className="relative text-4xl sm:text-6xl font-extrabold text-slate-950 tracking-tight mb-4 dark:text-slate-55 mb-4 dark:text-slate-50">
+          <h1 className="relative text-4xl sm:text-6xl font-extrabold text-slate-950 tracking-tight mb-4 dark:text-slate-50">
             Bid Smart. <span className="text-accent-600">Sell Easy.</span>
           </h1>
           <p className="relative text-lg text-slate-600 max-w-2xl mx-auto mb-8 dark:text-slate-300">
@@ -67,7 +68,7 @@ export default function LandingPage() {
             <div className="text-center py-10 text-slate-500">Loading auctions...</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {featured.length > 0 ? featured.map(a => <AuctionCard key={a.id} auction={a} />) : <div className="col-span-4 text-center text-slate-500">No featured auctions found.</div>}
+              {featured.length > 0 ? featured.map(a => <AuctionCard key={a.id} auction={a} />) : <EmptyState message="No featured auctions yet." actionText="Browse all" actionTo="/browse" />}
             </div>
           )}
         </div>
@@ -80,7 +81,7 @@ export default function LandingPage() {
             <div className="text-center py-10 text-slate-500">Loading auctions...</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {trending.length > 0 ? trending.map(a => <AuctionCard key={a.id} auction={a} />) : <div className="col-span-4 text-center text-slate-500">No trending items right now.</div>}
+              {trending.length > 0 ? trending.map(a => <AuctionCard key={a.id} auction={a} />) : <EmptyState message="No trending items right now." actionText="Browse all" actionTo="/browse" />}
             </div>
           )}
         </div>
