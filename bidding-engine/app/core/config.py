@@ -6,9 +6,9 @@ env_file_name = os.getenv("ENV_FILE", ".env.local")
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Online Auction Platform - Bidding-Engine"
     API_VERSION: str = "v1.0.0"
-    DATABASE_URL: str = "postgresql://user:password@db:5432/auction_db"
-    REDIS_URL: str = "redis://redis:6379/1"  # Separate DB for bidding engine locks/state
-    BACKEND_URL: str = "http://backend:8000" # Internal communication
+    DATABASE_URL: str
+    REDIS_URL: str
+    BACKEND_URL: str
     JWT_SECRET: str
 
     LOG_DIR: str = "logs/backend_logs"
