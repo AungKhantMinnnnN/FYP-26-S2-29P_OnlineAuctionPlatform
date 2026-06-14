@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ChevronRight, Image, Heart, User, TrendingUp, Shield, Wallet } from 'lucide-react'
 import CountdownBadge from '../components/CountdownBadge'
@@ -7,30 +7,124 @@ import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
 import AuctionCard from '../components/AuctionCard'
 import { useAuth } from '../context/AuthContext'
+import apiClient from '../api/apiClient'
 
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>()
-  // TODO: Replace with actual backend fetch
-  const auction: any = null
-
   
-  const { user, adjustBalance } = useAuth()
-  const [currentBid, setCurrentBid] = useState(auction?.currentBid || 0)
-  const [bidsPlaced, setBidsPlaced] = useState(auction?.bids || 0)
-  const [bidHistory, setBidHistory] = useState<any[]>(auction?.bidHistory || [])
+  const [auction, setAuction] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const ws = useRef<WebSocket | null>(null)
+
+  const { user, refreshUser } = useAuth()
+  const [currentBid, setCurrentBid] = useState(0)
+  const [bidsPlaced, setBidsPlaced] = useState(0)
+  const [bidHistory, setBidHistory] = useState([])
   const [bidAmount, setBidAmount] = useState('')
   const [bidMessage, setBidMessage] = useState('')
   const [bidError, setBidError] = useState('')
   const [watched, setWatched] = useState(false)
   
-  // TODO: Replace with actual backend fetch
-  const related: any[] = []
-  const minimumBid = useMemo(() => auction ? Number((currentBid + auction.minIncrement).toFixed(2)) : 0, [auction, currentBid])
+  const related = []
+  const minimumBid = useMemo(() => {
+    if (!auction) return 0;
+    if (auction.bidding_type === 'public') {
+      return Number((currentBid + 1.0).toFixed(2));
+    }
+    if (auction.bidding_type === 'low_start' && bidsPlaced === 0) {
+      return Number(auction.starting_price.toFixed(2));
+    }
+    return bidsPlaced === 0 ? Number(auction.starting_price.toFixed(2)) : Number((currentBid + (auction.minIncrement || 1)).toFixed(2));
+  }, [auction, currentBid, bidsPlaced])
   const balance = user?.balance ?? 0
 
-  if (!auction) {
-    return <div className="text-center py-20 text-slate-500">Loading auction details or not found...</div>
-  }
+  useEffect(() => {
+    const fetchAuction = async () => {
+      try {
+        const [listingRes, bidsRes] = await Promise.all([
+          apiClient.get(`/auctions/get_auction/${id}`),
+          apiClient.get(`/auctions/get_auction_bids/${id}/bids`)
+        ])
+        const data = listingRes.data
+        const bidsData = bidsRes.data
+        
+        setAuction({
+          ...data,
+          currentBid: data.current_price,
+          minIncrement: data.min_increment,
+          endTime: data.end_time,
+          seller: { name: data.seller?.username || 'Unknown', rating: '5.0' }
+        })
+        setCurrentBid(data.current_price || data.starting_price)
+        setBidsPlaced(bidsData.length)
+        setBidHistory(bidsData.map((b) => ({
+          bidder: b.bidder?.username || 'Anonymous',
+          amount: b.amount,
+          time: new Date(b.placed_at).toLocaleString()
+        })))
+      } catch (err) {
+        setError('Failed to load auction details.' + err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAuction()
+  }, [id])
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('token')
+    if (!token) return
+
+    const wsUrl = `ws://localhost:8001/v1.0.0/bids/ws/${id}?token=${token}`
+    ws.current = new WebSocket(wsUrl)
+
+    ws.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'new_bid') {
+          setCurrentBid(data.current_price)
+          setBidsPlaced((count) => count + 1)
+          setBidHistory((history) => [
+            { bidder: data.bidder_id, amount: data.amount, time: 'just now' },
+            ...history
+          ])
+          setBidError('')
+          setBidMessage('A new bid was placed!')
+          
+          if (user && data.bidder_id === user.id) {
+              refreshUser()
+          }
+        } else if (data.type === 'error') {
+          setBidError(data.message)
+          setBidMessage('')
+        }
+      } catch (err) {
+        console.error('Failed to parse websocket message', err)
+      }
+    }
+
+    ws.current.onerror = () => {
+      setBidError('Connection error with the bidding server.')
+      setBidMessage('')
+    }
+
+    ws.current.onclose = (event) => {
+      if (!event.wasClean) {
+        setBidError('Lost connection to bidding server. Please refresh.')
+        setBidMessage('')
+      }
+    }
+
+    return () => {
+      if (ws.current) {
+        ws.current.close()
+      }
+    }
+  }, [id, user, refreshUser])
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Loading auction details...</div>
+  if (error || !auction) return <div className="text-center py-20 text-red-500">{error || 'Auction not found'}</div>
 
   const handleBid = (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,15 +149,13 @@ export default function AuctionDetailPage() {
       return
     }
 
-    setCurrentBid(amount)
-    setBidsPlaced((count) => count + 1)
-    setBidHistory((history) => [
-      { bidder: user.username || user.email, amount, time: 'just now' },
-      ...history
-    ])
-    adjustBalance(-amount)
-    setBidAmount('')
-    setBidMessage(`Bid placed successfully. $${amount.toFixed(2)} has been held from your Balance.`)
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({ type: 'place_bid', amount }))
+        setBidAmount('')
+        setBidMessage('Sending bid...')
+    } else {
+        setBidError('Real-time connection is unavailable. Please refresh.')
+    }
   }
 
   return (
@@ -132,13 +224,18 @@ export default function AuctionDetailPage() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sticky top-24 dark:border-slate-800 dark:bg-slate-900/70">
             <div className="mb-4">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Current highest bid</p>
+              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">
+                {auction.bidding_type === 'low_start' && bidsPlaced === 0 ? 'Starting price' : 'Current highest bid'}
+              </p>
               <p className="text-3xl font-bold text-slate-950 dark:text-slate-50">${currentBid.toFixed(2)}</p>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Minimum next bid</p>
+              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">
+                {auction.bidding_type === 'public' ? 'Minimum required bid' : 'Minimum next bid'}
+              </p>
               <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">
                 ${minimumBid.toFixed(2)}
+                {auction.bidding_type === 'public' && <span className="text-sm text-slate-500 font-normal ml-2">(Any higher amount)</span>}
               </p>
             </div>
             {user && (
@@ -158,7 +255,7 @@ export default function AuctionDetailPage() {
               <input
                 type="number"
                 min={minimumBid}
-                step={auction.minIncrement}
+                step={auction.bidding_type === 'public' ? 1.0 : auction.minIncrement}
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={`Enter at least $${minimumBid.toFixed(2)}`}

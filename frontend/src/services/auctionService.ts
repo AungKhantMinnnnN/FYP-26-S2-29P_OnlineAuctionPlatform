@@ -21,17 +21,17 @@ export interface ListingParams {
 
 export const auctionService = {
   getListings: async (params?: ListingParams) => {
-    const response = await apiClient.get<Listing[]>('/listings', { params });
+    const response = await apiClient.get<Listing[]>('/auctions/', { params });
     return response.data;
   },
 
   getListing: async (id: string) => {
-    const response = await apiClient.get<Listing>(`/listings/${id}`);
+    const response = await apiClient.get<Listing>(`/auctions/get_auction/${id}`);
     return response.data;
   },
 
   createListing: async (data: Partial<Listing>) => {
-    const response = await apiClient.post<Listing>('/listings', data);
+    const response = await apiClient.post<Listing>('/auctions/create_listing', data);
     return response.data;
   },
 

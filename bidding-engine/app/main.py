@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.router import api_router
-from app.api.v1.endpoints import bids
+from app.api.v1.controller import bids
 from app.core.config import settings
 from app.core.logger import setup_logging
 
@@ -24,8 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix=f"/{settings.API_VERSION}/bids")
-app.include_router(bids.router)  # Register bids router at root for /ws/{listing_id} and other root paths
+app.include_router(bids.router, prefix=f"/{settings.API_VERSION}/bids")
 
 @app.get("/")
 async def root():

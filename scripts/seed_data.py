@@ -15,7 +15,7 @@ if backend_dir not in sys.path:
 from sqlalchemy import select
 
 from app.db.session import AsyncSessionLocal
-from app.models.auction import User, UserProfiles, Listing, ListingImages, ListingStatus, ItemConditions, BiddingType, UserRole
+from app.models.auction import User, UserProfiles, Listing, ListingImages, ListingStatus, ItemConditions, BiddingType, UserRole, Bid
 from app.core.security import get_password_hash
 from app.core.config import settings
 from minio import Minio
@@ -174,6 +174,33 @@ async def seed_data():
                         print(f"Failed to upload {img_file}: {e}")
             
             added_count += 1
+            
+            # Create random bids
+            num_bids = random.randint(0, 5)
+            if num_bids > 0:
+                current_price = start_price
+                bid_time = listing.start_time
+                for _ in range(num_bids):
+                    potential_bidders = [u for u in normal_users if u.id != seller.id]
+                    if not potential_bidders:
+                        break
+                    bidder = random.choice(potential_bidders)
+                    bid_amount = current_price + (listing.min_increment * random.randint(1, 3))
+                    bid_time = bid_time + timedelta(hours=random.randint(1, 10))
+                    if bid_time > listing.end_time:
+                        break
+                    
+                    bid = Bid(
+                        listing_id=listing.id,
+                        bidder_id=bidder.id,
+                        amount=bid_amount,
+                        placed_at=bid_time
+                    )
+                    db.add(bid)
+                    current_price = bid_amount
+                
+                listing.current_price = current_price
+                db.add(listing)
             
         await db.commit()
         print(f"Successfully inserted {added_count} auction listings.")
