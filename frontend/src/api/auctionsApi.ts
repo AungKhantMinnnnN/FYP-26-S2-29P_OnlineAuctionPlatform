@@ -36,7 +36,18 @@ export interface PaginatedAuctions {
   pages: number;
 }
 
+// Existing function
 export const getAuctions = async (params?: { page?: number; size?: number; status?: string; search?: string }): Promise<PaginatedAuctions> => {
   const response = await apiClient.get<PaginatedAuctions>('/auctions/', { params });
+  return response.data;
+};
+
+// NEW: Create Listing
+export const createListing = async (formData: FormData): Promise<AuctionListing> => {
+  const response = await apiClient.post<AuctionListing>('/auctions/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
