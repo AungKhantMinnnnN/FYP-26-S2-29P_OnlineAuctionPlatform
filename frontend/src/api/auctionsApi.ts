@@ -40,3 +40,10 @@ export const getAuctions = async (params?: { page?: number; size?: number; statu
   const response = await apiClient.get<PaginatedAuctions>('/auctions/', { params });
   return response.data;
 };
+
+export const createListing = async (payload: FormData): Promise<AuctionListing> => {
+  const response = await apiClient.post<AuctionListing>('/auctions/', payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
