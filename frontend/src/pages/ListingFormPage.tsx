@@ -35,16 +35,13 @@ export default function ListingFormPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    // Title validation
     if (!formData.title.trim()) newErrors.title = "Title is required";
 
-    // Starting Price validation
     const startPrice = Number(formData.starting_price);
     if (!formData.starting_price || startPrice <= 0) {
       newErrors.starting_price = "Starting price must be greater than 0";
     }
 
-    // Reserve Price validation (Key requirement for this use case)
     const reservePrice = Number(formData.reserve_price);
     if (formData.reserve_price && reservePrice < startPrice) {
       newErrors.reserve_price = "Reserve price must be equal to or higher than starting price";
@@ -85,7 +82,7 @@ export default function ListingFormPage() {
     payload.append('reserve_price', formData.reserve_price || formData.starting_price);
     payload.append('min_increment', formData.min_increment);
     payload.append('start_time', new Date(formData.start_time).toISOString());
-    payload.append('end_time', new Date(formData.end_time || Date.now() + 7*24*60*60*1000).toISOString());
+    payload.append('end_time', new Date(formData.end_time || Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString());
     payload.append('status', isDraft ? 'draft' : 'active');
 
     if (formData.category_id) payload.append('category_id', formData.category_id);
@@ -107,11 +104,10 @@ export default function ListingFormPage() {
     <div className="max-w-3xl mx-auto space-y-6 p-4">
       <div>
         <h1 className="text-3xl font-bold">Create New Listing</h1>
-        <p className="text-slate-500">Set your minimum acceptable selling price (Reserve Price).</p>
+        <p className="text-slate-500">Set your starting price and reserve price.</p>
       </div>
 
       <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 bg-white p-8 rounded-2xl border">
-        
         <FormInput
           label="Title"
           placeholder="e.g. iPhone 17 Pro 256GB"
@@ -152,12 +148,16 @@ export default function ListingFormPage() {
             value={formData.reserve_price}
             onChange={(e) => setFormData({ ...formData, reserve_price: e.target.value })}
             error={errors.reserve_price}
-            required
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormInput label="Minimum Increment ($)" type="number" value={formData.min_increment} onChange={(e) => setFormData({ ...formData, min_increment: e.target.value })} />
+          <FormInput
+            label="Min Increment ($)"
+            type="number"
+            value={formData.min_increment}
+            onChange={(e) => setFormData({ ...formData, min_increment: e.target.value })}
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -165,14 +165,17 @@ export default function ListingFormPage() {
           <FormInput label="End Time" type="datetime-local" value={formData.end_time} onChange={(e) => setFormData({ ...formData, end_time: e.target.value })} />
         </div>
 
-        {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium mb-3">Images (Max 4)</label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {previewUrls.map((url, i) => (
               <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border">
                 <img src={url} alt="preview" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => removeImage(i)} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full">
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
+                >
                   <X size={16} />
                 </button>
               </div>
@@ -190,8 +193,10 @@ export default function ListingFormPage() {
         <div className="flex gap-3 pt-6">
           <SecondaryButton 
             type="button" 
-            onClick={() => handleSubmit({ preventDefault: () => {} } as any, true)}
-            disabled={isLoading}
+            onClick={() => {
+              const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+              handleSubmit(fakeEvent, true);
+            }}
           >
             <Save size={18} className="mr-2" /> Save Draft
           </SecondaryButton>
