@@ -47,3 +47,8 @@ export const createListing = async (payload: FormData): Promise<AuctionListing> 
   });
   return response.data;
 };
+
+export const getMyListings = async (): Promise<AuctionListing[]> => {
+  const response = await apiClient.get<AuctionListing[]>('/auctions/my-listings');
+  return response.data;
+};
