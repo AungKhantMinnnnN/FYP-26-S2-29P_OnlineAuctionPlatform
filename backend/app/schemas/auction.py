@@ -4,6 +4,24 @@ from datetime import datetime
 from uuid import UUID
 from app.models.auction import ItemConditions, BiddingType, ListingStatus
 
+class CategoryResponse(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    parent_id: Optional[UUID] = None
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+class EnumResponse(BaseModel):
+    id: str
+    name: str
+
+class MetadataResponse(BaseModel):
+    categories: List[CategoryResponse]
+    conditions: List[EnumResponse]
+    biddingTypes: List[EnumResponse]
+
 class ListingCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -15,6 +33,7 @@ class ListingCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     category_id: Optional[UUID] = None
+    status: Optional[ListingStatus] = None
 
     @field_validator('end_time')
     def end_time_must_be_after_start_time(cls, v, info):

@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
-from app.models.auction import Listing, ListingStatus, Bid, ListingImages
+from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType
 from app.schemas.auction import ListingCreate
 from app.core.storage import storage_service
 from fastapi import UploadFile
@@ -92,7 +92,7 @@ class AuctionService:
             start_time=listing_in.start_time,
             end_time=listing_in.end_time,
             category_id=listing_in.category_id,
-            status=ListingStatus.active
+            status=listing_in.status or ListingStatus.active
         )
         db.add(listing)
         await db.commit()
@@ -183,3 +183,20 @@ class AuctionService:
             await db.refresh(img)
             
         return uploaded_images
+
+    @staticmethod
+    async def get_form_metadata(db: AsyncSession) -> Dict[str, Any]:
+        # Fetch active categories
+        query = select(Categories).where(Categories.is_active == True)
+        result = await db.execute(query)
+        categories = result.scalars().all()
+        
+        # Enums
+        conditions = [{"id": e.value, "name": e.name} for e in ItemConditions]
+        bidding_types = [{"id": e.value, "name": e.name} for e in BiddingType]
+        
+        return {
+            "categories": categories,
+            "conditions": conditions,
+            "biddingTypes": bidding_types
+        }

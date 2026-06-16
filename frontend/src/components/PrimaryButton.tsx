@@ -4,7 +4,7 @@ import React from 'react'
 interface PrimaryButtonProps {
   children: React.ReactNode
   to?: string
-  onClick?: () => void
+  onClick?: React.MouseEventHandler<HTMLButtonElement>
   type?: 'button' | 'submit' | 'reset'
   fullWidth?: boolean
   disabled?: boolean
