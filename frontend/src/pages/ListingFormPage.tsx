@@ -125,7 +125,7 @@ export default function ListingFormPage() {
       
       setCreatedListingId(result.id);
       setSuccessModalOpen(true);
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       alert(error.response?.data?.detail || "Failed to create listing. Please check all fields.");
     } finally {
