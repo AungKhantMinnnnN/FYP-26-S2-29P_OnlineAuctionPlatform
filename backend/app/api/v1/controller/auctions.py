@@ -5,10 +5,14 @@ from uuid import UUID
 from app.db.session import get_db
 from app.models.auction import ListingStatus, User
 from app.api.deps import get_current_user
-from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingImageResponse
+from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingImageResponse, MetadataResponse
 from app.services.auction_service import AuctionService
 
 router = APIRouter()
+
+@router.get("/form_metadata", response_model=MetadataResponse)
+async def get_form_metadata(db: AsyncSession = Depends(get_db)):
+    return await AuctionService.get_form_metadata(db=db)
 
 @router.get("/", response_model=PaginatedAuctionResponse)
 async def get_auctions(

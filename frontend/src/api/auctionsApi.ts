@@ -43,11 +43,42 @@ export const getAuctions = async (params?: { page?: number; size?: number; statu
 };
 
 // NEW: Create Listing
-export const createListing = async (formData: FormData): Promise<AuctionListing> => {
-  const response = await apiClient.post<AuctionListing>('/auctions/', formData, {
+export const createListing = async (data: Record<string, any>): Promise<AuctionListing> => {
+  const response = await apiClient.post<AuctionListing>('/auctions/create_listing', data);
+  return response.data;
+};
+
+export const uploadAuctionImages = async (id: string, files: File[]): Promise<ListingImage[]> => {
+  const formData = new FormData();
+  files.forEach(f => formData.append('files', f));
+  const response = await apiClient.post<ListingImage[]>(`/auctions/upload_auction_images/${id}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+  return response.data;
+};
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id?: string;
+  is_active: boolean;
+}
+
+export interface EnumType {
+  id: string;
+  name: string;
+}
+
+export interface MetadataResponse {
+  categories: Category[];
+  conditions: EnumType[];
+  biddingTypes: EnumType[];
+}
+
+export const getFormMetadata = async (): Promise<MetadataResponse> => {
+  const response = await apiClient.get<MetadataResponse>('/auctions/form_metadata');
   return response.data;
 };
