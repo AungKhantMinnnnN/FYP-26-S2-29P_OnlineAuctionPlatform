@@ -42,8 +42,14 @@ export const getAuctions = async (params?: { page?: number; size?: number; statu
   return response.data;
 };
 
+// NEW: Get user listings
+export const getMyListings = async (params?: { page?: number; size?: number }): Promise<PaginatedAuctions> => {
+  const response = await apiClient.get<PaginatedAuctions>('/auctions/get_user_listings', { params });
+  return response.data;
+};
+
 // NEW: Create Listing
-export const createListing = async (data: Record<string, any>): Promise<AuctionListing> => {
+export const createListing = async (data: Record<string, unknown>): Promise<AuctionListing> => {
   const response = await apiClient.post<AuctionListing>('/auctions/create_listing', data);
   return response.data;
 };
