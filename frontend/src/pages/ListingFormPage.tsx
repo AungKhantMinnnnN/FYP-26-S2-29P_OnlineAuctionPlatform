@@ -102,13 +102,22 @@ export default function ListingFormPage() {
 
     setIsLoading(true);
 
+    const startPriceNum = Number(formData.starting_price);
+    const reservePriceNum = formData.reserve_price ? Number(formData.reserve_price) : startPriceNum;
+
+    if (reservePriceNum < startPriceNum) {
+      alert("Error: Reserve price cannot be lower than the starting price.");
+      setIsLoading(false);
+      return;
+    }
+
     const payload = {
       title: formData.title,
       description: formData.description,
       condition: formData.condition,
       bidding_type: formData.bidding_type,
-      starting_price: Number(formData.starting_price),
-      reserve_price: formData.reserve_price ? Number(formData.reserve_price) : Number(formData.starting_price),
+      starting_price: startPriceNum,
+      reserve_price: reservePriceNum,
       min_increment: formData.min_increment ? Number(formData.min_increment) : 1,
       start_time: new Date(formData.start_time).toISOString(),
       end_time: new Date(formData.end_time).toISOString(),
@@ -125,9 +134,15 @@ export default function ListingFormPage() {
       
       setCreatedListingId(result.id);
       setSuccessModalOpen(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert(error.response?.data?.detail || "Failed to create listing. Please check all fields.");
+      const detail = error.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        // Extract the specific message from the first Pydantic validation error
+        alert(`Validation Error: ${detail[0].msg}`);
+      } else {
+        alert(detail || "Failed to create listing. Please check all fields.");
+      }
     } finally {
       setIsLoading(false);
     }

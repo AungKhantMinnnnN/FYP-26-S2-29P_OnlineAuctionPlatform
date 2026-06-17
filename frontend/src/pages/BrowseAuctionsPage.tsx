@@ -98,35 +98,35 @@ export default function BrowseAuctionsPage() {
               <p className="text-slate-500">Loading auctions...</p>
             </div>
           ) : auctionsList.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-                {auctionsList.map(a => <AuctionCard key={a.id} auction={a} />)}
-              </div>
-              
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-auto">
-                  <button 
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page === 1}
-                    className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Page {page} of {totalPages}
-                  </span>
-                  <button 
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page === totalPages}
-                    className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
-              )}
-            </>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+              {auctionsList.map(a => <AuctionCard key={a.id} auction={a} />)}
+            </div>
           ) : (
-            <EmptyState message="No auctions match your search." actionText="Clear search" actionTo="/browse" />
+            <div className="mb-8">
+              <EmptyState message="No auctions found on this page." actionText="Clear search" actionTo="/browse" />
+            </div>
+          )}
+
+          {totalPages > 1 && !isLoading && (
+            <div className="flex items-center justify-center gap-2 mt-auto pt-4">
+              <button 
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page <= 1}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Page {page} of {totalPages}
+              </span>
+              <button 
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page >= totalPages}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
           )}
         </div>
       </div>

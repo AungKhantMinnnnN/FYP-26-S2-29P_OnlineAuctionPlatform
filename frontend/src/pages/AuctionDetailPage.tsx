@@ -25,6 +25,7 @@ export default function AuctionDetailPage() {
   const [bidMessage, setBidMessage] = useState('')
   const [bidError, setBidError] = useState('')
   const [watched, setWatched] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
   
   const related = []
   const minimumBid = useMemo(() => {
@@ -174,16 +175,34 @@ export default function AuctionDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-            <div className="aspect-video rounded-2xl bg-gradient-to-br from-slate-100 via-slate-50 to-accent-50 flex items-center justify-center mb-3 dark:from-slate-800 dark:via-slate-900 dark:to-accent-950/30">
-              <Image size={48} className="text-slate-300 dark:text-slate-600" />
+            <div className="aspect-video rounded-2xl bg-gradient-to-br from-slate-100 via-slate-50 to-accent-50 flex items-center justify-center mb-3 overflow-hidden dark:from-slate-800 dark:via-slate-900 dark:to-accent-950/30">
+              {auction.images && auction.images.length > 0 ? (
+                <img 
+                  src={selectedImage || auction.images[0].image_url} 
+                  alt={auction.title} 
+                  className="w-full h-full object-cover transition-opacity duration-300" 
+                />
+              ) : (
+                <Image size={48} className="text-slate-300 dark:text-slate-600" />
+              )}
             </div>
-            <div className="flex gap-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
-                  <Image size={20} className="text-slate-300 dark:text-slate-600" />
-                </div>
-              ))}
-            </div>
+            {auction.images && auction.images.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {auction.images.map((img: any, i: number) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setSelectedImage(img.image_url)}
+                    className={`w-20 h-20 shrink-0 rounded-xl flex items-center justify-center overflow-hidden border-2 transition-all ${
+                      (selectedImage === img.image_url) || (!selectedImage && i === 0)
+                        ? 'border-accent-500 ring-2 ring-accent-500/20' 
+                        : 'border-transparent hover:border-slate-300 dark:hover:border-slate-600'
+                    }`}
+                  >
+                    <img src={img.image_url} alt={`${auction.title} detail`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
