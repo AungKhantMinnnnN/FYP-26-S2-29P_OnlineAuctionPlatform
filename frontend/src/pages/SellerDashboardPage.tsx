@@ -1,89 +1,109 @@
-import { Package, DollarSign, BarChart3, Tag, PlusCircle } from 'lucide-react'
-import DashboardStatCard from '../components/DashboardStatCard'
-import SectionHeader from '../components/SectionHeader'
-import DataTable from '../components/DataTable'
-import StatusBadge from '../components/StatusBadge'
-import PrimaryButton from '../components/PrimaryButton'
-import SecondaryButton from '../components/SecondaryButton'
-import EmptyState from '../components/EmptyState'
-
-// TODO: Replace with actual data from backend
-const sellerListings: any[] = []
-const soldItems: any[] = []
-const drafts: any[] = []
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { getAuctions } from '../api/auctionsApi';
 
 export default function SellerDashboardPage() {
+  const { user } = useAuth();
+  const [myListings, setMyListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadMyListings();
+  }, [user]);
+
+  const loadMyListings = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const data = await getAuctions({ page: 1, size: 20 });
+      // Filter listings belonging to current seller
+      const sellerListings = data.items.filter((item: any) => item.seller_id === user.id);
+      setMyListings(sellerListings);
+    } catch (error) {
+      console.error("Failed to load listings", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">Seller Dashboard</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Manage listings, track sales, and monitor performance.</p>
+          <h1 className="text-3xl font-bold">Seller Dashboard</h1>
+          <p className="text-slate-500">Manage listings, track sales, and monitor performance.</p>
         </div>
-        <PrimaryButton to="/create-listing">
-          <PlusCircle size={16} className="mr-1" /> Create Listing
-        </PrimaryButton>
+        <button
+          onClick={() => window.location.href = '/create-listing'}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-2"
+        >
+          <span>+</span> Create Listing
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <DashboardStatCard title="Active Listings" value={0} icon={Package} />
-        <DashboardStatCard title="Total Sales" value={0} icon={DollarSign} />
-        <DashboardStatCard title="Revenue" value="$0.00" icon={BarChart3} />
-        <DashboardStatCard title="Avg. Sell Price" value="$0.00" icon={Tag} />
-      </div>
-
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        <SectionHeader title="My Listings" actionText="View all" actionTo="/seller-dashboard" />
-        <DataTable
-          headers={['Title', 'Category', 'Current Bid', 'Bids', 'Status', 'Actions']}
-          rows={sellerListings.map(l => [
-            l.title,
-            l.category,
-            `$${l.currentBid.toFixed(2)}`,
-            l.bids,
-            <StatusBadge key={l.id} status={l.status} />,
-            <div key={l.id} className="flex items-center gap-2">
-              <button className="text-xs font-semibold text-accent-600 hover:underline dark:text-accent-300">Edit</button>
-              <button className="text-xs font-semibold text-red-600 hover:underline dark:text-red-400">Delete</button>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+        <div className="bg-[#1F2937] p-6 rounded-2xl">
+          <div className="flex justify-between">
+            <div>
+              <p className="text-slate-400 text-sm">Active Listings</p>
+              <p className="text-4xl font-bold mt-2">{myListings.filter(l => l.status === 'active').length}</p>
             </div>
-          ])}
-        />
+            <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">📦</div>
+          </div>
+        </div>
+        {/* Add more stat cards as needed */}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-          <SectionHeader title="Sold Items" />
-          <DataTable
-            headers={['Item', 'Final Price', 'Buyer', 'Date']}
-            rows={soldItems.map(s => [s.title, `$${s.currentBid.toFixed(2)}`, 'buyer123', '10 May 2026'])}
-            emptyMessage="No sales yet."
-          />
+      {/* My Listings Section */}
+      <div className="bg-[#1F2937] rounded-3xl p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold">My Listings</h2>
+          <button 
+            onClick={() => window.location.href = '/create-listing'}
+            className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+          >
+            View All →
+          </button>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-          <SectionHeader title="Drafts" actionText="Create new" actionTo="/create-listing" />
-          <DataTable
-            headers={['Title', 'Category', 'Last Updated', 'Actions']}
-            rows={drafts.map(d => [
-              d.title,
-              d.category,
-              d.updatedAt,
-              <div key={d.id} className="flex items-center gap-2">
-                <button className="text-xs font-semibold text-accent-600 hover:underline dark:text-accent-300">Edit</button>
-                <button className="text-xs font-semibold text-slate-500 hover:underline dark:text-slate-400">Delete</button>
+
+        {loading ? (
+          <p>Loading your listings...</p>
+        ) : myListings.length === 0 ? (
+          <div className="text-center py-16 text-slate-400">
+            <div className="text-6xl mb-4">📭</div>
+            <p>No listings yet</p>
+            <button 
+              onClick={() => window.location.href = '/create-listing'}
+              className="mt-4 bg-blue-600 text-white px-8 py-3 rounded-2xl"
+            >
+              Create Your First Listing
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {myListings.slice(0, 6).map((listing: any) => (
+              <div key={listing.id} className="bg-[#111827] rounded-2xl p-4 hover:scale-105 transition-transform">
+                <img 
+                  src={listing.images?.[0]?.image_url || 'https://via.placeholder.com/300'} 
+                  alt={listing.title}
+                  className="w-full h-40 object-cover rounded-xl mb-4"
+                />
+                <h3 className="font-medium line-clamp-2">{listing.title}</h3>
+                <div className="mt-3 text-sm flex justify-between">
+                  <span className="text-slate-400">Current Bid</span>
+                  <span className="font-semibold">${listing.current_price}</span>
+                </div>
+                <div className={`mt-2 inline-block px-3 py-1 text-xs rounded-full ${
+                  listing.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400'
+                }`}>
+                  {listing.status}
+                </div>
               </div>
-            ])}
-          />
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        <h3 className="font-semibold text-slate-950 mb-3 dark:text-slate-50">Quick Actions</h3>
-        <div className="flex flex-wrap gap-3">
-          <SecondaryButton to="/create-listing">Create Listing</SecondaryButton>
-          <SecondaryButton to="/bid-history">View Bid History</SecondaryButton>
-          <SecondaryButton to="/profile">Update Profile</SecondaryButton>
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }
