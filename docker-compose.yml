@@ -104,6 +104,28 @@ services:
     restart: unless-stopped
 
   # ── Microservices ────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: auction-backend:local
+    container_name: auction_backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      LOG_DIR: /logs
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs/backend:/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   bidding-engine:
     build:
       context: ./bidding-engine

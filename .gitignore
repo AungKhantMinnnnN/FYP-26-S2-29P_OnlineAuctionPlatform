@@ -41,7 +41,12 @@ Thumbs.db
 
 # Project Specific
 .gemini/
+.antigravitycli
 backend/alembic/versions/*.pyc
 recommendation-engine/ml/model_store/*.pkl
 
 logs
+
+# React
+node_modules
+/WireFrame/Kimi/node_modules

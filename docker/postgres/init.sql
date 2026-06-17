@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm"; 
 
 -- Enums
-CREATE TYPE user_role AS ENUM ('bidder', 'seller', 'admin');
+CREATE TYPE user_role AS ENUM ('user', 'admin');
 CREATE TYPE user_status AS ENUM ('active', 'suspended', 'deleted');
 CREATE TYPE listing_status AS ENUM ('draft', 'pending_review', 'active', 'ended', 'removed');
 CREATE TYPE bidding_type AS ENUM ('price_up', 'low_start', 'public');
@@ -18,7 +18,7 @@ CREATE TABLE users (
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role user_role NOT NULL DEFAULT 'bidder',
+    role user_role NOT NULL DEFAULT 'user',
     status user_status NOT NULL DEFAULT 'active',
     balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     avatar_key VARCHAR(500),

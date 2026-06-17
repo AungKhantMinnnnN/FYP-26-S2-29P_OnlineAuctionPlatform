@@ -1,6 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.router import api_router
+from app.api.v1.controller import bids
 from app.core.config import settings
 from app.core.logger import setup_logging
 
@@ -17,23 +17,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix=f"/{settings.API_VERSION}/bids")
-
-@app.websocket("/ws/{listing_id}")
-async def websocket_endpoint(websocket: WebSocket, listing_id: str):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await websocket.send_text(f"Bid update for {listing_id}: {data}")
-    except WebSocketDisconnect:
-        pass
+app.include_router(bids.router, prefix=f"/{settings.API_VERSION}/bids")
 
 @app.get("/")
 async def root():
