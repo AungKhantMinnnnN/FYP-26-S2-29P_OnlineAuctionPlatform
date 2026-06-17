@@ -1,0 +1,25 @@
+---
+name: Bug report
+about: Report a bug
+labels: bug
+---
+
+## Description
+<!-- What went wrong? -->
+When browsing auctions (both logged-in and non-logged-in users), the pagination displays a second page. However, clicking Go to Page 2 shows the message "No auctions match your search."
+
+## Steps to reproduce
+1.Navigate to the Auction listing page.
+2.Browse the available auctions.
+3.Click Go to Page 2 in the pagination controls.
+4.Observe the result.
+
+## Expected behaviour
+If there is only one page of auction results, only Page 1 should be displayed, or Page 2 should be disabled/hidden.
+
+## Actual behaviour
+Page 2 is displayed in the pagination controls. When clicked, the message "No auctions match your search." is shown.
+
+## Environment
+- Branch:
+- Module:
