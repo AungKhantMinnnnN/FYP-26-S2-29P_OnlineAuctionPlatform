@@ -41,6 +41,12 @@ class ListingCreate(BaseModel):
             raise ValueError('end_time must be after start_time')
         return v
 
+    @field_validator('starting_price')
+    def starting_price_must_be_positive(cls, v):
+        if v < 0:
+            raise ValueError('Starting price cannot be negative')
+        return v
+
     @field_validator('reserve_price')
     def reserve_price_must_be_gte_starting_price(cls, v, info):
         if 'starting_price' in info.data and v < info.data['starting_price']:
