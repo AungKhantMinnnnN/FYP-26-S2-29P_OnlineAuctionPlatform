@@ -146,6 +146,10 @@ export default function AuctionDetailPage() {
       setBidError(`Bid must be at least $${minimumBid.toFixed(2)}.`)
       return
     }
+    if (amount <= 0) {
+      setBidError('Bid amount must be greater than zero.')
+      return
+    }
     if (amount > balance) {
       setBidError('Insufficient Balance. Please top up your wallet first.')
       return
