@@ -134,7 +134,7 @@ export default function ListingFormPage() {
       
       setCreatedListingId(result.id);
       setSuccessModalOpen(true);
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       const detail = error.response?.data?.detail;
       if (Array.isArray(detail)) {

@@ -11,15 +11,18 @@ CREATE TYPE bid_status AS ENUM ('accepted', 'rejected', 'cancelled');
 CREATE TYPE transaction_type AS ENUM ('topup', 'bid_hold', 'bid_release', 'settlement');
 CREATE TYPE dispute_status AS ENUM ('open', 'in_review', 'resolved', 'closed');
 CREATE TYPE interaction_action AS ENUM ('view', 'search', 'bid', 'watchlist');
+CREATE TYPE subscription_tier AS ENUM ('free', 'premium');
 
 -- Users
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     password_hash VARCHAR(255) NOT NULL,
     role user_role NOT NULL DEFAULT 'user',
     status user_status NOT NULL DEFAULT 'active',
+    subscription_tier subscription_tier NOT NULL DEFAULT 'free',
     balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     avatar_key VARCHAR(500),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -47,6 +50,15 @@ CREATE TABLE categories (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ML cold-start: categories a user picks during onboarding
+CREATE TABLE user_interests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, category_id)
+);
+
 -- Listings
 CREATE TABLE listings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -54,7 +66,9 @@ CREATE TABLE listings (
     category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
+    brand VARCHAR(100),
     condition item_condition NOT NULL,
+    condition_confidence DECIMAL(5,2),
     bidding_type bidding_type NOT NULL DEFAULT 'price_up',
     starting_price DECIMAL(12,2) NOT NULL,
     reserve_price DECIMAL(12,2),
@@ -157,11 +171,31 @@ CREATE TABLE user_interactions (
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Puck CMS: one JSON payload per editable page, swapped without a redeploy
+CREATE TABLE site_content (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    content JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- User-submitted platform testimonials; admin flags which ones show on the landing page
+CREATE TABLE testimonials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX idx_listings_seller ON listings(seller_id);
 CREATE INDEX idx_listings_category ON listings(category_id);
 CREATE INDEX idx_listings_status ON listings(status);
 CREATE INDEX idx_listings_end_time ON listings(end_time);
+CREATE INDEX idx_listings_brand ON listings(brand);
 CREATE INDEX idx_listings_title_trgm ON listings USING GIN (title gin_trgm_ops);
 CREATE INDEX idx_bids_listing ON bids(listing_id);
 CREATE INDEX idx_bids_bidder ON bids(bidder_id);
@@ -169,4 +203,6 @@ CREATE INDEX idx_bids_placed_at ON bids(placed_at);
 CREATE INDEX idx_user_interactions_user ON user_interactions(user_id);
 CREATE INDEX idx_user_interactions_listing ON user_interactions(listing_id);
 CREATE INDEX idx_user_interactions_occurred ON user_interactions(occurred_at);
+CREATE INDEX idx_user_interests_user ON user_interests(user_id);
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
+CREATE INDEX idx_testimonials_featured ON testimonials(is_featured) WHERE is_featured = TRUE;
