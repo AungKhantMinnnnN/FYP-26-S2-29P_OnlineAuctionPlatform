@@ -112,6 +112,7 @@ services:
     container_name: AuctionHub_API
     env_file: .env.local
     environment:
+      PROJECT_NAME: "Online Auction Platform - API Gateway"
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       S3_ENDPOINT: http://minio:9000
@@ -135,6 +136,7 @@ services:
     container_name: AuctionHub_BiddingEngine_Microservice
     env_file: .env.local
     environment:
+      PROJECT_NAME: "Online Auction Platform - Bidding-Engine"
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       BACKEND_URL: http://backend:8000
@@ -160,8 +162,10 @@ services:
     container_name: AuctionHub_RecommendationEngine_Microservice
     env_file: .env.local
     environment:
+      PROJECT_NAME: "Online Auction Platform - Recommendation Engine"
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      BACKEND_URL: http://backend:8000
       LOG_DIR: /logs
     ports:
       - "8002:8002"       # health check endpoint

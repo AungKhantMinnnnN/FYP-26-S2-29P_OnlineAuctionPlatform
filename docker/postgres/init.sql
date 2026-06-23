@@ -35,6 +35,7 @@ CREATE TABLE user_profiles (
     full_name VARCHAR(100),
     phone VARCHAR(20),
     address TEXT,
+    dob DATE CHECK (dob < CURRENT_DATE),
     bio TEXT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(user_id)

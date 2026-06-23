@@ -4,16 +4,16 @@ import os
 env_file_name = os.getenv("ENV_FILE", ".env.local")
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Online Auction Platform - Bidding-Engine"
-    API_VERSION: str = "v1.0.0"
+    PROJECT_NAME: str
+    API_VERSION: str
     DATABASE_URL: str
     REDIS_URL: str
     BACKEND_URL: str
     JWT_SECRET: str
 
-    LOG_DIR: str = "logs/backend_logs"
+    LOG_DIR: str
 
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
+    ALLOWED_ORIGINS: str
     
     @property
     def cors_origins(self) -> list[str]:

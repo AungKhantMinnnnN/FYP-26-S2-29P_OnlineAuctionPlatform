@@ -9,3 +9,4 @@ httpx==0.26.0
 redis==5.0.1
 asyncpg==0.29.0
 greenlet==3.0.3
+sqlalchemy==2.0.25

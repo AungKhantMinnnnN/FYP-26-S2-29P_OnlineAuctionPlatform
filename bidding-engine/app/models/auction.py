@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Enum, Boolean, Integer
+from sqlalchemy import Column, String, Float, DateTime, Date, ForeignKey, Text, Enum, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -83,6 +83,7 @@ class UserProfiles(Base):
     full_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     address = Column(String)
+    dob = Column(Date)
     bio = Column(String)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 

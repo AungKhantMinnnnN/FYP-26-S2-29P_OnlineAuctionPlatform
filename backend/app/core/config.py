@@ -5,33 +5,33 @@ env_file_name = os.getenv("ENV_FILE", ".env.local")
 
 class Settings(BaseSettings):
     # API Gateway Configuration
-    PROJECT_NAME: str = "Online Auction Platform - API Gateway"
-    API_VERSION: str = "v1.0.0"
-    
+    PROJECT_NAME: str
+    API_VERSION: str
+
     # Database and Redis
     DATABASE_URL: str
     REDIS_URL: str
-    
+
     # S3 / MinIO
     S3_ENDPOINT: str
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
     S3_BUCKET_ASSETS: str
-    S3_PUBLIC_URL: str | None = None
-    
+    S3_PUBLIC_URL: str | None = None  # genuinely optional: image_url falls back to S3_ENDPOINT when unset
+
     # Security
     JWT_SECRET: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    
-    # Logging
-    LOG_DIR: str = "logs/backend_logs"
-    
-    # Microservices URLs
-    BIDDING_SERVICE_URL: str = "http://bidding-engine:8001"
-    RECOMMENDATION_SERVICE_URL: str = "http://recommendation-engine:8002"
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
+    # Logging
+    LOG_DIR: str
+
+    # Microservices URLs
+    BIDDING_SERVICE_URL: str
+    RECOMMENDATION_SERVICE_URL: str
+
+    ALLOWED_ORIGINS: str
     
     @property
     def cors_origins(self) -> list[str]:
