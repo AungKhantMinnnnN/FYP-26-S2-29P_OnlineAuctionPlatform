@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.teammate
 
 # Python
 __pycache__/
@@ -50,6 +51,7 @@ logs
 # React
 node_modules
 /WireFrame/Kimi/node_modules
+AI_MODELS_AND_TOOLS.md
 
 .claude
 CLAUDE.md
