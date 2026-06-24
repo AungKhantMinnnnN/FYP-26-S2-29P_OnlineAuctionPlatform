@@ -13,7 +13,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "127.0.0.1:5432:5432"   # loopback-only: local dev tools/scripts can reach it, the public internet can't
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -37,7 +37,7 @@ services:
       --maxmemory 512mb
       --maxmemory-policy allkeys-lru
     ports:
-      - "127.0.0.1:6379:6379"   # loopback-only: local dev tools/scripts can reach it, the public internet can't
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -65,7 +65,7 @@ services:
     env_file: .env.local
     command: server /data --console-address ":9001"
     ports:
-      - "127.0.0.1:9000:9000"   # loopback-only S3 API for local dev/scripts; nginx proxies /auction-assets/ for browsers
+      - "9000:9000"
     volumes:
       - minio_data:/data
     healthcheck:
