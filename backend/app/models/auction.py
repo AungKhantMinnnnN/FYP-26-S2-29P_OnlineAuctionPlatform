@@ -56,6 +56,10 @@ class InteractionAction(enum.Enum):
     bid = "bid"
     watchlist = "watchlist"
 
+class SubscriptionTier(enum.Enum):
+    free = "free"
+    premium = "premium"
+
 #endregion
 
 #region Data objects
@@ -68,6 +72,8 @@ class User(Base):
     password_hash = Column(String, unique=True, nullable=False)
     role = Column(Enum(UserRole, name="user_role"), default=UserRole.user, nullable=False)
     status = Column(Enum(UserStatus, name="user_status"), default=UserStatus.active, nullable=False)
+    email_verified = Column(Boolean, default=False, nullable=False)
+    subscription_tier = Column(Enum(SubscriptionTier, name="subscription_tier"), default=SubscriptionTier.free, nullable=False)
     balance = Column(Float, default=0.0, nullable=False)
     avatar_key = Column(String)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
@@ -99,6 +105,14 @@ class Categories(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
+class UserInterest(Base):
+    __tablename__ = "user_interests"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
 class Listing(Base):
     __tablename__ = "listings"
 
@@ -107,13 +121,16 @@ class Listing(Base):
     category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"), index=True)
     title = Column(String, nullable=False, index=True)
     description = Column(String)
+    brand = Column(String, index=True)
     condition = Column(Enum(ItemConditions, name="item_condition"), nullable=False)
+    condition_confidence = Column(Float)
     bidding_type = Column(Enum(BiddingType, name="bidding_type"), default=BiddingType.price_up, nullable=False)
     starting_price = Column(Float, nullable=False)
     reserve_price = Column(Float, nullable=False)
     current_price = Column(Float, nullable=False)
     min_increment = Column(Float, default=1.0, nullable=False)
     status = Column(Enum(ListingStatus, name="listing_status"), default=ListingStatus.draft, nullable=False)
+    is_draft = Column(Boolean, default=True, nullable=False)
     start_time = Column(DateTime(timezone=True), nullable=False)
     end_time = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)

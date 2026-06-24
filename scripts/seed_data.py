@@ -15,7 +15,10 @@ if backend_dir not in sys.path:
 from sqlalchemy import select
 
 from app.db.session import AsyncSessionLocal
-from app.models.auction import User, UserProfiles, Listing, ListingImages, ListingStatus, ItemConditions, BiddingType, UserRole, Bid
+from app.models.auction import (
+    User, UserProfiles, Listing, ListingImages, ListingStatus, ItemConditions,
+    BiddingType, UserRole, Bid, Categories, UserInterest, SubscriptionTier,
+)
 from app.core.security import get_password_hash
 from app.core.config import settings
 from minio import Minio
@@ -60,7 +63,8 @@ async def seed_data():
                 username="admin_user",
                 email="admin@example.com",
                 password_hash=get_password_hash("password123"),
-                role=UserRole.admin
+                role=UserRole.admin,
+                email_verified=True
             )
             db.add(admin)
             await db.flush()
@@ -86,7 +90,9 @@ async def seed_data():
                     email=f"user{i}@example.com",
                     password_hash=get_password_hash("password123"),
                     role=UserRole.user,
-                    balance=1000.0  # give some initial balance
+                    balance=1000.0,  # give some initial balance
+                    email_verified=True,
+                    subscription_tier=SubscriptionTier.premium if i <= 2 else SubscriptionTier.free
                 )
                 db.add(user)
                 await db.flush()
@@ -100,42 +106,76 @@ async def seed_data():
             print(f"Ensured {len(normal_users)} Normal users exist.")
             users.extend(normal_users)
         
-        # 2. Create Auction Listings
+        # 2. Create Categories (cold-start onboarding picks from these)
+        category_defs = [
+            ("Electronics", "electronics"),
+            ("Collectibles", "collectibles"),
+            ("Home & Garden", "home-garden"),
+            ("Sporting Goods", "sporting-goods"),
+            ("Fashion", "fashion"),
+            ("Books & Media", "books-media"),
+        ]
+        categories = {}
+        for name, slug in category_defs:
+            cat_result = await db.execute(select(Categories).where(Categories.slug == slug))
+            category = cat_result.scalars().first()
+            if not category:
+                category = Categories(name=name, slug=slug)
+                db.add(category)
+                await db.flush()
+            categories[slug] = category
+        print(f"Ensured {len(categories)} categories exist.")
+
+        # 3. Cold-start: give each normal user a few interests, like onboarding does
+        for user in normal_users:
+            existing = await db.execute(select(UserInterest).where(UserInterest.user_id == user.id))
+            if existing.scalars().first():
+                continue
+            picks = random.sample(list(categories.values()), k=random.randint(2, 3))
+            for category in picks:
+                db.add(UserInterest(user_id=user.id, category_id=category.id))
+        await db.flush()
+
+        # 4. Create Auction Listings
         print("Creating 20 auction listings...")
         items = [
-            ("Vintage Watch", ItemConditions.used, 50.0),
-            ("Gaming Laptop", ItemConditions.refurbished, 400.0),
-            ("Smartphone latest gen", ItemConditions.new, 600.0),
-            ("Antique Chair", ItemConditions.used, 100.0),
-            ("Digital Camera", ItemConditions.refurbished, 250.0),
-            ("Mechanical Keyboard", ItemConditions.new, 80.0),
-            ("Wireless Headphones", ItemConditions.new, 120.0),
-            ("Bicycle", ItemConditions.used, 150.0),
-            ("Coffee Maker", ItemConditions.new, 45.0),
-            ("Acoustic Guitar", ItemConditions.used, 200.0)
+            ("Vintage Watch", ItemConditions.used, 50.0, "Seiko", "collectibles"),
+            ("Gaming Laptop", ItemConditions.refurbished, 400.0, "ASUS", "electronics"),
+            ("Smartphone latest gen", ItemConditions.new, 600.0, "Samsung", "electronics"),
+            ("Antique Chair", ItemConditions.used, 100.0, "Unbranded", "home-garden"),
+            ("Digital Camera", ItemConditions.refurbished, 250.0, "Canon", "electronics"),
+            ("Mechanical Keyboard", ItemConditions.new, 80.0, "Logitech", "electronics"),
+            ("Wireless Headphones", ItemConditions.new, 120.0, "Sony", "electronics"),
+            ("Bicycle", ItemConditions.used, 150.0, "Trek", "sporting-goods"),
+            ("Coffee Maker", ItemConditions.new, 45.0, "Breville", "home-garden"),
+            ("Acoustic Guitar", ItemConditions.used, 200.0, "Yamaha", "collectibles")
         ]
-        
+
         added_count = 0
         for i in range(20):
             # Select a random seller from normal users
             seller = random.choice(normal_users)
             # Pick a random item template
-            item_name, condition, start_price = random.choice(items)
-            
+            item_name, condition, start_price, brand, category_slug = random.choice(items)
+
             # Add some variance to title
             title = f"{item_name} - Batch {i}"
-            
+
             listing = Listing(
                 seller_id=seller.id,
+                category_id=categories[category_slug].id,
                 title=title,
                 description=f"This is a great {item_name} in {condition.value} condition.",
+                brand=brand,
                 condition=condition,
+                condition_confidence=round(random.uniform(70.0, 99.0), 2),
                 bidding_type=BiddingType.price_up,
                 starting_price=start_price,
                 reserve_price=start_price * 1.5,
                 current_price=start_price,
                 min_increment=start_price * 0.05,
                 status=ListingStatus.active,
+                is_draft=False,
                 start_time=datetime.now(timezone.utc),
                 end_time=datetime.now(timezone.utc) + timedelta(days=random.randint(1, 14))
             )
