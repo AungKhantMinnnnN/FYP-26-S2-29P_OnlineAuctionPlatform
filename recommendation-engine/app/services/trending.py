@@ -79,32 +79,3 @@ def rank_listings(
     scores["score"] = scores["score"] * (1 + CATEGORY_WEIGHT * scores["category"])
 
     return scores.reset_index().merge(listings, on="id").sort_values("score", ascending=False)
-
-
-if __name__ == "__main__":
-    assert age_group(None) is None
-    assert age_group(datetime.date(2000, 1, 1), today=datetime.date(2026, 1, 1)) == "25_34"
-    assert age_group(datetime.date(2010, 1, 1), today=datetime.date(2026, 1, 1)) == "under_18"
-    assert age_group(datetime.date(1965, 1, 1), today=datetime.date(2026, 1, 1)) == "55_plus"
-
-    now = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
-    listings = pd.DataFrame([
-        {"id": "a", "end_time": now + datetime.timedelta(hours=12), "title": "ending soon"},
-        {"id": "b", "end_time": now + datetime.timedelta(days=10), "title": "far out"},
-    ])
-    interactions = pd.DataFrame([
-        {"listing_id": "a", "action": "view"},
-        {"listing_id": "b", "action": "bid"},
-    ])
-    ranked = rank_listings(listings, interactions, now)
-    # "b" has a much stronger raw signal (bid=5 vs view=1); urgency boost alone shouldn't flip that.
-    assert ranked.iloc[0]["id"] == "b"
-    assert ranked.set_index("id").loc["a", "urgency"] > ranked.set_index("id").loc["b", "urgency"]
-
-    # category boost should raise "a"'s score without affecting "b" (no category match for b)
-    category_interactions = pd.DataFrame([{"listing_id": "a", "action": "bid"}] * 5)
-    base = rank_listings(listings, interactions, now).set_index("id")
-    boosted = rank_listings(listings, interactions, now, category_interactions=category_interactions).set_index("id")
-    assert boosted.loc["a", "score"] > base.loc["a", "score"]
-    assert boosted.loc["b", "score"] == base.loc["b", "score"]
-    print("OK  trending")

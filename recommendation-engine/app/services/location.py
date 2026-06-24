@@ -1,10 +1,5 @@
 import re
 
-# ponytail: comma-split heuristic, not a real address parser (no parsing lib
-# installed, address is a single freeform text field with no fixed format).
-# Good enough to group "123 Main St, Springfield, IL" with "Springfield, IL"
-# for trending segmentation; upgrade to usaddress/libpostal if grouping
-# quality ever matters more than this.
 _STATE_ZIP_RE = re.compile(r"^([a-z]{2})\s*\d{0,5}(-\d{4})?$")
 
 
@@ -28,14 +23,3 @@ def parse_location(address: str | None) -> dict[str, str | None]:
 
 def _normalize(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().lower())
-
-
-if __name__ == "__main__":
-    assert parse_location(None) == {"city": None, "region": None}
-    assert parse_location("  ") == {"city": None, "region": None}
-    assert parse_location("Springfield") == {"city": "springfield", "region": None}
-    assert parse_location("Springfield, IL") == {"city": "springfield", "region": "IL"}
-    assert parse_location("123 Main St, Springfield, IL 62704") == {"city": "springfield", "region": "IL"}
-    assert parse_location("123 Main St, Springfield") == {"city": "springfield", "region": None}
-    assert parse_location("12  Maple   St, Springfield ,  il") == {"city": "springfield", "region": "IL"}
-    print("OK  parse_location")

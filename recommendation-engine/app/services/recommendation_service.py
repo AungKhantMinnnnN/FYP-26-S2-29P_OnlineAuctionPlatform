@@ -4,13 +4,13 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.auction import Listing, ListingStatus, UserInteraction, UserProfiles
+from app.models.auction import Listing, ListingStatus, UserInteraction, UserInterest, UserProfiles
 from app.services import trending
 from app.services.location import parse_location
 
 
 async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit: int = 20) -> tuple[list[dict], bool]:
-    """Returns (items, personalized) - personalized is False whenever there's no usable profile data (cold start)."""
+    """Returns (items, personalized) - personalized is False for true cold start: no profile, no behavioral history, no onboarding interests."""
     now = datetime.datetime.now(datetime.timezone.utc)
     window_start = now - datetime.timedelta(days=trending.TRENDING_WINDOW_DAYS)
 
@@ -54,7 +54,10 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
 async def _segment_interactions(
     db: AsyncSession, user_id: uuid.UUID | None, interactions_df: pd.DataFrame
 ) -> pd.DataFrame | None:
-    """Cold start (no user_id, or the user has no dob/address yet) -> no segment, plain trending."""
+    """
+    Cold start (no user_id, or the user has no dob/address yet) -> no segment, plain trending.
+    Segment_Interactions is to build profile for recommendation-engine using user's age_group and city.
+    """
     if user_id is None or interactions_df.empty:
         return None
 
@@ -83,7 +86,10 @@ async def _segment_interactions(
 async def _category_interactions(
     db: AsyncSession, user_id: uuid.UUID | None, interactions_df: pd.DataFrame, listings_df: pd.DataFrame
 ) -> pd.DataFrame | None:
-    """No category boost if the user has never interacted with anything (independent of profile completeness)."""
+    """
+    Category boost from the user's own behavioral history; falls back to onboarding
+    `user_interests` picks when that history is empty (the literal cold-start case).
+    """
     if user_id is None or interactions_df.empty:
         return None
 
@@ -95,6 +101,13 @@ async def _category_interactions(
         .distinct()
     )
     user_categories = {row[0] for row in categories_result.all()}
+
+    if not user_categories:
+        interests_result = await db.execute(
+            select(UserInterest.category_id).where(UserInterest.user_id == user_id).distinct()
+        )
+        user_categories = {row[0] for row in interests_result.all()}
+
     if not user_categories:
         return None
 
