@@ -31,13 +31,13 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8 text-center dark:border-slate-800 dark:bg-slate-900/70">
-        <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-accent-50 flex items-center justify-center text-accent-600 dark:bg-accent-950/40 dark:text-accent-300">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8 text-center">
+        <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-accent-50 flex items-center justify-center text-accent-600">
           <Shield size={24} />
         </div>
-        <h1 className="text-xl font-bold text-slate-950 dark:text-slate-50 mb-1">Admin Portal</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Restricted access. Authorized personnel only.</p>
+        <h1 className="text-xl font-bold text-slate-950 mb-1">Admin Portal</h1>
+        <p className="text-sm text-slate-500 mb-6">Restricted access. Authorized personnel only.</p>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
           </PrimaryButton>
         </form>
 
-        <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-4 text-sm text-slate-600">
           <Link to="/" className="text-accent-600 hover:text-accent-700">← Back to public site</Link>
         </p>
       </div>

@@ -30,8 +30,8 @@ export default function MarketplaceNav({ compact = false, onNavigate }: Marketpl
               compact ? 'px-2.5 py-1.5 text-xs' : ''
             } ${
               isActive
-                ? 'bg-accent-600 text-white shadow-soft dark:bg-accent-500 dark:text-slate-950'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-accent-700 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-accent-300'
+                ? 'bg-accent-600 text-white shadow-soft'
+                : 'text-slate-700 hover:bg-slate-100 hover:text-accent-700'
             }`
           }
         >

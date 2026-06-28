@@ -50,9 +50,9 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-12">
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sm:p-8 dark:border-slate-800 dark:bg-slate-900/70">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-1 dark:text-slate-50">Create account</h1>
-        <p className="text-sm text-slate-500 mb-6 dark:text-slate-400">Join AuctionHub to start bidding and selling.</p>
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sm:p-8">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-1">Create account</h1>
+        <p className="text-sm text-slate-500 mb-6">Join AuctionHub to start bidding and selling.</p>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl" id="register-error-alert">
@@ -101,14 +101,14 @@ export default function RegisterPage() {
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
 
-          <label className="flex items-start gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/50">
+          <label className="flex items-start gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
             <input
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-0.5 rounded border-slate-300 text-accent-600 focus:ring-accent-500 dark:border-slate-700 dark:bg-slate-900"
+              className="mt-0.5 rounded border-slate-300 text-accent-600 focus:ring-accent-500"
             />
-            <span className="text-xs text-slate-600 dark:text-slate-400">
+            <span className="text-xs text-slate-600">
               I agree to the Terms of Service and Privacy Policy (PDPA compliant).
             </span>
           </label>
@@ -118,7 +118,7 @@ export default function RegisterPage() {
           </PrimaryButton>
         </form>
 
-        <p className="mt-4 text-center text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-4 text-center text-sm text-slate-600">
           Already have an account? <Link to="/login" className="font-medium text-accent-600 hover:text-accent-700">Log in</Link>
         </p>
       </div>

@@ -12,16 +12,16 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">My Profile</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-950">My Profile</h1>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        <div className="flex border-b border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="flex border-b border-slate-200/80 bg-slate-50/70">
           <button
             onClick={() => setTab('profile')}
             className={`px-4 py-3 text-sm font-semibold transition-colors ${
               tab === 'profile'
-                ? 'text-accent-600 border-b-2 border-accent-600 dark:text-accent-300'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'text-accent-600 border-b-2 border-accent-600'
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             Profile
@@ -30,8 +30,8 @@ export default function ProfilePage() {
             onClick={() => setTab('security')}
             className={`px-4 py-3 text-sm font-semibold transition-colors ${
               tab === 'security'
-                ? 'text-accent-600 border-b-2 border-accent-600 dark:text-accent-300'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'text-accent-600 border-b-2 border-accent-600'
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             Security
@@ -40,8 +40,8 @@ export default function ProfilePage() {
             onClick={() => setTab('danger')}
             className={`px-4 py-3 text-sm font-semibold transition-colors ${
               tab === 'danger'
-                ? 'text-red-600 border-b-2 border-red-600 dark:text-red-400'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'text-red-600 border-b-2 border-red-600'
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             Danger Zone
@@ -77,12 +77,12 @@ export default function ProfilePage() {
           )}
 
           {tab === 'danger' && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900/60 dark:bg-red-950/30">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="text-red-600 mt-0.5 dark:text-red-400" size={20} />
+                <AlertTriangle className="text-red-600 mt-0.5" size={20} />
                 <div>
-                  <h3 className="font-semibold text-red-900 dark:text-red-200">Delete Account</h3>
-                  <p className="text-sm text-red-700 mt-1 mb-4 dark:text-red-300">
+                  <h3 className="font-semibold text-red-900">Delete Account</h3>
+                  <p className="text-sm text-red-700 mt-1 mb-4">
                     This will permanently remove your profile, bids, and listings. This action cannot be undone.
                   </p>
                   <SecondaryButton onClick={() => alert('Account deletion simulated')}>Delete My Account</SecondaryButton>

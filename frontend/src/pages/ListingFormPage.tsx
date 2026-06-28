@@ -156,10 +156,10 @@ export default function ListingFormPage() {
     <div className="max-w-3xl mx-auto space-y-6 p-4">
       <Modal isOpen={successModalOpen} onClose={() => navigate('/auctions')}>
         <div className="text-center py-6">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900 mb-4">
-            <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
+            <CheckCircle2 className="h-10 w-10 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Listing Published!</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Listing Published!</h2>
           <p className="text-slate-500 mb-8">
             Your auction has been successfully created and is now live on the marketplace.
           </p>
