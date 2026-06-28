@@ -4,15 +4,15 @@ import os
 env_file_name = os.getenv("ENV_FILE", ".env.local")
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Online Auction Platform - Recommendation Engine"
-    API_VERSION: str = "v1.0.0"
-    DATABASE_URL: str = "postgresql://user:password@db:5432/auction_db"
-    BACKEND_URL: str = "http://backend:8000"
-    REDIS_URL: str = "redis://redis:6379/0"
+    PROJECT_NAME: str
+    API_VERSION: str
+    DATABASE_URL: str
+    BACKEND_URL: str
+    REDIS_URL: str
 
-    LOG_DIR: str = "logs/recommendation-engine_logs"
+    LOG_DIR: str
 
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
+    ALLOWED_ORIGINS: str
     
     @property
     def cors_origins(self) -> list[str]:
