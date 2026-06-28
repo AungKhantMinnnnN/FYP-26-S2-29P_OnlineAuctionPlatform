@@ -166,20 +166,20 @@ export default function AuctionDetailPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <nav className="flex items-center gap-2 text-sm text-slate-500 mb-6 dark:text-slate-400">
-        <Link to="/" className="hover:text-slate-700 dark:hover:text-slate-200">Home</Link>
+      <nav className="flex items-center gap-2 text-sm text-slate-500 mb-6">
+        <Link to="/" className="hover:text-slate-700">Home</Link>
         <ChevronRight size={14} />
-        <Link to="/browse" className="hover:text-slate-700 dark:hover:text-slate-200">Browse</Link>
+        <Link to="/browse" className="hover:text-slate-700">Browse</Link>
         <ChevronRight size={14} />
-        <Link to={`/browse?cat=${auction.category}`} className="hover:text-slate-700 dark:hover:text-slate-200">{auction.category}</Link>
+        <Link to={`/browse?cat=${auction.category}`} className="hover:text-slate-700">{auction.category}</Link>
         <ChevronRight size={14} />
-        <span className="text-slate-950 truncate max-w-xs dark:text-slate-100">{auction.title}</span>
+        <span className="text-slate-950 truncate max-w-xs">{auction.title}</span>
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-            <div className="aspect-video rounded-2xl bg-gradient-to-br from-slate-100 via-slate-50 to-accent-50 flex items-center justify-center mb-3 overflow-hidden dark:from-slate-800 dark:via-slate-900 dark:to-accent-950/30">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <div className="aspect-video rounded-2xl bg-gradient-to-br from-slate-100 via-slate-50 to-accent-50 flex items-center justify-center mb-3 overflow-hidden">
               {auction.images && auction.images.length > 0 ? (
                 <img 
                   src={selectedImage || auction.images[0].image_url} 
@@ -187,7 +187,7 @@ export default function AuctionDetailPage() {
                   className="w-full h-full object-cover transition-opacity duration-300" 
                 />
               ) : (
-                <Image size={48} className="text-slate-300 dark:text-slate-600" />
+                <Image size={48} className="text-slate-300" />
               )}
             </div>
             {auction.images && auction.images.length > 1 && (
@@ -199,7 +199,7 @@ export default function AuctionDetailPage() {
                     className={`w-20 h-20 shrink-0 rounded-xl flex items-center justify-center overflow-hidden border-2 transition-all ${
                       (selectedImage === img.image_url) || (!selectedImage && i === 0)
                         ? 'border-accent-500 ring-2 ring-accent-500/20' 
-                        : 'border-transparent hover:border-slate-300 dark:hover:border-slate-600'
+                        : 'border-transparent hover:border-slate-300'
                     }`}
                   >
                     <img src={img.image_url} alt={`${auction.title} detail`} className="w-full h-full object-cover" />
@@ -209,36 +209,36 @@ export default function AuctionDetailPage() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <StatusBadge status={auction.status} />
-              <span className="text-xs text-slate-500 dark:text-slate-400">{auction.condition}</span>
+              <span className="text-xs text-slate-500">{auction.condition}</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-3 dark:text-slate-50">{auction.title}</h1>
-            <div className="flex items-center gap-2 text-sm text-slate-600 mb-4 dark:text-slate-300">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-3">{auction.title}</h1>
+            <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
               <User size={16} />
               <span className="font-medium">{auction.seller.name}</span>
               <span className="text-slate-400">•</span>
               <span>{auction.seller.rating} ★</span>
             </div>
-            <p className="text-slate-700 text-sm leading-relaxed dark:text-slate-300">{auction.description}</p>
+            <p className="text-slate-700 text-sm leading-relaxed">{auction.description}</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-            <h3 className="font-semibold text-slate-950 mb-3 dark:text-slate-50">Bid History</h3>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-950 mb-3">Bid History</h3>
+            <div className="divide-y divide-slate-100">
               {bidHistory.map((b, i) => (
                 <div key={i} className="flex items-center justify-between py-3 text-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-accent-50 flex items-center justify-center text-accent-700 text-xs font-bold dark:bg-accent-950/40 dark:text-accent-300">
+                    <div className="w-8 h-8 rounded-full bg-accent-50 flex items-center justify-center text-accent-700 text-xs font-bold">
                       {b.bidder[0].toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-medium text-slate-950 dark:text-slate-50">{b.bidder}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{b.time}</p>
+                      <p className="font-medium text-slate-950">{b.bidder}</p>
+                      <p className="text-xs text-slate-500">{b.time}</p>
                     </div>
                   </div>
-                  <span className="font-semibold text-slate-950 dark:text-slate-50">${b.amount.toFixed(2)}</span>
+                  <span className="font-semibold text-slate-950">${b.amount.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -246,24 +246,24 @@ export default function AuctionDetailPage() {
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sticky top-24 dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft sticky top-24">
             <div className="mb-4">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">
+              <p className="text-sm text-slate-500 mb-1">
                 {auction.bidding_type === 'low_start' && bidsPlaced === 0 ? 'Starting price' : 'Current highest bid'}
               </p>
-              <p className="text-3xl font-bold text-slate-950 dark:text-slate-50">${currentBid.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-slate-950">${currentBid.toFixed(2)}</p>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">
+              <p className="text-sm text-slate-500 mb-1">
                 {auction.bidding_type === 'public' ? 'Minimum required bid' : 'Minimum next bid'}
               </p>
-              <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">
+              <p className="text-lg font-semibold text-slate-950">
                 ${minimumBid.toFixed(2)}
                 {auction.bidding_type === 'public' && <span className="text-sm text-slate-500 font-normal ml-2">(Any higher amount)</span>}
               </p>
             </div>
             {user && (
-              <div className="mb-4 rounded-2xl bg-accent-50 p-3 text-sm text-accent-800 ring-1 ring-accent-100 dark:bg-accent-950/30 dark:text-accent-200 dark:ring-accent-900/50">
+              <div className="mb-4 rounded-2xl bg-accent-50 p-3 text-sm text-accent-800 ring-1 ring-accent-100">
                 <p className="flex items-center justify-between font-semibold">
                   <span className="inline-flex items-center gap-2"><Wallet size={15} /> Your Balance</span>
                   <span>${balance.toFixed(2)}</span>
@@ -271,7 +271,7 @@ export default function AuctionDetailPage() {
               </div>
             )}
             <div className="mb-6">
-              <p className="text-sm text-slate-500 mb-1 dark:text-slate-400">Time remaining</p>
+              <p className="text-sm text-slate-500 mb-1">Time remaining</p>
               <CountdownBadge endTime={auction.endTime} className="text-sm px-3 py-1.5" />
             </div>
 
@@ -283,10 +283,10 @@ export default function AuctionDetailPage() {
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={`Enter at least $${minimumBid.toFixed(2)}`}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15"
               />
-              {bidError && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:bg-red-950/30 dark:text-red-300">{bidError}</p>}
-              {bidMessage && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{bidMessage}</p>}
+              {bidError && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{bidError}</p>}
+              {bidMessage && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{bidMessage}</p>}
               <PrimaryButton fullWidth type="submit">Place Bid</PrimaryButton>
             </form>
 
@@ -296,7 +296,7 @@ export default function AuctionDetailPage() {
               </SecondaryButton>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1 dark:border-slate-800 dark:text-slate-400">
+            <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1">
               <p className="flex items-center gap-1">
                 <Shield size={12} /> Secure bidding with bid history logs
               </p>
@@ -310,7 +310,7 @@ export default function AuctionDetailPage() {
 
       {related.length > 0 && (
         <div className="mt-12">
-          <h2 className="text-lg font-semibold text-slate-950 mb-4 dark:text-slate-50">Related Items</h2>
+          <h2 className="text-lg font-semibold text-slate-950 mb-4">Related Items</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {related.map((a) => (
               <AuctionCard key={a.id} auction={a} />

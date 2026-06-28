@@ -42,8 +42,8 @@ export default function SellerDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">Seller Dashboard</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Manage listings, track sales, and monitor performance.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Seller Dashboard</h1>
+          <p className="text-sm text-slate-500">Manage listings, track sales, and monitor performance.</p>
         </div>
         <PrimaryButton to="/create-listing">
           <PlusCircle size={16} className="mr-1" /> Create Listing
@@ -57,7 +57,7 @@ export default function SellerDashboardPage() {
         <DashboardStatCard title="Avg. Sell Price" value={`$${avgSellPrice.toFixed(2)}`} icon={Tag} />
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
         <SectionHeader title="My Listings" actionText="View all" actionTo="/seller-listings" />
         {isLoading ? (
           <div className="text-center text-slate-500 py-8 animate-pulse">Loading listings...</div>
@@ -71,8 +71,8 @@ export default function SellerDashboardPage() {
               '-', // bids count not directly available yet
               <StatusBadge key={l.id} status={l.status} />,
               <div key={`actions-${l.id}`} className="flex items-center gap-2">
-                <button onClick={() => navigate(`/auction/${l.id}`)} className="text-xs font-semibold text-accent-600 hover:underline dark:text-accent-300">View</button>
-                <button onClick={() => navigate(`/edit-listing/${l.id}`)} className="text-xs font-semibold text-accent-600 hover:underline dark:text-accent-300">Edit</button>
+                <button onClick={() => navigate(`/auction/${l.id}`)} className="text-xs font-semibold text-accent-600 hover:underline">View</button>
+                <button onClick={() => navigate(`/edit-listing/${l.id}`)} className="text-xs font-semibold text-accent-600 hover:underline">Edit</button>
               </div>
             ])}
             emptyMessage="No active listings."
@@ -81,7 +81,7 @@ export default function SellerDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <SectionHeader title="Sold Items" />
           {isLoading ? (
              <div className="text-center text-slate-500 py-8 animate-pulse">Loading...</div>
@@ -97,7 +97,7 @@ export default function SellerDashboardPage() {
             />
           )}
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
           <SectionHeader title="Drafts" actionText="Create new" actionTo="/create-listing" />
           {isLoading ? (
              <div className="text-center text-slate-500 py-8 animate-pulse">Loading...</div>
@@ -108,7 +108,7 @@ export default function SellerDashboardPage() {
                 d.title,
                 new Date(d.updated_at).toLocaleDateString(),
                 <div key={`actions-${d.id}`} className="flex items-center gap-2">
-                  <button onClick={() => navigate(`/edit-listing/${d.id}`)} className="text-xs font-semibold text-accent-600 hover:underline dark:text-accent-300">Edit</button>
+                  <button onClick={() => navigate(`/edit-listing/${d.id}`)} className="text-xs font-semibold text-accent-600 hover:underline">Edit</button>
                 </div>
               ])}
               emptyMessage="No drafts found."
@@ -117,8 +117,8 @@ export default function SellerDashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        <h3 className="font-semibold text-slate-950 mb-3 dark:text-slate-50">Quick Actions</h3>
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <h3 className="font-semibold text-slate-950 mb-3">Quick Actions</h3>
         <div className="flex flex-wrap gap-3">
           <SecondaryButton to="/create-listing">Create Listing</SecondaryButton>
           <SecondaryButton to="/seller-listings">View All Listings</SecondaryButton>
