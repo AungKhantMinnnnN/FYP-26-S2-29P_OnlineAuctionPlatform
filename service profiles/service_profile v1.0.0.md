@@ -5,18 +5,23 @@ This document outlines the API endpoints, request schemas, and response schemas 
 ---
 
 ## 1. Backend (API Gateway) - v1.0.0
-Handles authentication, core auction CRUD operations, image uploads, and routing.
+Handles authentication, core auction CRUD operations, image uploads, and routing. All routes are served under the prefix `/{version}` (e.g. `/v1.0.0`).
 
-### Authentication (`/auth`)
+### Authentication (`/v1.0.0/auth`)
 
-* **`POST /auth/register`**
-  * **Description:** Register a new user.
-  * **Request:** JSON object (`UserCreate`)
+* **`POST /v1.0.0/auth/register`**
+  * **Description:** Register a new user. Creates both a `users` and a `user_profiles` record in a single call.
+  * **Request:** JSON object (`RegisterRequest`)
     ```json
     {
+      "full_name": "string",
       "username": "string",
       "email": "string (email)",
-      "password": "string"
+      "password": "string",
+      "phone": "string | null",
+      "address": "string | null",
+      "bio": "string | null",
+      "role": "string (default: \"user\")"
     }
     ```
   * **Response (201 Created):** JSON object (`UserResponse`)
@@ -24,15 +29,27 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     {
       "id": "uuid",
       "username": "string",
-      "email": "string"
+      "email": "string",
+      "role": "string",
+      "balance": "float",
+      "profile": {
+        "full_name": "string",
+        "phone": "string | null",
+        "address": "string | null",
+        "bio": "string | null"
+      }
     }
     ```
 
-* **`POST /auth/login`**
-  * **Description:** Authenticate user and issue tokens.
-  * **Request:** `multipart/form-data` (OAuth2 Password Request Form)
-    * `username`: string
-    * `password`: string
+* **`POST /v1.0.0/auth/login`**
+  * **Description:** Authenticate user and issue a JWT access token. Accepts either username or email in the `username_or_email` field.
+  * **Request:** JSON object (`LoginRequest`)
+    ```json
+    {
+      "username_or_email": "string",
+      "password": "string"
+    }
+    ```
   * **Response (200 OK):** JSON object (`Token`)
     ```json
     {
@@ -41,7 +58,7 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     }
     ```
 
-* **`GET /auth/get_current_user`**
+* **`GET /v1.0.0/auth/get_current_user`**
   * **Description:** Get details of the currently authenticated user.
   * **Request Headers:** `Authorization: Bearer <token>`
   * **Response (200 OK):** JSON object (`UserResponse`)
@@ -49,15 +66,46 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     {
       "id": "uuid",
       "username": "string",
-      "email": "string"
+      "email": "string",
+      "role": "string",
+      "balance": "float",
+      "profile": {
+        "full_name": "string",
+        "phone": "string | null",
+        "address": "string | null",
+        "bio": "string | null"
+      }
     }
     ```
 
-### Auctions (`/auctions`)
+### Auctions (`/v1.0.0/auctions`)
 
-* **`GET /auctions/`**
+* **`GET /v1.0.0/auctions/form_metadata`**
+  * **Description:** Returns all data needed to populate a listing creation form: available categories, item conditions, and bidding types.
+  * **Response (200 OK):** JSON object (`MetadataResponse`)
+    ```json
+    {
+      "categories": [
+        {
+          "id": "uuid",
+          "name": "string",
+          "slug": "string",
+          "parent_id": "uuid | null",
+          "is_active": "boolean"
+        }
+      ],
+      "conditions": [
+        { "id": "string", "name": "string" }
+      ],
+      "biddingTypes": [
+        { "id": "string", "name": "string" }
+      ]
+    }
+    ```
+
+* **`GET /v1.0.0/auctions/`**
   * **Description:** Get a paginated list of auctions.
-  * **Request Parameters:** `page` (int), `size` (int), `status` (string, optional), `search` (string, optional)
+  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100), `status` (enum, optional), `search` (string, optional)
   * **Response (200 OK):** JSON object (`PaginatedAuctionResponse`)
     ```json
     {
@@ -70,10 +118,10 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
           "description": "string | null",
           "condition": "new | used | refurbished",
           "bidding_type": "price_up | low_start | public",
-          "starting_price": "float",
-          "reserve_price": "float",
-          "current_price": "float",
-          "min_increment": "float",
+          "starting_price": "float | null",
+          "reserve_price": "float | null",
+          "current_price": "float | null",
+          "min_increment": "float | null",
           "status": "draft | pending_review | active | ended | removed",
           "start_time": "datetime",
           "end_time": "datetime",
@@ -85,7 +133,7 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
               "s3_key": "string",
               "sort_order": "int",
               "is_primary": "boolean",
-              "image_url": "string"
+              "image_url": "string | null"
             }
           ],
           "seller": {
@@ -102,22 +150,21 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     }
     ```
 
-* **`GET /auctions/get_user_listings`**
-  * **Description:** Get listings created by the authenticated user.
+* **`GET /v1.0.0/auctions/get_user_listings`**
+  * **Description:** Get listings created by the authenticated user, paginated.
   * **Request Headers:** `Authorization: Bearer <token>`
-  * **Response (200 OK):** JSON object (`PaginatedAuctionResponse`)
-    *(Same response structure as `GET /auctions/`)*
+  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100)
+  * **Response (200 OK):** `PaginatedAuctionResponse` *(same structure as `GET /auctions/`)*
 
-* **`GET /auctions/get_auction/{id}`**
+* **`GET /v1.0.0/auctions/get_auction/{id}`**
   * **Description:** Get details of a specific auction listing.
   * **Request Parameters:** `id` (UUID) in path
-  * **Response (200 OK):** JSON object (`AuctionListingResponse`)
-    *(Same single object structure as an item in `GET /auctions/`)*
+  * **Response (200 OK):** `AuctionListingResponse` *(same single-item structure as above)*
 
-* **`GET /auctions/get_auction_bids/{id}/bids`**
+* **`GET /v1.0.0/auctions/get_auction_bids/{id}/bids`**
   * **Description:** Get bid history for a specific auction.
   * **Request Parameters:** `id` (UUID) in path
-  * **Response (200 OK):** JSON array of `BidResponse` objects.
+  * **Response (200 OK):** JSON array of `BidResponse`
     ```json
     [
       {
@@ -136,8 +183,8 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     ]
     ```
 
-* **`POST /auctions/create_listing`**
-  * **Description:** Create a new auction listing (text data only).
+* **`POST /v1.0.0/auctions/create_listing`**
+  * **Description:** Create a new auction listing (text/metadata only). Upload images separately via the image upload endpoint.
   * **Request Headers:** `Authorization: Bearer <token>`
   * **Request:** JSON object (`ListingCreate`)
     ```json
@@ -146,21 +193,21 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
       "description": "string | null",
       "condition": "new | used | refurbished",
       "bidding_type": "price_up | low_start | public",
-      "starting_price": "float",
-      "reserve_price": "float",
-      "min_increment": "float",
+      "starting_price": "float (>= 0)",
+      "reserve_price": "float (>= starting_price)",
+      "min_increment": "float (default: 1.0)",
       "start_time": "datetime",
-      "end_time": "datetime",
-      "category_id": "uuid | null"
+      "end_time": "datetime (must be after start_time)",
+      "category_id": "uuid | null",
+      "status": "draft | pending_review | active | ended | removed (optional)"
     }
     ```
-  * **Response (201 Created):** JSON object (`AuctionListingResponse`)
+  * **Response (201 Created):** `AuctionListingResponse`
 
-* **`POST /auctions/upload_auction_images/{id}`**
-  * **Description:** Upload multiple images for a specific listing.
+* **`POST /v1.0.0/auctions/upload_auction_images/{id}`**
+  * **Description:** Upload one or more images for a listing. Only `image/*` content types are accepted.
   * **Request Headers:** `Authorization: Bearer <token>`, `Content-Type: multipart/form-data`
-  * **Request:** Form-Data
-    * `files`: List of `UploadFile` (image/jpeg, image/png)
+  * **Request:** Form-Data — `files`: list of image files
   * **Response (200 OK):** JSON array of `ListingImageResponse`
     ```json
     [
@@ -169,26 +216,26 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
         "s3_key": "string",
         "sort_order": "int",
         "is_primary": "boolean",
-        "image_url": "string"
+        "image_url": "string | null"
       }
     ]
     ```
 
 ### Health Check
 
-* **`GET /health`**
-  * **Response:** `{"status": "ok", "service": "API Gateway", "version": "v1.0.0"}`
+* **`GET /v1.0.0/health`**
+  * **Response:** `{"status": "ok", "version": "v1.0.0"}`
 
 ---
 
 ## 2. Bidding Engine - v1.0.0
-High-concurrency, real-time bid processing service using WebSockets and Redis locks.
+High-concurrency, real-time bid processing service using WebSockets and Redis distributed locks. All routes are served under the prefix `/{version}/bids` (e.g. `/v1.0.0/bids`).
 
-### WebSockets (`/ws`)
+### WebSockets (`/v1.0.0/bids/ws`)
 
-* **`WebSocket /ws/{listing_id}?token=<jwt>`**
-  * **Description:** Establish a real-time connection for a specific auction listing.
-  * **Connection Request:** Pass `token` via query string for JWT authentication.
+* **`WebSocket /v1.0.0/bids/ws/{listing_id}?token=<jwt>`**
+  * **Description:** Establish a real-time connection for a specific auction listing. Each inbound message is processed in a fresh DB session under a Redis lock (`lock:bid:{listing_id}`) to prevent race conditions.
+  * **Connection:** Pass `token` (JWT) via query string. Missing or invalid token closes the connection with WebSocket code `1008 (Policy Violation)`.
   * **Client Send (Place Bid):**
     ```json
     {
@@ -196,16 +243,18 @@ High-concurrency, real-time bid processing service using WebSockets and Redis lo
       "amount": "float"
     }
     ```
-  * **Server Broadcast (Success):** Sent to all clients connected to the room.
+  * **Server Broadcast (Success):** Sent to all clients connected to the listing room.
     ```json
     {
       "type": "new_bid",
+      "listing_id": "uuid (string)",
       "current_price": "float",
-      "bidder_id": "uuid",
-      "amount": "float"
+      "bidder_id": "uuid (string)",
+      "amount": "float",
+      "timestamp": "datetime (ISO 8601)"
     }
     ```
-  * **Server Direct Message (Error):** Sent only to the client that made the invalid bid.
+  * **Server Direct Message (Error):** Sent only to the originating client. Covers: invalid action type, invalid bid amount, non-active listing, expired auction, seller bidding on own listing, insufficient balance, bid below minimum increment.
     ```json
     {
       "type": "error",
@@ -215,29 +264,45 @@ High-concurrency, real-time bid processing service using WebSockets and Redis lo
 
 ### Health Check
 
-* **`GET /health`**
+* **`GET /v1.0.0/bids/health`**
   * **Response:** `{"status": "ok", "service": "bidding-engine", "version": "v1.0.0"}`
 
 ---
 
 ## 3. Recommendation Engine - v1.0.0
-Provides personalized and trending suggestions to users.
+Provides personalized and trending auction suggestions. All routes are served under the prefix `/{version}/recs` (e.g. `/v1.0.0/recs`). Personalization uses a hybrid of demographic segment matching (age group, city) and category affinity derived from behavioral history; when no behavioral history exists, falls back to cold-start onboarding interests (`user_interests` table).
 
-### Recommendations (`/recommendations`)
+### Recommendations (`/recs`)
 
-* **`GET /trending`**
-  * **Description:** Get trending items (mostly used for cold starts).
-  * **Request Parameters:** None (potentially limit/offset in future)
-  * **Response (200 OK):** JSON object
+* **`GET /v1.0.0/recs/trending`**
+  * **Description:** Returns ranked active listings. When `user_id` is supplied and the user has a profile or interaction history, the ranking is personalized (demographic segment boost + category affinity boost). Without `user_id`, or for users with no profile/history/interests, returns pure engagement-weighted trending.
+  * **Request Parameters:**
+
+    | Param | Type | Required | Default | Description |
+    |---|---|---|---|---|
+    | `user_id` | `uuid` | No | `null` | Authenticated user's ID. Enables personalization. |
+    | `limit` | `int` | No | `20` | Number of results (1–100). |
+
+  * **Response (200 OK):** `TrendingResponse`
     ```json
     {
-      "items": "array",
+      "items": [
+        {
+          "id": "uuid",
+          "title": "string",
+          "current_price": "float",
+          "end_time": "datetime | null",
+          "score": "float"
+        }
+      ],
       "count": "int",
-      "type": "string"
+      "type": "personalized | trending"
     }
     ```
+    * `score` — ML ranking score used to order results; higher = more relevant.
+    * `type` — `"personalized"` if demographic or category signals were applied; `"trending"` if the response is cold-start/engagement-only.
 
 ### Health Check
 
-* **`GET /health`**
+* **`GET /v1.0.0/recs/health`**
   * **Response:** `{"status": "ok", "service": "recommendation-engine", "version": "v1.0.0"}`
