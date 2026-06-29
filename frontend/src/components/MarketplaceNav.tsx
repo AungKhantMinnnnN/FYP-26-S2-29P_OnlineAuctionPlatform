@@ -1,15 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { Grid3X3, Heart, History, LayoutDashboard, PlusCircle, Store, User, Wallet } from 'lucide-react'
 
 const marketplaceLinks = [
-  { to: '/browse', label: 'Products', icon: Grid3X3 },
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/bid-history', label: 'Bid History', icon: History },
-  { to: '/watchlist', label: 'Watchlist', icon: Heart },
-  { to: '/wallet', label: 'Wallet', icon: Wallet },
-  { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store },
-  { to: '/create-listing', label: 'Create Listing', icon: PlusCircle },
-  { to: '/profile', label: 'Profile', icon: User },
+  { to: '/browse', label: 'Categories' },
+  { to: '/auctions', label: 'Auctions' },
+  { to: '/bid-history', label: 'Activity' },
+  { to: '/support', label: 'Support' },
 ]
 
 interface MarketplaceNavProps {
@@ -17,25 +12,22 @@ interface MarketplaceNavProps {
   onNavigate?: () => void
 }
 
-export default function MarketplaceNav({ compact = false, onNavigate }: MarketplaceNavProps) {
+export default function MarketplaceNav({ onNavigate }: MarketplaceNavProps) {
   return (
-    <nav className="flex gap-1 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {marketplaceLinks.map(({ to, label, icon: Icon }) => (
+    <nav className="flex items-center gap-8">
+      {marketplaceLinks.map(({ to, label }) => (
         <NavLink
-          key={to}
+          key={label}
           to={to}
           onClick={onNavigate}
           className={({ isActive }) =>
-            `inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-              compact ? 'px-2.5 py-1.5 text-xs' : ''
-            } ${
+            `relative pb-2 text-sm font-medium transition-colors ${
               isActive
-                ? 'bg-accent-600 text-white shadow-soft'
-                : 'text-slate-700 hover:bg-slate-100 hover:text-accent-700'
+                ? 'text-accent-700 after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-accent-600'
+                : 'text-slate-600 hover:text-accent-700'
             }`
           }
         >
-          <Icon size={compact ? 14 : 16} />
           {label}
         </NavLink>
       ))}
