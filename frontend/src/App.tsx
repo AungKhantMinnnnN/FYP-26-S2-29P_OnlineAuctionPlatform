@@ -22,6 +22,8 @@ import AdminManagementPage from './pages/AdminManagementPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 import SupportPage from './pages/SupportPage'
+import SupportSuccessPage from './pages/SupportSuccessPage'
+import TestimonialSuccessPage from './pages/TestimonialSuccessPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +61,8 @@ export default function App() {
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/wallet/top-up" element={<WalletPage mode="top-up" />} />
               <Route path="/support" element={<SupportPage />} />
+              <Route path="/support/success" element={<SupportSuccessPage />} />
+              <Route path="/testimonial/success" element={<TestimonialSuccessPage />} />
             </Route>
           </Route>
 
