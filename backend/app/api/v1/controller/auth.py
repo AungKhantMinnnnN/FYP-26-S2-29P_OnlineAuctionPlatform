@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logger import setup_logging
 from app.db.session import get_db
 from app.models.auction import User
 from app.schemas.auth import (
@@ -13,6 +14,8 @@ from app.services.auth_service import AuthService
 from app.services.password_reset_service import PasswordResetService
 from app.services.email_verification_service import EmailVerificationService
 
+logger = setup_logging("AuthController")
+
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -21,8 +24,12 @@ async def register(
     db: AsyncSession = Depends(get_db)
 ):
     new_user = await AuthService.register_user(db=db, request=request)
-    # Auto-send verification email. Failure is logged but doesn't block registration.
-    await EmailVerificationService.send_verification(db=db, user=new_user)
+    # Auto-send verification email. Any failure (missing table, SMTP down, etc.) is
+    # logged but never blocks registration — the user can request a resend later.
+    try:
+        await EmailVerificationService.send_verification(db=db, user=new_user)
+    except Exception as e:
+        logger.warning(f"Verification email skipped for {new_user.email}: {e}")
     return new_user
 
 @router.post("/login", response_model=Token)
