@@ -7,7 +7,7 @@ import uuid
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.auction import User
+from app.models.auction import User, UserRole
 from app.schemas.auth import TokenPayload
 
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -45,5 +45,11 @@ async def get_current_user(
 
     if not user:
         raise credentials_exception
-    
+
     return user
+
+
+async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user

@@ -86,18 +86,21 @@ class AuctionListingResponse(BaseModel):
     category_id: Optional[UUID] = None
     title: str
     description: Optional[str] = None
+    brand: Optional[str] = None
     condition: ItemConditions
+    condition_confidence: Optional[float] = None
     bidding_type: BiddingType
     starting_price: Optional[float] = None
     reserve_price: Optional[float] = None
     current_price: Optional[float] = None
     min_increment: Optional[float] = None
     status: ListingStatus
-    start_time: datetime
-    end_time: datetime
+    is_draft: bool = True
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    
+
     images: List[ListingImageResponse] = []
     seller: Optional[UserSellerResponse] = None
 

@@ -19,8 +19,9 @@ class StorageService:
         try:
             if not self.client.bucket_exists(self.bucket_name):
                 self.client.make_bucket(self.bucket_name)
-        except S3Error as err:
-            print(f"S3 Error ensuring bucket exists: {err}")
+        except Exception as err:
+            # S3Error covers protocol errors; catch-all covers network errors on startup
+            print(f"Warning: could not ensure bucket exists: {err}")
 
     def upload_file(self, file_bytes: bytes, object_name: str, content_type: str) -> str:
         try:

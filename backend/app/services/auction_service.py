@@ -19,18 +19,22 @@ class AuctionService:
         page: int,
         size: int,
         listing_status: Optional[ListingStatus],
-        search: Optional[str]
+        search: Optional[str],
+        category_id: Optional[UUID] = None,
     ) -> Dict[str, Any]:
         query = select(Listing).options(
             selectinload(Listing.images),
             selectinload(Listing.seller)
         )
-        
+
         if listing_status:
             query = query.where(Listing.status == listing_status)
         else:
             query = query.where(Listing.status != ListingStatus.draft)
-            
+
+        if category_id:
+            query = query.where(Listing.category_id == category_id)
+
         if search:
             query = query.where(Listing.title.ilike(f"%{search}%"))
             
@@ -106,12 +110,16 @@ class AuctionService:
         db: AsyncSession,
         user_id: UUID,
         page: int,
-        size: int
+        size: int,
+        listing_status: Optional[ListingStatus] = None,
     ) -> Dict[str, Any]:
         query = select(Listing).options(
             selectinload(Listing.images),
             selectinload(Listing.seller)
         ).where(Listing.seller_id == user_id)
+
+        if listing_status:
+            query = query.where(Listing.status == listing_status)
         
         # Count total
         count_query = select(func.count()).select_from(query.subquery())
