@@ -29,3 +29,23 @@ async def get_me(
 ):
     return current_user
 
+@router.post("/forgot_password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    return await AuthService.forgot_password(db, request)
+
+@router.post("/verify_otp")
+async def verify_otp(
+    request: VerifyOtpRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    return await AuthService.verify_otp(db, request)
+
+@router.post("/reset_password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    return await AuthService.reset_password(db, request)

@@ -61,7 +61,7 @@ export default function LoginPage() {
               <input type="checkbox" className="rounded border-slate-300 text-accent-600 focus:ring-accent-500" />
               Remember me
             </label>
-            <Link to="/login" className="text-sm font-medium text-accent-600 hover:text-accent-700">Forgot password?</Link>
+            <Link to="/forgot-password" className="text-sm font-medium text-accent-600 hover:text-accent-700">Forgot password?</Link>
           </div>
 
           <PrimaryButton fullWidth type="submit" disabled={localLoading}>

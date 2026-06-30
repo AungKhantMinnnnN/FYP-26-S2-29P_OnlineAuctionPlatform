@@ -4,9 +4,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models.auction import User, UserProfiles, UserRole, UserStatus
-from app.schemas.auth import LoginRequest, RegisterRequest, Token
+from app.models.auction import User, UserProfiles, UserRole, UserStatus, PasswordResetToken
+from app.schemas.auth import LoginRequest, RegisterRequest, Token, ForgotPasswordRequest, ResetPasswordRequest
 from app.core.security import get_password_hash, verify_password, create_access_token
+from app.services.email_service import send_otp_email
 
 class AuthService:
     @staticmethod
@@ -76,3 +77,95 @@ class AuthService:
             
         access_token = create_access_token(subject=user.id)
         return Token(access_token=access_token, token_type="bearer")
+
+@staticmethod
+async def forgot_password(
+    db: AsyncSession,
+    request: ForgotPasswordRequest
+):
+
+    stmt = select(User).where(User.email == request.email)
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Email not found"
+        )
+
+    otp = str(random.randint(100000, 999999))
+
+    await db.execute(
+        delete(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id
+        )
+    )
+
+    reset_token = PasswordResetToken(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        otp=otp,
+        expires_at=datetime.datetime.now(
+            datetime.timezone.utc
+        ) + datetime.timedelta(minutes=10),
+        used=False
+    )
+
+    db.add(reset_token)
+    await db.commit()
+
+    send_otp_email(user.email, otp)
+
+    return {
+        "message": "Verification code sent to your email."
+    }
+
+
+@staticmethod
+async def reset_password(
+    db: AsyncSession,
+    request: ResetPasswordRequest
+):
+
+    stmt = select(User).where(User.email == request.email)
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    stmt = select(PasswordResetToken).where(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.otp == request.otp,
+        PasswordResetToken.used == False
+    )
+
+    result = await db.execute(stmt)
+    token = result.scalars().first()
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code"
+        )
+
+    if token.expires_at < datetime.datetime.now(datetime.timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired"
+        )
+
+    user.password_hash = get_password_hash(request.new_password)
+    user.updated_at = datetime.datetime.now(datetime.timezone.utc)
+
+    token.used = True
+
+    await db.commit()
+
+    return {
+        "message": "Password reset successfully."
+    }

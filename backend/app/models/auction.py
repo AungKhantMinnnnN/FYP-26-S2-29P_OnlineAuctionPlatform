@@ -81,6 +81,22 @@ class User(Base):
 
     profile = relationship("UserProfiles", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    otp = Column(String(6), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        nullable=False
+    )
+
+    user = relationship("User")
+    
 class UserProfiles(Base):
     __tablename__ = "user_profiles"
 
