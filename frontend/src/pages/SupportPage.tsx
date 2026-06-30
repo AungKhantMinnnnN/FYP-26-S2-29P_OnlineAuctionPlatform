@@ -9,22 +9,52 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Star,
   Wrench,
 } from 'lucide-react'
+import { createSupportTicket, createTestimonial } from '../api/supportApi'
 
 type TabType = 'support' | 'story'
 
 export default function SupportPage() {
   const [activeTab, setActiveTab] = useState<TabType>('support')
+  const [category, setCategory] = useState('Technical Issue')
+  const [subject, setSubject] = useState('')
+  const [description, setDescription] = useState('')
+  const [testimonial, setTestimonial] = useState('')
+  const [rating, setRating] = useState(5)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+    setIsSubmitting(true)
 
-    if (activeTab === 'support') {
-      navigate('/support/success')
-    } else {
-      navigate('/testimonial/success')
+    try {
+      if (activeTab === 'support') {
+        const result = await createSupportTicket({
+          listing_id: null,
+          category,
+          subject,
+          description,
+        })
+
+        navigate('/support/success', { state: result })
+      } else {
+        const result = await createTestimonial({
+          content: testimonial,
+          rating,
+        })
+
+        navigate('/testimonial/success', { state: result })
+      }
+    } catch (err) {
+      console.error(err)
+      setError('Submission failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -77,9 +107,7 @@ export default function SupportPage() {
                 </div>
                 <div>
                   <h2 className="font-bold text-slate-950">How can we help?</h2>
-                  <p className="text-sm text-slate-500">
-                    Choose a topic below
-                  </p>
+                  <p className="text-sm text-slate-500">Choose a topic below</p>
                 </div>
               </div>
 
@@ -87,13 +115,12 @@ export default function SupportPage() {
                 {helpCards.map(({ title, text, icon: Icon }) => (
                   <div
                     key={title}
-                    className="group rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:border-accent-200 hover:bg-white hover:shadow-sm"
+                    className="rounded-2xl border border-slate-100 bg-slate-50 p-4"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-accent-700 ring-1 ring-slate-100 group-hover:bg-accent-50">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-accent-700 ring-1 ring-slate-100">
                         <Icon size={19} />
                       </div>
-
                       <div>
                         <h3 className="text-sm font-bold text-slate-900">
                           {title}
@@ -113,7 +140,6 @@ export default function SupportPage() {
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                   <Clock size={21} />
                 </div>
-
                 <div>
                   <h3 className="font-bold text-slate-950">Response Time</h3>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -136,10 +162,7 @@ export default function SupportPage() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span className="inline-flex items-center justify-center gap-2">
-                  <LifeBuoy size={16} />
-                  Submit Support Case
-                </span>
+                Submit Support Case
               </button>
 
               <button
@@ -151,10 +174,7 @@ export default function SupportPage() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span className="inline-flex items-center justify-center gap-2">
-                  <MessageSquareHeart size={16} />
-                  Share Your Story
-                </span>
+                Share Your Story
               </button>
             </div>
 
@@ -165,7 +185,11 @@ export default function SupportPage() {
                     <label className="mb-2 block text-sm font-bold text-slate-700">
                       Issue Type
                     </label>
-                    <select className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15">
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                    >
                       <option>Technical Issue</option>
                       <option>Payment Issue</option>
                       <option>Bidding Issue</option>
@@ -180,10 +204,11 @@ export default function SupportPage() {
                       Subject
                     </label>
                     <input
-                      type="text"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
                       required
                       placeholder="Briefly describe your issue"
-                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
                     />
                   </div>
 
@@ -192,10 +217,12 @@ export default function SupportPage() {
                       Description
                     </label>
                     <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
                       required
                       rows={6}
-                      placeholder="Tell us more about the problem you are facing..."
-                      className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                      placeholder="Tell us more about the problem..."
+                      className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
                     />
                   </div>
                 </>
@@ -203,14 +230,24 @@ export default function SupportPage() {
                 <>
                   <div>
                     <label className="mb-2 block text-sm font-bold text-slate-700">
-                      Testimonial Title
+                      Rating
                     </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Example: Great auction experience"
-                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                    />
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setRating(value)}
+                          className={`rounded-xl p-2 ${
+                            value <= rating
+                              ? 'text-yellow-500'
+                              : 'text-slate-300'
+                          }`}
+                        >
+                          <Star size={24} fill="currentColor" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -218,33 +255,43 @@ export default function SupportPage() {
                       Your Story
                     </label>
                     <textarea
+                      value={testimonial}
+                      onChange={(e) => setTestimonial(e.target.value)}
                       required
                       rows={7}
                       placeholder="Share your experience using AuctionHub..."
-                      className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                      className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
                     />
                   </div>
                 </>
+              )}
+
+              {error && (
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                  {error}
+                </div>
               )}
 
               <div className="rounded-2xl bg-slate-50 p-4">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 text-accent-600" size={18} />
                   <p className="text-sm leading-6 text-slate-500">
-                    Your submission will be reviewed by our team. Please make
-                    sure the information provided is accurate before submitting.
+                    Your submission will be reviewed by our team.
                   </p>
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-accent-700"
+                disabled={isSubmitting}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send size={17} />
-                {activeTab === 'support'
-                  ? 'Submit Support Case'
-                  : 'Submit Testimonial'}
+                {isSubmitting
+                  ? 'Submitting...'
+                  : activeTab === 'support'
+                    ? 'Submit Support Case'
+                    : 'Submit Testimonial'}
               </button>
             </form>
           </section>
