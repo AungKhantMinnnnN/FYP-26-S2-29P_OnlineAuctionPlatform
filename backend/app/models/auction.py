@@ -214,12 +214,25 @@ class Dispute(Base):
     __tablename__ = "disputes"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
     reporter_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    reason = Column(Text, nullable=False)
+    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=True)
+    category = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False)
     status = Column(Enum(DisputeStatus, name="dispute_status"), default=DisputeStatus.open, nullable=False)
+    resolved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    resolution_note = Column(Text)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     resolved_at = Column(DateTime(timezone=True))
+
+class Testimonial(Base):
+    __tablename__ = "testimonials"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    rating = Column(Integer, nullable=False)
+    is_featured = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class AdminLog(Base):
     __tablename__ = "admin_logs"
