@@ -1,10 +1,13 @@
-import { CheckCircle2, Clock3, Home, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { CheckCircle2, Clock3, Home, Search, RotateCcw } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
 
 export default function SupportSuccessPage() {
-  const referenceNumber = `SUP-${new Date().getFullYear()}-${Math.floor(
-    10000 + Math.random() * 90000
-  )}`
+  const { state } = useLocation()
+
+  const ticketId = state?.id || 'Pending'
+  const category = state?.category || 'Support Case'
+  const subject = state?.subject || 'Submitted Request'
+  const status = state?.status || 'open'
 
   return (
     <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-50 via-white to-blue-50 px-4 py-10">
@@ -19,7 +22,6 @@ export default function SupportSuccessPage() {
           <h1 className="text-3xl font-bold text-slate-900">
             Support Case Submitted!
           </h1>
-
           <p className="mt-3 leading-7 text-slate-500">
             Thank you for contacting AuctionHub.
             <br />
@@ -29,44 +31,54 @@ export default function SupportSuccessPage() {
 
         <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-6">
           <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-            <span className="text-slate-500">Reference Number</span>
-            <span className="font-bold text-accent-700">
-              {referenceNumber}
-            </span>
+            <span className="text-slate-500">Ticket ID</span>
+            <span className="font-bold text-accent-700">{ticketId}</span>
           </div>
 
           <div className="mt-4 flex items-center justify-between border-b border-slate-200 pb-4">
-            <span className="text-slate-500">Issue Type</span>
-            <span className="font-semibold">Technical Issue</span>
+            <span className="text-slate-500">Category</span>
+            <span className="font-semibold">{category}</span>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between border-b border-slate-200 pb-4">
+            <span className="text-slate-500">Subject</span>
+            <span className="font-semibold">{subject}</span>
           </div>
 
           <div className="mt-4 flex items-center justify-between">
             <span className="flex items-center gap-2 text-slate-500">
               <Clock3 size={16} />
-              Estimated Response
+              Status
             </span>
-
-            <span className="font-semibold text-green-600">
-              Within 24 Hours
+            <span className="font-semibold capitalize text-green-600">
+              {status}
             </span>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Link
             to="/dashboard"
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent-600 px-6 py-3 font-semibold text-white transition hover:bg-accent-700"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3 font-semibold text-white transition hover:bg-accent-700"
           >
             <Home size={18} />
-            Return to Dashboard
+            Dashboard
           </Link>
 
           <Link
             to="/browse"
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
           >
             <Search size={18} />
-            Browse Auctions
+            Browse
+          </Link>
+
+          <Link
+            to="/support"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            <RotateCcw size={18} />
+            Submit Again
           </Link>
         </div>
       </div>

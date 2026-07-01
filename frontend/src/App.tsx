@@ -8,6 +8,9 @@ import BrowseAuctionsPage from './pages/BrowseAuctionsPage'
 import AuctionDetailPage from './pages/AuctionDetailPage'
 import RegisterPage from './pages/RegisterPage'
 import LoginPage from './pages/LoginPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import ProfilePage from './pages/ProfilePage'
 import BidHistoryPage from './pages/BidHistoryPage'
@@ -46,6 +49,9 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin-login" element={<AdminLoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
           </Route>
           
           {/* User routes */}
