@@ -38,8 +38,13 @@ export default function RegisterPage() {
       await register(fullName, username, email, password)
       setSuccess(true)
       setTimeout(() => {
-        navigate('/login')
-      }, 1500)
+        navigate('/complete-profile', {
+          state: {
+            fullName,
+            email,
+          },
+  })
+}, 1500)
     } catch (err) {
       console.error(err)
       setError(err.response?.data?.detail || 'Registration failed. Try again.')
