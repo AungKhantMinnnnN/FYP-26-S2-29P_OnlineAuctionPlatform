@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal, Grid3X3, List, ChevronLeft, ChevronRight } from 'lucide-react'
-import { getAuctions } from '../api/auctionsApi'
+import { SlidersHorizontal, Grid3X3, List, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
+import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
+import { getTrending } from '../api/recommendationsApi'
+import type { TrendingListing } from '../api/recommendationsApi'
+import { useAuth } from '../context/AuthContext'
 import SearchBar from '../components/SearchBar'
 import FilterPanel from '../components/FilterPanel'
 import AuctionCard from '../components/AuctionCard'
@@ -12,19 +15,37 @@ import EmptyState from '../components/EmptyState'
 export default function BrowseAuctionsPage() {
   const [mobileFilters, setMobileFilters] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
-  
+  const { user } = useAuth()
+
   const page = parseInt(searchParams.get('page') || '1', 10)
   const searchQuery = searchParams.get('q') || ''
-  
+
   const { data: auctionsData, isLoading } = useQuery({
     queryKey: ['auctions', 'browse', page, searchQuery],
     queryFn: () => getAuctions({ page, size: 20, search: searchQuery || undefined })
   })
 
+  // Real category names (listings only carry category_id).
+  const { data: metadata } = useQuery({
+    queryKey: ['form_metadata'],
+    queryFn: getFormMetadata
+  })
+  const categoryMap = new Map((metadata?.categories ?? []).map(c => [c.id, c.name]))
+
+  // Trending items — personalized when logged in, global otherwise.
+  const {
+    data: trendingData,
+    isLoading: trendingLoading,
+    isError: trendingError
+  } = useQuery({
+    queryKey: ['trending', user?.id ?? null],
+    queryFn: () => getTrending({ user_id: user?.id, limit: 8 })
+  })
+
   const mapToCardType = (listing: AuctionListing) => ({
     id: listing.id,
     title: listing.title,
-    category: 'Other',
+    category: (listing.category_id && categoryMap.get(listing.category_id)) || 'Other',
     condition: listing.condition,
     currentBid: listing.current_price || 0,
     startingPrice: listing.starting_price || 0,
@@ -37,7 +58,25 @@ export default function BrowseAuctionsPage() {
     image: listing.images.length > 0 ? listing.images[0].image_url : undefined
   })
 
+  // Trending payload is sparse (no image/condition/category) — fill unknowns neutrally.
+  const mapTrendingToCard = (item: TrendingListing) => ({
+    id: item.id,
+    title: item.title,
+    category: 'Trending',
+    condition: '—',
+    currentBid: item.current_price || 0,
+    startingPrice: 0,
+    endTime: item.end_time ? new Date(item.end_time) : new Date(),
+    seller: { name: 'Seller', rating: 5.0 },
+    bids: 0,
+    watchers: 0,
+    status: 'active',
+    description: '',
+    image: undefined
+  })
+
   const auctionsList = auctionsData ? auctionsData.items.map(mapToCardType) : []
+  const trendingList = trendingData ? trendingData.items.map(mapTrendingToCard) : []
   const totalItems = auctionsData?.total || 0
   const totalPages = auctionsData?.pages || 0
 
@@ -69,6 +108,28 @@ export default function BrowseAuctionsPage() {
           </button>
         </div>
       </div>
+
+      {!searchQuery && (
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+              <TrendingUp size={18} />
+            </span>
+            <h2 className="text-lg font-bold tracking-tight text-slate-950">Trending Now</h2>
+          </div>
+          {trendingLoading ? (
+            <p className="text-sm text-slate-500">Loading trending items...</p>
+          ) : trendingError ? (
+            <p className="text-sm text-slate-500">Trending items are unavailable right now.</p>
+          ) : trendingList.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {trendingList.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={false} />)}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No trending items yet.</p>
+          )}
+        </section>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6">
         <aside className={`fixed inset-y-0 left-0 z-40 w-72 pt-16 bg-white/95 border-r border-slate-200/80 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-300 ease-in-out md:sticky md:top-20 md:z-auto md:h-[calc(100vh-6rem)] md:transform-none md:border-0 md:w-64 md:shrink-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none ${mobileFilters ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
@@ -109,7 +170,7 @@ export default function BrowseAuctionsPage() {
 
           {totalPages > 1 && !isLoading && (
             <div className="flex items-center justify-center gap-2 mt-auto pt-4">
-              <button 
+              <button
                 onClick={() => handlePageChange(page - 1)}
                 disabled={page <= 1}
                 className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
