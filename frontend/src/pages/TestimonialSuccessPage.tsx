@@ -40,7 +40,7 @@ export default function TestimonialSuccessPage() {
           <div className="mt-4 flex items-center justify-between">
             <span className="flex items-center gap-2 text-slate-500">
               <MessageSquareHeart size={16} />
-              Status
+              Review Status
             </span>
             <span className="font-semibold text-green-600">
               {isFeatured}
@@ -70,7 +70,7 @@ export default function TestimonialSuccessPage() {
             className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
           >
             <RotateCcw size={18} />
-            Submit Again
+            Share Another Experience
           </Link>
         </div>
       </div>
