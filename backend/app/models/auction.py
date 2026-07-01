@@ -74,12 +74,25 @@ class User(Base):
     status = Column(Enum(UserStatus, name="user_status"), default=UserStatus.active, nullable=False)
     email_verified = Column(Boolean, default=False, nullable=False)
     subscription_tier = Column(Enum(SubscriptionTier, name="subscription_tier"), default=SubscriptionTier.free, nullable=False)
+    subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
     balance = Column(Float, default=0.0, nullable=False)
     avatar_key = Column(String)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
     profile = relationship("UserProfiles", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+
+class SubscriptionTierConfig(Base):
+    __tablename__ = "subscription_tiers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    tier = Column(Enum(SubscriptionTier, name="subscription_tier"), unique=True, nullable=False)
+    price = Column(Float, nullable=False)
+    duration_days = Column(Integer, nullable=False)
+    description = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class UserProfiles(Base):
     __tablename__ = "user_profiles"
@@ -198,6 +211,24 @@ class WalletTransaction(Base):
     amount = Column(Float, nullable=False)
     type = Column(Enum(TransactionType, name="transaction_type"), nullable=False)
     reference = Column(String(255))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    token = Column(String, primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+class EmailVerificationToken(Base):
+    __tablename__ = "email_verification_tokens"
+
+    token = Column(String, primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Notification(Base):
