@@ -1,11 +1,21 @@
 import apiClient from './apiClient'
 
-/* Support Ticket */
+export interface IssueType {
+  id: string
+  name: string
+  created_at: string
+}
+
+export const getIssueTypes = async (): Promise<IssueType[]> => {
+  const response = await apiClient.get<IssueType[]>('/issue-types/')
+  return response.data
+}
 
 export interface SupportTicketRequest {
   listing_id: string | null
-  category: string
+  issue_type_id: string
   subject: string
+  category: string
   description: string
 }
 
@@ -13,12 +23,13 @@ export interface SupportTicketResponse {
   id: string
   reporter_id: string
   listing_id: string | null
+  issue_type_id: string | null
+  subject: string | null
   category: string
-  subject: string
   description: string
-  status: string
-  resolution_note?: string | null
-  resolved_at?: string | null
+  status: 'open' | 'in_review' | 'resolved' | 'closed'
+  resolution_note: string | null
+  resolved_at: string | null
   created_at: string
 }
 
@@ -32,10 +43,6 @@ export const createSupportTicket = async (
 
   return response.data
 }
-
-/* 
-   Testimonial
- */
 
 export interface TestimonialRequest {
   content: string

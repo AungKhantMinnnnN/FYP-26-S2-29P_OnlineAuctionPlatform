@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Clock,
@@ -12,32 +12,73 @@ import {
   Star,
   Wrench,
 } from 'lucide-react'
-import { createSupportTicket, createTestimonial } from '../api/supportApi'
+import {
+  createSupportTicket,
+  createTestimonial,
+  getIssueTypes,
+} from '../api/supportApi'
 
 type TabType = 'support' | 'story'
 
 export default function SupportPage() {
   const [activeTab, setActiveTab] = useState<TabType>('support')
-  const [category, setCategory] = useState('Technical Issue')
+  const [issueTypes, setIssueTypes] = useState<
+    { id: string; name: string }[]
+  >([])
+  const [selectedIssueTypeId, setSelectedIssueTypeId] = useState('')
+  const [category, setCategory] = useState('')
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [testimonial, setTestimonial] = useState('')
   const [rating, setRating] = useState(5)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingIssueTypes, setIsLoadingIssueTypes] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const loadIssueTypes = async () => {
+      try {
+        const data = await getIssueTypes()
+        setIssueTypes(data)
+
+        if (data.length > 0) {
+          setSelectedIssueTypeId(data[0].id)
+          setCategory(data[0].name)
+        }
+      } catch (err) {
+        console.error('Failed to load issue types:', err)
+        setError('Unable to load support issue types. Please refresh and try again.')
+      } finally {
+        setIsLoadingIssueTypes(false)
+      }
+    }
+
+    loadIssueTypes()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    if (activeTab === 'support' && !selectedIssueTypeId) {
+      setError('Please select an issue type before submitting.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       if (activeTab === 'support') {
+        const selectedIssueType = issueTypes.find(
+          (type) => type.id === selectedIssueTypeId
+        )
+
         const result = await createSupportTicket({
           listing_id: null,
-          category,
+          issue_type_id: selectedIssueTypeId,
           subject,
+          category: selectedIssueType?.name || category,
           description,
         })
 
@@ -52,7 +93,9 @@ export default function SupportPage() {
       }
     } catch (err) {
       console.error(err)
-      setError('Submission failed. Please try again.')
+      setError(
+        'Unable to submit your request. Please check your connection or try again.'
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -162,7 +205,10 @@ export default function SupportPage() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Submit Support Case
+                <span className="inline-flex items-center justify-center gap-2">
+                  <LifeBuoy size={16} />
+                  Submit Support Case
+                </span>
               </button>
 
               <button
@@ -174,7 +220,10 @@ export default function SupportPage() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Share Your Story
+                <span className="inline-flex items-center justify-center gap-2">
+                  <MessageSquareHeart size={16} />
+                  Share Your Story
+                </span>
               </button>
             </div>
 
@@ -186,16 +235,31 @@ export default function SupportPage() {
                       Issue Type
                     </label>
                     <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                      value={selectedIssueTypeId}
+                      onChange={(e) => {
+                        const selectedId = e.target.value
+                        const selectedType = issueTypes.find(
+                          (type) => type.id === selectedId
+                        )
+
+                        setSelectedIssueTypeId(selectedId)
+                        setCategory(selectedType?.name || '')
+                      }}
+                      required
+                      disabled={isLoadingIssueTypes}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
-                      <option>Technical Issue</option>
-                      <option>Payment Issue</option>
-                      <option>Bidding Issue</option>
-                      <option>Account Issue</option>
-                      <option>Seller / Listing Issue</option>
-                      <option>Other</option>
+                      {isLoadingIssueTypes ? (
+                        <option value="">Loading issue types...</option>
+                      ) : issueTypes.length === 0 ? (
+                        <option value="">No issue types available</option>
+                      ) : (
+                        issueTypes.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 
@@ -283,7 +347,11 @@ export default function SupportPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={
+                  isSubmitting ||
+                  (activeTab === 'support' &&
+                    (isLoadingIssueTypes || !selectedIssueTypeId))
+                }
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send size={17} />
