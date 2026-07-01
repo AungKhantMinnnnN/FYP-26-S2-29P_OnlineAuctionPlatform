@@ -23,6 +23,7 @@ CREATE TABLE users (
     role user_role NOT NULL DEFAULT 'user',
     status user_status NOT NULL DEFAULT 'active',
     subscription_tier subscription_tier NOT NULL DEFAULT 'free',
+    subscription_expires_at TIMESTAMPTZ NULL,
     balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     avatar_key VARCHAR(500),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -39,6 +40,18 @@ CREATE TABLE user_profiles (
     bio TEXT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(user_id)
+);
+
+-- Subscription tier pricing config
+CREATE TABLE subscription_tiers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tier subscription_tier UNIQUE NOT NULL,
+    price DOUBLE PRECISION NOT NULL,
+    duration_days INTEGER NOT NULL,
+    description VARCHAR,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Categories
@@ -195,24 +208,41 @@ CREATE TABLE testimonials (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Auth tokens
+CREATE TABLE password_reset_tokens (
+    token VARCHAR PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE email_verification_tokens (
+    token VARCHAR PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    verified_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Premium: collector boards (showcase of won items)
 CREATE TABLE collector_boards (
-    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name        VARCHAR(100) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
     description TEXT,
-    is_public   BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE board_items (
-    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    board_id          UUID NOT NULL REFERENCES collector_boards(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    board_id UUID NOT NULL REFERENCES collector_boards(id) ON DELETE CASCADE,
     auction_result_id UUID NOT NULL REFERENCES auction_results(id) ON DELETE CASCADE,
-    note              TEXT,
-    sort_order        INTEGER NOT NULL DEFAULT 0,
-    added_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    note TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (board_id, auction_result_id)
 );
 
@@ -232,5 +262,8 @@ CREATE INDEX idx_user_interactions_occurred ON user_interactions(occurred_at);
 CREATE INDEX idx_user_interests_user ON user_interests(user_id);
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
 CREATE INDEX idx_testimonials_featured ON testimonials(is_featured) WHERE is_featured = TRUE;
-CREATE INDEX idx_collector_boards_user ON collector_boards(user_id);
 CREATE INDEX idx_board_items_board ON board_items(board_id);
+CREATE INDEX idx_collector_boards_user ON collector_boards(user_id);
+CREATE INDEX ix_subscription_tiers_id ON subscription_tiers(id);
+CREATE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX ix_email_verification_tokens_user_id ON email_verification_tokens(user_id);
