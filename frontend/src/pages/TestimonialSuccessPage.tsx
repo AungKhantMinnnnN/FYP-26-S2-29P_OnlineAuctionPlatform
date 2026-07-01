@@ -1,10 +1,12 @@
-import { CheckCircle2, Home, MessageSquareHeart, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { CheckCircle2, Home, MessageSquareHeart, Search, RotateCcw } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
 
 export default function TestimonialSuccessPage() {
-  const submissionId = `TES-${new Date().getFullYear()}-${Math.floor(
-    10000 + Math.random() * 90000
-  )}`
+  const { state } = useLocation()
+
+  const submissionId = state?.id || 'Pending'
+  const rating = state?.rating || 5
+  const isFeatured = state?.is_featured ? 'Approved' : 'Pending Review'
 
   return (
     <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-50 via-white to-blue-50 px-4 py-10">
@@ -17,7 +19,6 @@ export default function TestimonialSuccessPage() {
 
         <div className="mt-6 text-center">
           <h1 className="text-3xl font-bold text-slate-900">Thank You!</h1>
-
           <p className="mt-3 leading-7 text-slate-500">
             We appreciate you taking the time to share your experience.
             <br />
@@ -32,8 +33,8 @@ export default function TestimonialSuccessPage() {
           </div>
 
           <div className="mt-4 flex items-center justify-between border-b border-slate-200 pb-4">
-            <span className="text-slate-500">Submission Type</span>
-            <span className="font-semibold">Testimonial</span>
+            <span className="text-slate-500">Rating</span>
+            <span className="font-semibold">{rating} / 5</span>
           </div>
 
           <div className="mt-4 flex items-center justify-between">
@@ -41,28 +42,35 @@ export default function TestimonialSuccessPage() {
               <MessageSquareHeart size={16} />
               Status
             </span>
-
             <span className="font-semibold text-green-600">
-              Successfully Submitted
+              {isFeatured}
             </span>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Link
             to="/dashboard"
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent-600 px-6 py-3 font-semibold text-white transition hover:bg-accent-700"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3 font-semibold text-white transition hover:bg-accent-700"
           >
             <Home size={18} />
-            Return to Dashboard
+            Dashboard
           </Link>
 
           <Link
             to="/browse"
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
           >
             <Search size={18} />
-            Browse Auctions
+            Browse
+          </Link>
+
+          <Link
+            to="/support"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            <RotateCcw size={18} />
+            Submit Again
           </Link>
         </div>
       </div>
