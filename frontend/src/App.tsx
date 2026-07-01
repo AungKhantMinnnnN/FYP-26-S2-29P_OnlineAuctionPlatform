@@ -20,6 +20,7 @@ import AdminLoginPage from './pages/AdminLoginPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import WatchlistPage from './pages/WatchlistPage'
 import WalletPage from './pages/WalletPage'
+import ChooseInterestsPage from './pages/ChooseInterestsPage'
 
 import AdminManagementPage from './pages/AdminManagementPage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -54,6 +55,11 @@ export default function App() {
             <Route path="/verify-email" element={<VerifyEmailPage />} />
           </Route>
           
+          {/* Onboarding (protected, standalone — no dashboard layout) */}
+          <Route element={<ProtectedRoute roles={['user']} />}>
+            <Route path="/onboarding/interests" element={<ChooseInterestsPage />} />
+          </Route>
+
           {/* User routes */}
           <Route element={<ProtectedRoute roles={['user']} />}>
             <Route element={<DashboardLayout />}>
