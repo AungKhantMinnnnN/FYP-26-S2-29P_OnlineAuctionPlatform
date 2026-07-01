@@ -7,6 +7,8 @@ from app.models.auction import DisputeStatus
 
 class DisputeCreate(BaseModel):
     listing_id: Optional[UUID] = None
+    issue_type_id: UUID
+    subject: str
     category: str
     description: str
 
@@ -20,6 +22,8 @@ class DisputeResponse(BaseModel):
     id: UUID
     reporter_id: UUID
     listing_id: Optional[UUID] = None
+    issue_type_id: Optional[UUID] = None
+    subject: Optional[str] = None
     category: str
     description: str
     status: DisputeStatus

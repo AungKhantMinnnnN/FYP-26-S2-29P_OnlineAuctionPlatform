@@ -141,10 +141,18 @@ CREATE TABLE notifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE issue_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE disputes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
+    issue_type_id UUID REFERENCES issue_types(id) ON DELETE SET NULL,
+    subject VARCHAR(255) NOT NULL,
     category VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     status dispute_status NOT NULL DEFAULT 'open',
