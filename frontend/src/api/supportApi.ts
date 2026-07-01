@@ -1,14 +1,6 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:8000/v1.0.0'
+import apiClient from './apiClient'
 
-function getAuthHeaders() {
-  const token = localStorage.getItem('access_token')
-
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
-}
+/* Support Ticket */
 
 export interface SupportTicketRequest {
   listing_id: string | null
@@ -17,35 +9,55 @@ export interface SupportTicketRequest {
   description: string
 }
 
-export async function createSupportTicket(data: SupportTicketRequest) {
-  const response = await fetch(`${API_BASE_URL}/disputes/`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to submit support ticket')
-  }
-
-  return response.json()
+export interface SupportTicketResponse {
+  id: string
+  reporter_id: string
+  listing_id: string | null
+  category: string
+  subject: string
+  description: string
+  status: string
+  resolution_note?: string | null
+  resolved_at?: string | null
+  created_at: string
 }
+
+export const createSupportTicket = async (
+  data: SupportTicketRequest
+): Promise<SupportTicketResponse> => {
+  const response = await apiClient.post<SupportTicketResponse>(
+    '/disputes/',
+    data
+  )
+
+  return response.data
+}
+
+/* 
+   Testimonial
+ */
 
 export interface TestimonialRequest {
   content: string
   rating: number
 }
 
-export async function createTestimonial(data: TestimonialRequest) {
-  const response = await fetch(`${API_BASE_URL}/testimonials/`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  })
+export interface TestimonialResponse {
+  id: string
+  user_id: string
+  content: string
+  rating: number
+  is_featured: boolean
+  created_at: string
+}
 
-  if (!response.ok) {
-    throw new Error('Failed to submit testimonial')
-  }
+export const createTestimonial = async (
+  data: TestimonialRequest
+): Promise<TestimonialResponse> => {
+  const response = await apiClient.post<TestimonialResponse>(
+    '/testimonials/',
+    data
+  )
 
-  return response.json()
+  return response.data
 }
