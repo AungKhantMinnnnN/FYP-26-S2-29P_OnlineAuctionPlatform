@@ -20,6 +20,7 @@ async def get_auctions(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     listing_status: Optional[ListingStatus] = Query(None, alias="status"),
+    category_id: Optional[UUID] = Query(None),
     search: Optional[str] = None
 ):
     return await AuctionService.get_auctions(
@@ -27,6 +28,7 @@ async def get_auctions(
         page=page,
         size=size,
         listing_status=listing_status,
+        category_id=category_id,
         search=search
     )
 
@@ -61,13 +63,15 @@ async def get_user_listings(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    listing_status: Optional[ListingStatus] = Query(None, alias="status"),
     current_user: User = Depends(get_current_user)
 ):
     return await AuctionService.get_user_listings(
         db=db,
         user_id=current_user.id,
         page=page,
-        size=size
+        size=size,
+        listing_status=listing_status
     )
 
 @router.get("/get_auction/{id}", response_model=AuctionListingResponse)

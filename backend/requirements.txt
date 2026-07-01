@@ -14,3 +14,5 @@ celery==5.3.6
 asyncpg==0.29.0
 greenlet==3.0.3
 minio==7.1.0
+fastapi-mail==1.4.1
+jinja2==3.1.3

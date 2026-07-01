@@ -32,7 +32,24 @@ class Settings(BaseSettings):
     RECOMMENDATION_SERVICE_URL: str
 
     ALLOWED_ORIGINS: str
-    
+
+    # Frontend URL — used to build clickable links in outbound emails
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # SMTP / Email (defaults to Gmail; swap MAIL_* env vars for any other SMTP provider)
+    MAIL_SERVER: str = "smtp.gmail.com"
+    MAIL_PORT: int = 587
+    MAIL_USERNAME: str = ""
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = ""
+    MAIL_FROM_NAME: str = "AuctionHub"
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
+
+    # Token TTL (in hours)
+    PASSWORD_RESET_TOKEN_TTL_HOURS: int = 1
+    EMAIL_VERIFICATION_TOKEN_TTL_HOURS: int = 24
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
