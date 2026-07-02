@@ -265,6 +265,24 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     ```
   * **Response (201 Created):** `AuctionListingResponse`
 
+* **`DELETE /v1.0.0/auctions/{id}`**
+  * **Description:** Seller only. Soft-deletes a listing by setting its status to `removed`. Blocked if the listing has any bids (escrow integrity) or has already ended.
+  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (204 No Content)**
+  * **Errors:** `403` if not the seller. `404` if not found. `400` if listing is already ended. `409` if the listing has one or more bids.
+
+* **`POST /v1.0.0/auctions/{id}/status`**
+  * **Description:** Seller only. Update the status of a listing. The primary use case is publishing a draft (`draft → active` or `draft → pending_review`). Reverting an active listing back to `draft` or `pending_review` is only permitted if no bids have been placed. Setting status to `ended` is blocked — that transition is system-only.
+  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`ListingStatusUpdate`)
+    ```json
+    { "status": "draft | pending_review | active | removed" }
+    ```
+  * **Response (200 OK):** `AuctionListingResponse` *(full updated listing)*
+  * **Errors:** `403` if not the seller. `404` if not found. `400` if listing is already ended or if `ended` is passed as the new status. `409` if reverting an active listing that already has bids.
+
 * **`POST /v1.0.0/auctions/upload_auction_images/{id}`**
   * **Description:** Upload one or more images for a listing. Only `image/*` content types are accepted.
   * **Request Headers:** `Authorization: Bearer <token>`, `Content-Type: multipart/form-data`
