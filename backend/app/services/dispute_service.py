@@ -62,6 +62,8 @@ class DisputeService:
         dispute = Dispute(
             reporter_id=reporter_id,
             listing_id=data.listing_id,
+            issue_type_id=data.issue_type_id,
+            subject=data.subject,
             category=data.category,
             description=data.description,
         )

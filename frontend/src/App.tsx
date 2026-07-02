@@ -24,6 +24,10 @@ import WalletPage from './pages/WalletPage'
 import AdminManagementPage from './pages/AdminManagementPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
+import SupportPage from './pages/SupportPage'
+import SupportSuccessPage from './pages/SupportSuccessPage'
+import TestimonialSuccessPage from './pages/TestimonialSuccessPage'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -40,7 +44,7 @@ export default function App() {
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/browse" element={<BrowseAuctionsPage />} />
+            {/*<Route path="/browse" element={<BrowseAuctionsPage />} /> */}
             <Route path="/auction/:id" element={<AuctionDetailPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -53,6 +57,7 @@ export default function App() {
           {/* User routes */}
           <Route element={<ProtectedRoute roles={['user']} />}>
             <Route element={<DashboardLayout />}>
+              <Route path="/browse" element={<BrowseAuctionsPage />} />
               <Route path="/dashboard" element={<UserDashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/bid-history" element={<BidHistoryPage />} />
@@ -61,6 +66,9 @@ export default function App() {
               <Route path="/watchlist" element={<WatchlistPage />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/wallet/top-up" element={<WalletPage mode="top-up" />} />
+              <Route path="/support" element={<SupportPage />} />
+              <Route path="/support/success" element={<SupportSuccessPage />} />
+              <Route path="/testimonial/success" element={<TestimonialSuccessPage />} />
             </Route>
           </Route>
 

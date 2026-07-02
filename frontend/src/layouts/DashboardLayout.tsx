@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { Gavel, LogOut, Menu, X, ChevronDown, ShieldCheck } from 'lucide-react'
+import { Gavel, LogOut, Menu, X, ChevronDown, ShieldCheck, Bell, Search } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import MarketplaceNav from '../components/MarketplaceNav'
 import { useAuth } from '../context/AuthContext'
@@ -24,9 +24,22 @@ export default function DashboardLayout() {
                 <span className="hidden font-bold tracking-tight text-slate-950 sm:inline">AuctionHub</span>
               </Link>
 
-              <div className="min-w-0 flex-1">
+              <div className="hidden md:flex min-w-0 flex-1 items-center justify-center">
                 <MarketplaceNav compact />
               </div>
+
+              <div className="hidden lg:flex w-72 items-center rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">
+                <Search size={16} className="mr-2" />
+                <input
+                  type="text"
+                  placeholder="Search rarities..."
+                  className="w-full bg-transparent outline-none placeholder:text-slate-400"
+                />
+              </div>
+
+            <button className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-accent-700">
+              <Bell size={17} />
+            </button>
 
               <button
                 onClick={() => {
@@ -42,7 +55,7 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <main className="max-w-7xl mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>

@@ -241,12 +241,21 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
+class IssueType(Base):
+    __tablename__ = "issue_types"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    name = Column(String(100), nullable=False, unique=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
 class Dispute(Base):
     __tablename__ = "disputes"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     reporter_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=True)
+    issue_type_id = Column(UUID(as_uuid=True), ForeignKey("issue_types.id"), nullable=True)
+    subject = Column(String(255), nullable=True)
     category = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)
     status = Column(Enum(DisputeStatus, name="dispute_status"), default=DisputeStatus.open, nullable=False)

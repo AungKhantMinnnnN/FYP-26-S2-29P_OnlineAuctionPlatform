@@ -108,7 +108,6 @@ CREATE TABLE auction_results (
     winner_id UUID REFERENCES users(id) ON DELETE SET NULL,
     winning_bid_id UUID REFERENCES bids(id) ON DELETE SET NULL,
     final_price DECIMAL(12,2) NOT NULL,
-    reserve_met BOOLEAN NOT NULL DEFAULT FALSE,
     ended_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -127,17 +126,21 @@ CREATE TABLE wallet_transactions (
     type transaction_type NOT NULL,
     amount DECIMAL(12,2) NOT NULL,
     reference VARCHAR(255),
-    status VARCHAR(50) NOT NULL DEFAULT 'completed',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
-    ref_listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE issue_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -145,6 +148,8 @@ CREATE TABLE disputes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
+    issue_type_id UUID REFERENCES issue_types(id) ON DELETE SET NULL,
+    subject VARCHAR(255) NOT NULL,
     category VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     status dispute_status NOT NULL DEFAULT 'open',
@@ -158,9 +163,8 @@ CREATE TABLE admin_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     admin_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     action VARCHAR(100) NOT NULL,
-    target_type VARCHAR(50) NOT NULL,
     target_id UUID,
-    metadata JSONB,
+    details TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -191,6 +195,27 @@ CREATE TABLE testimonials (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Premium: collector boards (showcase of won items)
+CREATE TABLE collector_boards (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name        VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_public   BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE board_items (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    board_id          UUID NOT NULL REFERENCES collector_boards(id) ON DELETE CASCADE,
+    auction_result_id UUID NOT NULL REFERENCES auction_results(id) ON DELETE CASCADE,
+    note              TEXT,
+    sort_order        INTEGER NOT NULL DEFAULT 0,
+    added_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (board_id, auction_result_id)
+);
+
 -- Indexes
 CREATE INDEX idx_listings_seller ON listings(seller_id);
 CREATE INDEX idx_listings_category ON listings(category_id);
@@ -207,3 +232,5 @@ CREATE INDEX idx_user_interactions_occurred ON user_interactions(occurred_at);
 CREATE INDEX idx_user_interests_user ON user_interests(user_id);
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
 CREATE INDEX idx_testimonials_featured ON testimonials(is_featured) WHERE is_featured = TRUE;
+CREATE INDEX idx_collector_boards_user ON collector_boards(user_id);
+CREATE INDEX idx_board_items_board ON board_items(board_id);

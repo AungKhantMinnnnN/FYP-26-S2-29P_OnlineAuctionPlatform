@@ -343,6 +343,8 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
         "id": "uuid",
         "reporter_id": "uuid",
         "listing_id": "uuid | null",
+        "issue_type_id": "uuid | null",
+        "subject": "string | null",
         "category": "string",
         "description": "string",
         "status": "open | in_review | resolved | closed",
@@ -372,12 +374,14 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
   * **Response (200 OK):** `DisputeResponse` *(updated record)*
 
 * **`POST /v1.0.0/disputes/`**
-  * **Description:** Authenticated user. Submit a dispute or platform feedback. `listing_id` is optional — omit for general platform feedback, include for listing-specific reports.
+  * **Description:** Authenticated user. Submit a dispute or platform feedback. `listing_id` is optional — omit for general platform feedback, include for a listing-specific report. `issue_type_id` must reference a valid entry from `/issue-types/`.
   * **Request Headers:** `Authorization: Bearer <token>`
   * **Request:** JSON object (`DisputeCreate`)
     ```json
     {
       "listing_id": "uuid | null",
+      "issue_type_id": "uuid",
+      "subject": "string",
       "category": "string",
       "description": "string"
     }
@@ -386,45 +390,93 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
 
 ---
 
+### Issue Types (`/v1.0.0/issue-types`)
+
+Lookup table used to categorise support disputes. Populated by admins, consumed by the public support form.
+
+* **`GET /v1.0.0/issue-types/`**
+  * **Description:** Public. Returns all issue types for use in the support page dropdown.
+  * **Response (200 OK):** JSON array of `IssueTypeResponse`
+    ```json
+    [
+      {
+        "id": "uuid",
+        "name": "string",
+        "created_at": "datetime"
+      }
+    ]
+    ```
+
+* **`POST /v1.0.0/issue-types/`**
+  * **Description:** Admin only. Create a new issue type. Name must be unique.
+  * **Request Headers:** `Authorization: Bearer <token>` *(admin role required)*
+  * **Request:** JSON object (`IssueTypeCreate`)
+    ```json
+    { "name": "string" }
+    ```
+  * **Response (201 Created):** `IssueTypeResponse`
+  * **Errors:** `409 Conflict` if name already exists.
+
+* **`PATCH /v1.0.0/issue-types/{id}`**
+  * **Description:** Admin only. Rename an existing issue type.
+  * **Request Headers:** `Authorization: Bearer <token>` *(admin role required)*
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`IssueTypeUpdate`)
+    ```json
+    { "name": "string" }
+    ```
+  * **Response (200 OK):** `IssueTypeResponse`
+  * **Errors:** `404` if not found, `409 Conflict` if name already taken.
+
+* **`DELETE /v1.0.0/issue-types/{id}`**
+  * **Description:** Admin only. Delete an issue type. Existing disputes that reference this type will have their `issue_type_id` set to `null` (ON DELETE SET NULL).
+  * **Request Headers:** `Authorization: Bearer <token>` *(admin role required)*
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (204 No Content)**
+  * **Errors:** `404` if not found.
+
+---
+
 ### Users (`/v1.0.0/users`)
 
-All routes in this section require authentication via `Authorization: Bearer <token>`. They are scoped to the currently logged-in user (`me`), not arbitrary user IDs — there is no admin variant.
+All routes require authentication (`Authorization: Bearer <token>`).
 
 * **`GET /v1.0.0/users/me/bids`**
-  * **Description:** Get the authenticated user's bid history, deduped per listing (one row per listing showing the user's highest bid and the outcome). Sorted by most recent placement, descending.
-  * **Request Headers:** `Authorization: Bearer <token>`
-  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100), `result` (enum, default `all`) — one of `all | won | outbid`
-  * **Response (200 OK):** JSON object (`BidHistoryResponse`)
+  * **Description:** Paginated bid history for the current user across all listings. Use `result` filter to narrow to won, outbid, or all bids.
+  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100), `result` (`all | won | outbid`, default `all`)
+  * **Response (200 OK):** `BidHistoryResponse`
     ```json
     {
+      "total": "int",
+      "page": "int",
+      "size": "int",
+      "pages": "int",
       "items": [
         {
           "listing_id": "uuid",
           "listing_title": "string",
           "listing_image_url": "string | null",
-          "listing_status": "draft | pending_review | active | ended | removed",
+          "listing_status": "string",
           "listing_end_time": "datetime",
           "my_highest_bid": "float",
           "current_price": "float",
-          "result": "won | outbid | leading",
+          "result": "won | outbid | leading | active",
           "placed_at": "datetime"
         }
-      ],
+      ]
+    }
+    ```
+
+* **`GET /v1.0.0/users/me/purchases`**
+  * **Description:** Paginated list of auctions the current user has won.
+  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100)
+  * **Response (200 OK):** `PurchasesResponse`
+    ```json
+    {
       "total": "int",
       "page": "int",
       "size": "int",
-      "pages": "int"
-    }
-    ```
-    * `result` semantics: `won` = listing ended and user is the winner; `outbid` = a higher bid exists (either currently or at auction end); `leading` = listing still active and the user is currently the highest bidder.
-
-* **`GET /v1.0.0/users/me/purchases`**
-  * **Description:** Get auctions the authenticated user has won (i.e. listings where `auction_results.winner_id = current_user.id`). Sorted by `ended_at` descending.
-  * **Request Headers:** `Authorization: Bearer <token>`
-  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100)
-  * **Response (200 OK):** JSON object (`PurchasesResponse`)
-    ```json
-    {
+      "pages": "int",
       "items": [
         {
           "auction_result_id": "uuid",
@@ -434,18 +486,13 @@ All routes in this section require authentication via `Authorization: Bearer <to
           "final_price": "float",
           "ended_at": "datetime"
         }
-      ],
-      "total": "int",
-      "page": "int",
-      "size": "int",
-      "pages": "int"
+      ]
     }
     ```
 
 * **`GET /v1.0.0/users/me/watchlist`**
-  * **Description:** Get the authenticated user's full watchlist. Not paginated — watchlists are expected to be small (~tens of items). Returns both full listing details (for the dedicated watchlist page) and a flat `listing_ids` array (a convenience for filling/un-filling heart icons on auction cards across the rest of the app).
-  * **Request Headers:** `Authorization: Bearer <token>`
-  * **Response (200 OK):** JSON object (`WatchlistResponse`)
+  * **Description:** Returns the current user's full watchlist with listing details.
+  * **Response (200 OK):** `WatchlistResponse`
     ```json
     {
       "items": [
@@ -457,30 +504,27 @@ All routes in this section require authentication via `Authorization: Bearer <to
             "id": "uuid",
             "title": "string",
             "description": "string | null",
-            "condition": "new | used | refurbished",
+            "condition": "string",
             "current_price": "float",
             "starting_price": "float",
-            "status": "draft | pending_review | active | ended | removed",
+            "status": "string",
             "start_time": "datetime",
             "end_time": "datetime",
             "image_url": "string | null"
           }
         }
       ],
-      "listing_ids": ["uuid", "..."]
+      "listing_ids": ["uuid"]
     }
     ```
 
 * **`POST /v1.0.0/users/me/watchlist`**
-  * **Description:** Add a listing to the watchlist. Idempotent — adding the same listing twice returns 200 with the existing row, no duplicate.
-  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Description:** Add a listing to the current user's watchlist.
   * **Request:** JSON object (`WatchlistAddRequest`)
     ```json
-    {
-      "listing_id": "uuid"
-    }
+    { "listing_id": "uuid" }
     ```
-  * **Response (200 OK):** JSON object (`WatchlistAddResponse`)
+  * **Response (200 OK):** `WatchlistAddResponse`
     ```json
     {
       "watchlist_id": "uuid",
@@ -488,24 +532,24 @@ All routes in this section require authentication via `Authorization: Bearer <to
       "added_at": "datetime"
     }
     ```
-  * **Error responses (404):** Listing not found.
 
 * **`DELETE /v1.0.0/users/me/watchlist/{listing_id}`**
-  * **Description:** Remove a listing from the watchlist. Path uses `listing_id` (not `watchlist_id`) so the client doesn't need to know the watchlist row id.
-  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Description:** Remove a listing from the current user's watchlist.
   * **Request Parameters:** `listing_id` (UUID) in path
-  * **Response (204 No Content):** *(empty body)*
-  * **Error responses (404):** Listing was not in the user's watchlist.
+  * **Response (204 No Content)**
 
 * **`GET /v1.0.0/users/me/wallet`**
-  * **Description:** Get the authenticated user's wallet — current balance plus a paginated history of wallet transactions (top-ups, bid holds, bid releases, settlements). Transactions sorted by `created_at` descending.
-  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Description:** Returns current wallet balance and paginated transaction history.
   * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100)
-  * **Response (200 OK):** JSON object (`WalletResponse`)
+  * **Response (200 OK):** `WalletResponse`
     ```json
     {
       "balance": "float",
       "transactions": {
+        "total": "int",
+        "page": "int",
+        "size": "int",
+        "pages": "int",
         "items": [
           {
             "id": "uuid",
@@ -514,26 +558,18 @@ All routes in this section require authentication via `Authorization: Bearer <to
             "reference": "string | null",
             "created_at": "datetime"
           }
-        ],
-        "total": "int",
-        "page": "int",
-        "size": "int",
-        "pages": "int"
+        ]
       }
     }
     ```
-    * `amount` is signed — positive for credits (top-ups, refunds), negative for debits (bid holds, settlements like subscription renewals).
 
 * **`POST /v1.0.0/users/me/subscription`**
-  * **Description:** Renew or cancel the authenticated user's subscription tier. **Renew** deducts the price of the Premium tier from the user's wallet balance, creates a `wallet_transactions` row of type `settlement`, sets `subscription_tier = premium`, and extends `subscription_expires_at` by the tier's `duration_days`. **Cancel** sets `subscription_tier = free` and clears `subscription_expires_at` (no balance refund).
-  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Description:** Renew or cancel the current user's subscription tier.
   * **Request:** JSON object (`SubscriptionActionRequest`)
     ```json
-    {
-      "action": "renew | cancel"
-    }
+    { "action": "renew | cancel" }
     ```
-  * **Response (200 OK):** JSON object (`SubscriptionResponse`)
+  * **Response (200 OK):** `SubscriptionResponse`
     ```json
     {
       "subscription_tier": "free | premium",
@@ -542,16 +578,14 @@ All routes in this section require authentication via `Authorization: Bearer <to
       "message": "string"
     }
     ```
-  * **Error responses (400):** Insufficient balance for renewal, invalid action.
-  * **Error responses (503):** Premium tier is not currently active in `subscription_tiers` table.
 
 ---
 
 ### Subscription Tiers (`/v1.0.0/subscription-tiers`)
 
 * **`GET /v1.0.0/subscription-tiers`**
-  * **Description:** Public. Returns the active subscription tiers and their pricing/duration, sourced from the `subscription_tiers` database table. Used by the landing page pricing section and by any future "manage subscription" UI. Sorted by price ascending.
-  * **Response (200 OK):** JSON object (`SubscriptionTiersResponse`)
+  * **Description:** Public. Returns all active subscription tier configurations for display on the plans/pricing page.
+  * **Response (200 OK):** `SubscriptionTiersResponse`
     ```json
     {
       "items": [
