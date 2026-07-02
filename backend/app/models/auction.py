@@ -139,13 +139,13 @@ class Listing(Base):
     condition_confidence = Column(Float)
     bidding_type = Column(Enum(BiddingType, name="bidding_type"), default=BiddingType.price_up, nullable=False)
     starting_price = Column(Float, nullable=False)
-    reserve_price = Column(Float, nullable=False)
+    reserve_price = Column(Float, nullable=True)
     current_price = Column(Float, nullable=False)
     min_increment = Column(Float, default=1.0, nullable=False)
     status = Column(Enum(ListingStatus, name="listing_status"), default=ListingStatus.draft, nullable=False)
     is_draft = Column(Boolean, default=True, nullable=False)
-    start_time = Column(DateTime(timezone=True), nullable=False)
-    end_time = Column(DateTime(timezone=True), nullable=False)
+    start_time = Column(DateTime(timezone=True), nullable=True)
+    end_time = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
@@ -194,6 +194,8 @@ class AuctionResult(Base):
     winning_bid_id = Column(UUID(as_uuid=True), ForeignKey("bids.id"), nullable=True)
     final_price = Column(Float, nullable=False)
     ended_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    listing = relationship("Listing", foreign_keys=[listing_id], lazy="joined")
 
 class Watchlist(Base):
     __tablename__ = "watchlist"
@@ -292,4 +294,31 @@ class UserInteraction(Base):
     listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False)
     action = Column(Enum(InteractionAction, name="interaction_action"), nullable=False)
     occurred_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+class CollectorBoard(Base):
+    __tablename__ = "collector_boards"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    is_public = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    items = relationship("BoardItem", back_populates="board", cascade="all, delete-orphan",
+                         lazy="selectin", order_by="BoardItem.sort_order")
+
+class BoardItem(Base):
+    __tablename__ = "board_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    board_id = Column(UUID(as_uuid=True), ForeignKey("collector_boards.id"), nullable=False, index=True)
+    auction_result_id = Column(UUID(as_uuid=True), ForeignKey("auction_results.id"), nullable=False)
+    note = Column(Text)
+    sort_order = Column(Integer, default=0, nullable=False)
+    added_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    board = relationship("CollectorBoard", back_populates="items")
+    result = relationship("AuctionResult", lazy="joined")
 #endregion
