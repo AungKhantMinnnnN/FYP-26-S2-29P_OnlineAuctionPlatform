@@ -112,3 +112,7 @@ class PaginatedAuctionResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+
+class ListingStatusUpdate(BaseModel):
+    status: ListingStatus

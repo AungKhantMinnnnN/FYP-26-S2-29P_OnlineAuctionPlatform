@@ -265,6 +265,24 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     ```
   * **Response (201 Created):** `AuctionListingResponse`
 
+* **`DELETE /v1.0.0/auctions/{id}`**
+  * **Description:** Seller only. Soft-deletes a listing by setting its status to `removed`. Blocked if the listing has any bids (escrow integrity) or has already ended.
+  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (204 No Content)**
+  * **Errors:** `403` if not the seller. `404` if not found. `400` if listing is already ended. `409` if the listing has one or more bids.
+
+* **`POST /v1.0.0/auctions/{id}/status`**
+  * **Description:** Seller only. Update the status of a listing. The primary use case is publishing a draft (`draft → active` or `draft → pending_review`). Reverting an active listing back to `draft` or `pending_review` is only permitted if no bids have been placed. Setting status to `ended` is blocked — that transition is system-only.
+  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`ListingStatusUpdate`)
+    ```json
+    { "status": "draft | pending_review | active | removed" }
+    ```
+  * **Response (200 OK):** `AuctionListingResponse` *(full updated listing)*
+  * **Errors:** `403` if not the seller. `404` if not found. `400` if listing is already ended or if `ended` is passed as the new status. `409` if reverting an active listing that already has bids.
+
 * **`POST /v1.0.0/auctions/upload_auction_images/{id}`**
   * **Description:** Upload one or more images for a listing. Only `image/*` content types are accepted.
   * **Request Headers:** `Authorization: Bearer <token>`, `Content-Type: multipart/form-data`
@@ -417,7 +435,7 @@ Lookup table used to categorise support disputes. Populated by admins, consumed 
   * **Response (201 Created):** `IssueTypeResponse`
   * **Errors:** `409 Conflict` if name already exists.
 
-* **`PATCH /v1.0.0/issue-types/{id}`**
+* **`POST /v1.0.0/issue-types/{id}`**
   * **Description:** Admin only. Rename an existing issue type.
   * **Request Headers:** `Authorization: Bearer <token>` *(admin role required)*
   * **Request Parameters:** `id` (UUID) in path
@@ -440,6 +458,45 @@ Lookup table used to categorise support disputes. Populated by admins, consumed 
 ### Users (`/v1.0.0/users`)
 
 All routes require authentication (`Authorization: Bearer <token>`).
+
+* **`POST /v1.0.0/users/me/profile`**
+  * **Description:** Update the current user's profile. All fields are optional — only supplied fields are updated. Creates the profile row if it doesn't exist yet.
+  * **Request:** JSON object (`ProfileUpdateRequest`)
+    ```json
+    {
+      "full_name": "string | null",
+      "phone": "string | null",
+      "address": "string | null",
+      "dob": "string | null (YYYY-MM-DD)",
+      "bio": "string | null"
+    }
+    ```
+  * **Response (200 OK):** `ProfileResponse`
+    ```json
+    {
+      "full_name": "string | null",
+      "phone": "string | null",
+      "address": "string | null",
+      "dob": "string | null (YYYY-MM-DD)",
+      "bio": "string | null"
+    }
+    ```
+  * **Errors:** `400` if `dob` is not a valid ISO date string.
+
+* **`GET /v1.0.0/users/me/interests`**
+  * **Description:** Returns the interest categories the current user selected during onboarding. Used by the recommendation engine for cold-start personalisation.
+  * **Response (200 OK):** `InterestsResponse`
+    ```json
+    {
+      "items": [
+        {
+          "id": "uuid",
+          "name": "string",
+          "slug": "string"
+        }
+      ]
+    }
+    ```
 
 * **`GET /v1.0.0/users/me/bids`**
   * **Description:** Paginated bid history for the current user across all listings. Use `result` filter to narrow to won, outbid, or all bids.
@@ -602,6 +659,164 @@ All routes require authentication (`Authorization: Bearer <token>`).
       ]
     }
     ```
+
+---
+
+### Collector Boards (`/v1.0.0/boards`)
+
+Premium feature. Boards let premium users curate and publicly share a showcase of items they have won. All write routes require a premium subscription (admins bypass this gate). Public read routes require no authentication.
+
+* **`GET /v1.0.0/boards/me`**
+  * **Description:** Premium owner. Returns all own boards (public and private) with item counts.
+  * **Response (200 OK):** JSON array of `BoardSummaryResponse`
+    ```json
+    [
+      {
+        "id": "uuid",
+        "user_id": "uuid",
+        "name": "string",
+        "description": "string | null",
+        "is_public": "boolean",
+        "item_count": "int",
+        "created_at": "datetime",
+        "updated_at": "datetime"
+      }
+    ]
+    ```
+
+* **`GET /v1.0.0/boards/user/{user_id}`**
+  * **Description:** Public. Returns all public boards belonging to a specific user.
+  * **Request Parameters:** `user_id` (UUID) in path
+  * **Response (200 OK):** JSON array of `BoardSummaryResponse` *(same shape as above)*
+
+* **`GET /v1.0.0/boards/{id}`**
+  * **Description:** Mixed auth. Public boards are visible to anyone. Private boards return `404` (not `403`) to avoid leaking existence.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (200 OK):** `BoardResponse`
+    ```json
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "name": "string",
+      "description": "string | null",
+      "is_public": "boolean",
+      "created_at": "datetime",
+      "updated_at": "datetime",
+      "items": [
+        {
+          "id": "uuid",
+          "board_id": "uuid",
+          "auction_result_id": "uuid",
+          "note": "string | null",
+          "sort_order": "int",
+          "added_at": "datetime",
+          "listing": {
+            "id": "uuid",
+            "title": "string",
+            "image_url": "string | null",
+            "final_price": "float",
+            "ended_at": "datetime"
+          }
+        }
+      ]
+    }
+    ```
+
+* **`POST /v1.0.0/boards/`**
+  * **Description:** Premium owner. Create a new collector board.
+  * **Request:** JSON object (`BoardCreate`)
+    ```json
+    {
+      "name": "string",
+      "description": "string | null",
+      "is_public": "boolean (default: false)"
+    }
+    ```
+  * **Response (201 Created):** `BoardSummaryResponse`
+
+* **`POST /v1.0.0/boards/{id}`**
+  * **Description:** Premium owner. Update board name, description, or visibility. All fields optional.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`BoardUpdate`)
+    ```json
+    {
+      "name": "string | null",
+      "description": "string | null",
+      "is_public": "boolean | null"
+    }
+    ```
+  * **Response (200 OK):** `BoardSummaryResponse`
+  * **Errors:** `404` if board not found or not owned by the caller.
+
+* **`DELETE /v1.0.0/boards/{id}`**
+  * **Description:** Premium owner. Delete a board and all its items (cascade).
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (204 No Content)**
+
+* **`POST /v1.0.0/boards/{id}/items`**
+  * **Description:** Premium owner. Add a won auction result to a board. The caller must be the winner of the referenced auction result. Duplicate items on the same board return `409`.
+  * **Request Parameters:** `id` (UUID, board) in path
+  * **Request:** JSON object (`BoardItemAdd`)
+    ```json
+    {
+      "auction_result_id": "uuid",
+      "note": "string | null",
+      "sort_order": "int (default: 0)"
+    }
+    ```
+  * **Response (201 Created):** `BoardItemResponse` *(full item with listing snapshot)*
+  * **Errors:** `404` if board not found or auction result not won by caller. `409` if item already on board.
+
+* **`POST /v1.0.0/boards/{id}/items/reorder`**
+  * **Description:** Premium owner. Batch-update `sort_order` for drag-and-drop reordering.
+  * **Request Parameters:** `id` (UUID, board) in path
+  * **Request:** JSON object (`BoardItemsReorder`)
+    ```json
+    {
+      "items": [
+        { "item_id": "uuid", "sort_order": "int" }
+      ]
+    }
+    ```
+  * **Response (204 No Content)**
+
+* **`POST /v1.0.0/boards/{id}/items/{item_id}`**
+  * **Description:** Premium owner. Edit an item's note or sort order. Pass `target_board_id` to move the item to a different board owned by the same user. Duplicate check is performed on the target board.
+  * **Request Parameters:** `id` (UUID, board), `item_id` (UUID) in path
+  * **Request:** JSON object (`BoardItemUpdate`)
+    ```json
+    {
+      "note": "string | null",
+      "sort_order": "int | null",
+      "target_board_id": "uuid | null"
+    }
+    ```
+  * **Response (200 OK):** `BoardItemResponse`
+  * **Errors:** `404` if item not found. `409` if item already exists on target board.
+
+* **`DELETE /v1.0.0/boards/{id}/items/{item_id}`**
+  * **Description:** Premium owner. Remove an item from a board.
+  * **Request Parameters:** `id` (UUID, board), `item_id` (UUID) in path
+  * **Response (204 No Content)**
+
+---
+
+### Marketing (`/v1.0.0`)
+
+* **`GET /v1.0.0/marketing-video`**
+  * **Description:** Public. Returns a 1-hour presigned URL for the hero marketing video stored in MinIO.
+  * **Response (200 OK):**
+    ```json
+    { "url": "string (presigned URL)" }
+    ```
+  * **Errors:** `404` if no video has been uploaded yet.
+
+* **`POST /v1.0.0/marketing-video`**
+  * **Description:** Admin only. Upload (or replace) the hero marketing video. Always writes to the fixed key `hero-video` in the `auction-videos` bucket — re-uploading silently replaces the previous video. Accepted types: `video/mp4`, `video/webm`, `video/ogg`.
+  * **Request Headers:** `Authorization: Bearer <token>` *(admin role required)*, `Content-Type: multipart/form-data`
+  * **Request:** Form-Data — `file`: video file
+  * **Response (204 No Content)**
+  * **Errors:** `400` if file type is not an accepted video format.
 
 ---
 
