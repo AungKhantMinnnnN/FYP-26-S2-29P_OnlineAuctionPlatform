@@ -11,7 +11,7 @@ from app.schemas.user import (
     BidHistoryResponse, PurchasesResponse, WatchlistResponse,
     WatchlistAddRequest, WatchlistAddResponse, WalletResponse,
     SubscriptionActionRequest, SubscriptionResponse,
-    ProfileUpdateRequest, ProfileResponse, InterestsResponse,
+    ProfileUpdateRequest, ProfileResponse, InterestsResponse, InterestsUpdateRequest,
 )
 from app.services.user_service import UserService
 
@@ -33,6 +33,16 @@ async def get_my_interests(
     current_user: User = Depends(get_current_user),
 ):
     items = await UserService.get_interests(db=db, user_id=current_user.id)
+    return {"items": items}
+
+
+@router.post("/me/interests", response_model=InterestsResponse)
+async def update_my_interests(
+    body: InterestsUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = await UserService.update_interests(db=db, user_id=current_user.id, category_ids=body.category_ids)
     return {"items": items}
 
 

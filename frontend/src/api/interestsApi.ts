@@ -12,6 +12,6 @@ export const getMyInterests = async (): Promise<InterestsResponse> => {
 
 // PUT /users/me/interests — full-replace the current user's interests.
 export const updateMyInterests = async (categoryIds: string[]): Promise<InterestsResponse> => {
-  const response = await apiClient.put<InterestsResponse>('/users/me/interests', { category_ids: categoryIds });
+  const response = await apiClient.post<InterestsResponse>('/users/me/interests', { category_ids: categoryIds });
   return response.data;
 };
