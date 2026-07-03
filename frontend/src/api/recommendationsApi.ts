@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import { recsClient } from './apiClient';
 
 export interface TrendingListing {
   id: string;
@@ -16,6 +16,6 @@ export interface TrendingResponse {
 
 // GET /recs/trending — global trending when no user_id, personalized when provided.
 export const getTrending = async (params?: { user_id?: string; limit?: number }): Promise<TrendingResponse> => {
-  const response = await apiClient.get<TrendingResponse>('/recs/trending', { params });
+  const response = await recsClient.get<TrendingResponse>('/recs/trending', { params });
   return response.data;
 };
