@@ -15,7 +15,7 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false)
   const [localLoading, setLocalLoading] = useState(false)
 
-  const { register } = useAuth()
+  const { register, login } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -36,10 +36,10 @@ export default function RegisterPage() {
     setLocalLoading(true)
     try {
       await register(fullName, username, email, password)
-      setSuccess(true)
-      setTimeout(() => {
-        navigate('/login')
-      }, 1500)
+      // Log the new user in, then route them into the interests onboarding step.
+      // login() navigates to /dashboard internally; the replace-navigate below supersedes it.
+      await login(username, password)
+      navigate('/onboarding/interests', { replace: true })
     } catch (err) {
       console.error(err)
       setError(err.response?.data?.detail || 'Registration failed. Try again.')

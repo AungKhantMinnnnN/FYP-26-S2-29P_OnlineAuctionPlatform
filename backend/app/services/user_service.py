@@ -4,7 +4,7 @@ import uuid
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -302,6 +302,27 @@ class UserService:
         )
         categories = (await db.execute(stmt)).scalars().all()
         return [{"id": c.id, "name": c.name, "slug": c.slug} for c in categories]
+
+    @staticmethod
+    async def update_interests(db: AsyncSession, user_id: uuid.UUID, category_ids: list) -> list:
+        if not category_ids:
+            raise HTTPException(status_code=400, detail="At least one category is required")
+
+        # Validate all category IDs exist
+        valid = (await db.execute(
+            select(Categories.id).where(Categories.id.in_(category_ids))
+        )).scalars().all()
+        invalid = set(str(c) for c in category_ids) - set(str(c) for c in valid)
+        if invalid:
+            raise HTTPException(status_code=404, detail=f"Unknown category IDs: {', '.join(invalid)}")
+
+        # Replace: delete existing then insert new set
+        await db.execute(delete(UserInterest).where(UserInterest.user_id == user_id))
+        for category_id in category_ids:
+            db.add(UserInterest(user_id=user_id, category_id=category_id))
+        await db.commit()
+
+        return await UserService.get_interests(db=db, user_id=user_id)
     # endregion
 
     # region Subscription

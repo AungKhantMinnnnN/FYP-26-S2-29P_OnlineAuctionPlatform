@@ -498,6 +498,23 @@ All routes require authentication (`Authorization: Bearer <token>`).
     }
     ```
 
+* **`POST /v1.0.0/users/me/interests`**
+  * **Description:** Save or replace the user's interest categories. If interests already exist, the full set is replaced (delete + insert in one transaction). At least one category ID is required.
+  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Request:** JSON object (`InterestsUpdateRequest`)
+    ```json
+    { "category_ids": ["uuid", "uuid"] }
+    ```
+  * **Response (200 OK):** `InterestsResponse` *(updated list, ordered by name)*
+    ```json
+    {
+      "items": [
+        { "id": "uuid", "name": "string", "slug": "string" }
+      ]
+    }
+    ```
+  * **Errors:** `400` if `category_ids` is empty. `404` if any ID does not match a known category.
+
 * **`GET /v1.0.0/users/me/bids`**
   * **Description:** Paginated bid history for the current user across all listings. Use `result` filter to narrow to won, outbid, or all bids.
   * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100), `result` (`all | won | outbid`, default `all`)

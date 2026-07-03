@@ -119,6 +119,10 @@ class ProfileResponse(BaseModel):
 
 
 # region Interests
+class InterestsUpdateRequest(BaseModel):
+    category_ids: List[UUID]
+
+
 class InterestCategory(BaseModel):
     id: UUID
     name: str
