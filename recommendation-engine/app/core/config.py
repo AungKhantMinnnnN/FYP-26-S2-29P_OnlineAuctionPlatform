@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
-env_file_name = os.getenv("ENV_FILE", ".env.local")
+env_file_name = os.getenv("ENV_FILE", ".env")
 
 class Settings(BaseSettings):
     PROJECT_NAME: str
@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     LOG_DIR: str
 
     ALLOWED_ORIGINS: str
+    S3_PUBLIC_URL: str
     
     @property
     def cors_origins(self) -> list[str]:

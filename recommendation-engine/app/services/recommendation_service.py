@@ -4,9 +4,19 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy.orm import selectinload
+
+from app.core.config import settings
 from app.models.auction import Listing, ListingStatus, UserInteraction, UserInterest, UserProfiles
 from app.services import trending
 from app.services.location import parse_location
+
+
+def _primary_image_url(listing: Listing) -> str | None:
+    if not listing.images:
+        return None
+    primary = next((img for img in listing.images if img.is_primary), None) or listing.images[0]
+    return f"{settings.S3_PUBLIC_URL}/{primary.s3_key}"
 
 
 async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit: int = 20) -> tuple[list[dict], bool]:
@@ -47,7 +57,59 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
     category_df = await _category_interactions(db, user_id, interactions_df, listings_df)
 
     ranked = trending.rank_listings(listings_df, interactions_df, now, segment_df, category_df)
-    items = ranked.head(limit)[["id", "title", "current_price", "end_time", "score"]].to_dict("records")
+    top = ranked.head(limit)[["id", "score"]]
+    score_map = dict(zip(top["id"], top["score"]))
+
+    full_result = await db.execute(
+        select(Listing)
+        .options(selectinload(Listing.images), selectinload(Listing.seller))
+        .where(Listing.id.in_(list(score_map.keys())))
+    )
+    full_listings = {l.id: l for l in full_result.scalars().all()}
+
+    items = []
+    for listing_id, score in score_map.items():
+        listing = full_listings.get(listing_id)
+        if not listing:
+            continue
+        items.append({
+            "id": listing.id,
+            "seller_id": listing.seller_id,
+            "category_id": listing.category_id,
+            "title": listing.title,
+            "description": listing.description,
+            "brand": listing.brand,
+            "condition": listing.condition.value,
+            "condition_confidence": listing.condition_confidence,
+            "bidding_type": listing.bidding_type.value,
+            "starting_price": listing.starting_price,
+            "reserve_price": listing.reserve_price,
+            "current_price": listing.current_price,
+            "min_increment": listing.min_increment,
+            "status": listing.status.value,
+            "is_draft": listing.is_draft,
+            "start_time": listing.start_time,
+            "end_time": listing.end_time,
+            "created_at": listing.created_at,
+            "updated_at": listing.updated_at,
+            "images": [
+                {
+                    "id": img.id,
+                    "s3_key": img.s3_key,
+                    "sort_order": img.sort_order,
+                    "is_primary": img.is_primary,
+                    "image_url": f"{settings.S3_PUBLIC_URL}/{img.s3_key}",
+                }
+                for img in listing.images
+            ],
+            "seller": {
+                "id": listing.seller.id,
+                "username": listing.seller.username,
+                "email": listing.seller.email,
+            } if listing.seller else None,
+            "score": score,
+        })
+
     return items, (segment_df is not None or category_df is not None)
 
 
