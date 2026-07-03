@@ -905,9 +905,38 @@ Provides personalized and trending auction suggestions. All routes are served un
       "items": [
         {
           "id": "uuid",
+          "seller_id": "uuid",
+          "category_id": "uuid | null",
           "title": "string",
-          "current_price": "float",
+          "description": "string | null",
+          "brand": "string | null",
+          "condition": "new | used | refurbished",
+          "condition_confidence": "float | null",
+          "bidding_type": "price_up | low_start | public",
+          "starting_price": "float | null",
+          "reserve_price": "float | null",
+          "current_price": "float | null",
+          "min_increment": "float | null",
+          "status": "listing_status",
+          "is_draft": "boolean",
+          "start_time": "datetime | null",
           "end_time": "datetime | null",
+          "created_at": "datetime",
+          "updated_at": "datetime",
+          "images": [
+            {
+              "id": "uuid",
+              "s3_key": "string",
+              "sort_order": "int",
+              "is_primary": "boolean",
+              "image_url": "string | null"
+            }
+          ],
+          "seller": {
+            "id": "uuid",
+            "username": "string",
+            "email": "string"
+          },
           "score": "float"
         }
       ],
@@ -917,6 +946,7 @@ Provides personalized and trending auction suggestions. All routes are served un
     ```
     * `score` — ML ranking score used to order results; higher = more relevant.
     * `type` — `"personalized"` if demographic or category signals were applied; `"trending"` if the response is cold-start/engagement-only.
+    * `image_url` — public URL constructed from `S3_PUBLIC_URL/{s3_key}`, served through Nginx.
 
 ### Health Check
 
