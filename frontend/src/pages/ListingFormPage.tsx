@@ -7,7 +7,7 @@ import DatePickerField from '../components/DatePickerField';
 import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import { useAuth } from '../context/AuthContext';
-import { createListing, uploadAuctionImages, getFormMetadata, type Category, type EnumType } from '../api/auctionsApi';
+import { createListing, uploadAuctionImages, getFormMetadata } from '../api/auctionsApi';
 import Modal from '../components/Modal';
 import { CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -37,11 +37,11 @@ export default function ListingFormPage() {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [createdListingId, setCreatedListingId] = useState('');
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [conditions, setConditions] = useState<EnumType[]>([]);
-  const [biddingTypes, setBiddingTypes] = useState<EnumType[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [conditions, setConditions] = useState<any[]>([]);
+  const [biddingTypes, setBiddingTypes] = useState<any[]>([]);
 
-  // Load metadata (categories, conditions, bidding types)
+  // Load metadata from backend
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
@@ -50,27 +50,21 @@ export default function ListingFormPage() {
         setConditions(data.conditions || []);
         setBiddingTypes(data.biddingTypes || []);
 
-        // Auto-select first options
-        if (data.categories?.length > 0) {
-          setFormData(prev => ({ ...prev, category_id: data.categories[0].id }));
-        }
-        if (data.conditions?.length > 0) {
-          setFormData(prev => ({ ...prev, condition: data.conditions[0].id }));
-        }
-        if (data.biddingTypes?.length > 0) {
-          setFormData(prev => ({ ...prev, bidding_type: data.biddingTypes[0].id }));
-        }
+        // Auto select first options
+        if (data.categories?.length > 0) setFormData(p => ({ ...p, category_id: data.categories[0].id }));
+        if (data.conditions?.length > 0) setFormData(p => ({ ...p, condition: data.conditions[0].id }));
+        if (data.biddingTypes?.length > 0) setFormData(p => ({ ...p, bidding_type: data.biddingTypes[0].id }));
 
         const now = new Date();
-        const nextWeek = new Date(now.getTime() + 7 * 86400000);
+        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-        setFormData(prev => ({
-          ...prev,
-          start_time: prev.start_time || now.toISOString().slice(0, 16),
-          end_time: prev.end_time || nextWeek.toISOString().slice(0, 16)
+        setFormData(p => ({
+          ...p,
+          start_time: p.start_time || now.toISOString().slice(0, 16),
+          end_time: p.end_time || nextWeek.toISOString().slice(0, 16)
         }));
       } catch (error) {
-        console.error("Failed to load form metadata", error);
+        console.error("Failed to load metadata", error);
       } finally {
         setMetadataLoading(false);
       }
@@ -94,31 +88,19 @@ export default function ListingFormPage() {
     setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, isDraft = false) => {
     e.preventDefault();
-    if (!user) {
-      alert("Please log in first");
-      return;
-    }
+    if (!user) return alert("Please log in first");
 
     setIsLoading(true);
-
-    const startPriceNum = Number(formData.starting_price);
-    const reservePriceNum = formData.reserve_price ? Number(formData.reserve_price) : startPriceNum;
-
-    if (reservePriceNum < startPriceNum) {
-      alert("Reserve price cannot be lower than the starting price.");
-      setIsLoading(false);
-      return;
-    }
 
     const payload = {
       title: formData.title,
       description: formData.description,
       condition: formData.condition,
       bidding_type: formData.bidding_type,
-      starting_price: startPriceNum,
-      reserve_price: reservePriceNum,
+      starting_price: Number(formData.starting_price),
+      reserve_price: formData.reserve_price ? Number(formData.reserve_price) : undefined,
       min_increment: Number(formData.min_increment) || 1,
       start_time: new Date(formData.start_time).toISOString(),
       end_time: new Date(formData.end_time).toISOString(),
@@ -132,46 +114,36 @@ export default function ListingFormPage() {
       if (images.length > 0) {
         await uploadAuctionImages(result.id, images);
       }
-      
+
       setCreatedListingId(result.id);
       setSuccessModalOpen(true);
     } catch (error: any) {
       console.error(error);
-      const detail = error.response?.data?.detail;
-      alert(detail || "Failed to create listing. Please check all fields.");
+      alert(error.response?.data?.detail || "Failed to create listing. Please check your input.");
     } finally {
       setIsLoading(false);
     }
   };
 
   if (metadataLoading) {
-    return <div className="text-center py-20 text-slate-500">Loading form metadata...</div>;
+    return <div className="text-center py-20 text-slate-500">Loading form data...</div>;
   }
 
   return (
     <div className="max-w-3xl mx-auto p-4">
       <Modal isOpen={successModalOpen} onClose={() => navigate('/browse')}>
-        <div className="text-center py-6">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
-            <CheckCircle2 className="h-10 w-10 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Listing Published!</h2>
-          <p className="text-slate-500 mb-8">Your auction is now live on the marketplace.</p>
-          <div className="flex flex-col gap-3">
-            <PrimaryButton onClick={() => navigate(`/auction/${createdListingId}`)} fullWidth>
-              View Listing
-            </PrimaryButton>
-            <SecondaryButton onClick={() => window.location.reload()} fullWidth>
-              Create Another Listing
-            </SecondaryButton>
-          </div>
+        <div className="text-center py-8">
+          <CheckCircle2 className="mx-auto h-16 w-16 text-green-500 mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Listing Created Successfully!</h2>
+          <p className="text-slate-500 mb-6">Your item is now live on the marketplace.</p>
+          <PrimaryButton onClick={() => navigate(`/auction/${createdListingId}`)} fullWidth>
+            View My Listing
+          </PrimaryButton>
         </div>
       </Modal>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Create New Listing</h1>
-        <p className="text-slate-500">Fill in the details below to list your item.</p>
-      </div>
+      <h1 className="text-3xl font-bold mb-1">Create New Listing</h1>
+      <p className="text-slate-500 mb-8">Share something special with the community</p>
 
       <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800">
         
@@ -228,8 +200,17 @@ export default function ListingFormPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DatePickerField label="Start Time" selected={formData.start_time ? new Date(formData.start_time) : null} onChange={(date) => setFormData({ ...formData, start_time: date ? date.toISOString().slice(0,16) : '' })} />
-          <DatePickerField label="End Time" selected={formData.end_time ? new Date(formData.end_time) : null} onChange={(date) => setFormData({ ...formData, end_time: date ? date.toISOString().slice(0,16) : '' })} minDate={formData.start_time ? new Date(formData.start_time) : undefined} />
+          <DatePickerField 
+            label="Start Time" 
+            selected={formData.start_time ? new Date(formData.start_time) : null} 
+            onChange={(date) => setFormData({ ...formData, start_time: date ? date.toISOString().slice(0,16) : '' })} 
+          />
+          <DatePickerField 
+            label="End Time" 
+            selected={formData.end_time ? new Date(formData.end_time) : null} 
+            onChange={(date) => setFormData({ ...formData, end_time: date ? date.toISOString().slice(0,16) : '' })} 
+            minDate={formData.start_time ? new Date(formData.start_time) : undefined} 
+          />
         </div>
 
         {/* Image Upload */}
