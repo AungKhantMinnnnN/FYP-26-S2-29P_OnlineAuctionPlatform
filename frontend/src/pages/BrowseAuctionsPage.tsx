@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal, Grid3X3, List, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
+import { SlidersHorizontal, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
 import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
 import { getTrending } from '../api/recommendationsApi'
@@ -14,7 +14,6 @@ import EmptyState from '../components/EmptyState'
 
 export default function BrowseAuctionsPage() {
   const [mobileFilters, setMobileFilters] = useState(false)
-  const [view, setView] = useState<'grid' | 'list'>('grid')
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
 
@@ -151,10 +150,6 @@ export default function BrowseAuctionsPage() {
             <p className="text-sm text-slate-500">
               {isLoading ? 'Loading...' : `${totalItems} results found`}
             </p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setView('grid')} className={`p-2 rounded-xl ${view === 'grid' ? 'bg-accent-50 text-accent-700 ring-1 ring-accent-100' : 'text-slate-400 transition-colors hover:bg-slate-100'}`}><Grid3X3 size={16} /></button>
-              <button onClick={() => setView('list')} className={`p-2 rounded-xl ${view === 'list' ? 'bg-accent-50 text-accent-700 ring-1 ring-accent-100' : 'text-slate-400 transition-colors hover:bg-slate-100'}`}><List size={16} /></button>
-            </div>
           </div>
 
           {isLoading ? (
@@ -162,7 +157,7 @@ export default function BrowseAuctionsPage() {
               <p className="text-slate-500">Loading auctions...</p>
             </div>
           ) : auctionsList.length > 0 ? (
-            <div className={`grid gap-5 mb-8 ${view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
               {auctionsList.map(a => <AuctionCard key={a.id} auction={a} />)}
             </div>
           ) : (
