@@ -435,7 +435,7 @@ Lookup table used to categorise support disputes. Populated by admins, consumed 
   * **Response (201 Created):** `IssueTypeResponse`
   * **Errors:** `409 Conflict` if name already exists.
 
-* **`POST /v1.0.0/issue-types/{id}`**
+* **`PATCH /v1.0.0/issue-types/{id}`**
   * **Description:** Admin only. Rename an existing issue type.
   * **Request Headers:** `Authorization: Bearer <token>` *(admin role required)*
   * **Request Parameters:** `id` (UUID) in path

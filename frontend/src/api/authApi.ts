@@ -26,3 +26,11 @@ export const confirmEmailVerification = async (token: string): Promise<GenericMe
   const response = await apiClient.post<GenericMessageResponse>('/auth/email-verification/confirm', { token })
   return response.data
 }
+
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<GenericMessageResponse> => {
+  const response = await apiClient.post<GenericMessageResponse>('/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  })
+  return response.data
+}
