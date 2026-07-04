@@ -20,6 +20,34 @@ import {
 
 type TabType = 'support' | 'story'
 
+const preferredIssueOrder = [
+  'Payment Issue',
+  'Shipping Problem',
+  'Item Not Received',
+  'Item Not as Described',
+  'Damaged or Defective Item',
+  'Counterfeit Item',
+  'Fraudulent Listing',
+  'Buyer Misconduct',
+  'Seller Misconduct',
+]
+
+const sortIssueTypes = (issueTypes: { id: string; name: string }[]) => {
+  return [...issueTypes].sort((a, b) => {
+    if (a.name === 'Other') return 1
+    if (b.name === 'Other') return -1
+
+    const indexA = preferredIssueOrder.indexOf(a.name)
+    const indexB = preferredIssueOrder.indexOf(b.name)
+
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB
+    if (indexA !== -1) return -1
+    if (indexB !== -1) return 1
+
+    return a.name.localeCompare(b.name)
+  })
+}
+
 export default function SupportPage() {
   const [activeTab, setActiveTab] = useState<TabType>('support')
   const [issueTypes, setIssueTypes] = useState<
@@ -40,12 +68,14 @@ export default function SupportPage() {
     const loadIssueTypes = async () => {
       try {
         const data = await getIssueTypes()
-        setIssueTypes(data)
+          const sortedIssueTypes = sortIssueTypes(data)
 
-        if (data.length > 0) {
-          setSelectedIssueTypeId(data[0].id)
-          setCategory(data[0].name)
-        }
+          setIssueTypes(sortedIssueTypes)
+
+          if (sortedIssueTypes.length > 0) {
+            setSelectedIssueTypeId(sortedIssueTypes[0].id)
+            setCategory(sortedIssueTypes[0].name)
+}
       } catch (err) {
         console.error('Failed to load issue types:', err)
         setError('Unable to load support issue types. Please refresh and try again.')
