@@ -253,6 +253,7 @@ export default function AuctionDetailPage() {
             <div className="flex items-center gap-2 mb-3">
               <StatusBadge status={auction.status} />
               <span className="text-xs text-slate-500">{auction.condition}</span>
+              {auction.brand && <span className="text-xs text-slate-500">• {auction.brand}</span>}
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-3">{auction.title}</h1>
             <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
@@ -301,6 +302,30 @@ export default function AuctionDetailPage() {
                 ${minimumBid.toFixed(2)}
                 {auction.bidding_type === 'public' && <span className="text-sm text-slate-500 font-normal ml-2">(Any higher amount)</span>}
               </p>
+            </div>
+            <div className="mb-4 space-y-1.5 border-t border-slate-100 pt-4 text-sm">
+              {auction.starting_price != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Starting price</span>
+                  <span className="font-medium text-slate-900">${auction.starting_price.toFixed(2)}</span>
+                </div>
+              )}
+              {auction.min_increment != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Min. increment</span>
+                  <span className="font-medium text-slate-900">${auction.min_increment.toFixed(2)}</span>
+                </div>
+              )}
+              {auction.reserve_price != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Reserve</span>
+                  {currentBid >= auction.reserve_price ? (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">Reserve met</span>
+                  ) : (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">Reserve not met</span>
+                  )}
+                </div>
+              )}
             </div>
             {user && (
               <div className="mb-4 rounded-2xl bg-accent-50 p-3 text-sm text-accent-800 ring-1 ring-accent-100">
