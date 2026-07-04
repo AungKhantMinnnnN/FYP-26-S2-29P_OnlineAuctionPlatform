@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Menu, X, Gavel, ChevronDown, Wallet, User as UserIcon, LogOut } from 'lucide-react'
+import { Menu, X, Gavel, ChevronDown, Wallet } from 'lucide-react'
 import SearchBar from './SearchBar'
 import { useAuth } from '../context/AuthContext'
 import MarketplaceNav from './MarketplaceNav'
@@ -20,7 +20,6 @@ export default function Navbar() {
 
   const accountLabel = user?.username || user?.email || 'Account'
   const balance = user?.balance ?? 0
-  const displayName = user?.profile?.full_name || accountLabel
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-md shadow-sm">
@@ -37,7 +36,7 @@ export default function Navbar() {
             {user ? (
               <div className="relative" onMouseEnter={() => setAccountOpen(true)} onMouseLeave={() => setAccountOpen(false)}>
                 <button onClick={() => setAccountOpen(!accountOpen)} className="ml-2 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
-                  <span>{role === 'admin' ? 'Admin' : displayName}</span>
+                  <span>{role === 'admin' ? 'Admin' : accountLabel}</span>
                   {role === 'admin' && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white/80">ADMIN</span>}
                   <ChevronDown size={15} />
                 </button>
@@ -48,15 +47,12 @@ export default function Navbar() {
                         <button onClick={handleLogout} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
                       ) : (
                         <>
-                          <Link to="/wallet" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                            <Wallet size={15} /> Wallet
+                          <Link to="/wallet" onClick={() => setAccountOpen(false)} className="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                            <span className="inline-flex items-center gap-2"><Wallet size={15} /> Balance</span>
+                            <span className="font-semibold text-slate-950">${balance.toFixed(2)}</span>
                           </Link>
-                          <Link to="/profile" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                            <UserIcon size={15} /> Profile
-                          </Link>
-                          <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">
-                            <LogOut size={15} /> Logout
-                          </button>
+                          <Link to="/wallet/top-up" onClick={() => setAccountOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Top Up</Link>
+                          <button onClick={handleLogout} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">Sign Out</button>
                         </>
                       )}
                     </div>
