@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr
 from uuid import UUID
@@ -47,6 +48,9 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: str
     balance: float
+    email_verified: bool
+    subscription_tier: str
+    subscription_expires_at: Optional[datetime] = None
     profile: Optional[UserProfileResponse] = None
 
     class Config:
