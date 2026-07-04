@@ -1,0 +1,94 @@
+================================================================================
+ONLINE AUCTION PLATFORM - DEVELOPMENT OVERVIEW
+================================================================================
+
+1. ARCHITECTURE OVERVIEW
+--------------------------------------------------------------------------------
+
+*   Nginx (API Gateway): Acts as the entry point for all traffic, routing 
+    requests to the appropriate microservices and handling reverse proxying.
+*   Core Backend (FastAPI): Manages user authentication, item listings, 
+    transactions, and core business logic. 
+    Location: ./backend
+*   Bidding Engine (WebSocket): A high-concurrency service handling real-time 
+    bids via WebSockets and Redis Pub/Sub.
+    Location: ./bidding-engine
+*   Recommendation Engine (ML): Provides personalized item discoveries using 
+    Scikit-learn and Pandas.
+    Location: ./recommendation-engine
+*   Database (PostgreSQL 15): Persistent storage for all core data.
+*   Cache & Pub/Sub (Redis 7): Used for session management and real-time 
+    communication between services.
+*   Object Storage (MinIO): S3-compatible storage for item images and assets.
+
+2. RUNNING THE PROJECT WITH DOCKER
+--------------------------------------------------------------------------------
+The easiest way to run the entire stack is using Docker Compose.
+
+Pre-requisites:
+- Docker and Docker Compose installed.
+
+Steps:
+1.  Setup Environment Variables:
+    cp .env.example .env
+    (Update values in .env if necessary)
+
+2.  Start the Services:
+    docker-compose up --build
+
+3.  Access Points:
+    - Core API & Docs: http://localhost/v1.0.0/docs
+    - Bidding Engine Docs: http://localhost/v1.0.0/bids/docs
+    - Recommendation Engine Docs: http://localhost/v1.0.0/recs/docs
+    - MinIO Web Console: http://localhost:9001 (Credentials in .env)
+
+4.  Stopping Services:
+    docker-compose down
+
+3. GIT GUIDELINES & WORKFLOW
+--------------------------------------------------------------------------------
+
+Branching:
+- 'main': Production-ready code. No direct commits allowed.
+- 'develop': Integration branch for features. All PRs should target this.
+- Feature branches: 'feature/your-feature-name'
+- Bugfix branches: 'fix/issue-description'
+
+Commit Message:
+We use Conventional Commits. Format: <type>(<scope>): <short summary>
+
+Types:
+- feat: A new feature
+- fix: A bug fix
+- docs: Documentation changes
+- style: Formatting, missing semi colons, etc (no code changes)
+- refactor: Refactoring production code
+- test: Adding missing tests, refactoring tests
+- chore: Updating build tasks, package manager configs, etc.
+
+Example:
+feat(auth): add JWT-based session management
+
+4. PULL REQUEST (PR) PROCESS
+--------------------------------------------------------------------------------
+
+Requirements before opening a PR:
+1.  Ensure your branch is up to date with 'develop'.
+2.  All Docker containers must start cleanly ('docker-compose up').
+3.  Add or update unit/integration tests for your changes.
+4.  No secrets or sensitive .env values should be committed.
+
+PR Template:
+When creating a PR on GitHub, fill out the template completely, including:
+- Brief description of the change.
+- Related issue number (or) user story number (from taiga) (e.g., Closes #123).
+- Type of change (Feature, Bug fix, etc.).
+- Completion of the checklist.
+
+5. TECHNOLOGY STACK SUMMARY
+--------------------------------------------------------------------------------
+- Backend: FastAPI (Python 3.11+)
+- Database: SQLAlchemy (Async), PostgreSQL
+- Real-time: WebSockets, Redis
+- ML: Scikit-learn, Pandas, Surprise
+- Infrastructure: Nginx, Docker, MinIO
