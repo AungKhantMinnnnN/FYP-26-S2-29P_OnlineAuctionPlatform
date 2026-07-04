@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.models.auction import User, UserProfiles, UserRole, UserStatus
-from app.schemas.auth import LoginRequest, RegisterRequest, Token
+from app.schemas.auth import LoginRequest, RegisterRequest, Token, ChangePasswordRequest
 from app.core.security import get_password_hash, verify_password, create_access_token
 
 class AuthService:
@@ -76,3 +76,15 @@ class AuthService:
             
         access_token = create_access_token(subject=user.id)
         return Token(access_token=access_token, token_type="bearer")
+
+    @staticmethod
+    async def change_password(db: AsyncSession, user: User, request: ChangePasswordRequest) -> None:
+        if not verify_password(request.current_password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
+
+        user.password_hash = get_password_hash(request.new_password)
+        user.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        await db.commit()

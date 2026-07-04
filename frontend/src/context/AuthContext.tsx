@@ -9,6 +9,9 @@ export interface User {
   email: string;
   role: string;
   balance: number;
+  email_verified: boolean;
+  subscription_tier: string;
+  subscription_expires_at?: string | null;
   profile?: {
     full_name: string;
     phone?: string;
