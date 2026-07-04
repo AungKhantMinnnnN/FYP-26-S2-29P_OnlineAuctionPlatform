@@ -21,6 +21,8 @@ import AdminDashboardPage from './pages/AdminDashboardPage'
 import WatchlistPage from './pages/WatchlistPage'
 import WalletPage from './pages/WalletPage'
 import ChooseInterestsPage from './pages/ChooseInterestsPage'
+import AuctionFlowPage from './pages/AuctionFlowPage';
+import CollectorBoardPage from './pages/CollectorBoardPage';
 
 import AdminManagementPage from './pages/AdminManagementPage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -63,6 +65,8 @@ export default function App() {
           {/* User routes */}
           <Route element={<ProtectedRoute roles={['user']} />}>
             <Route element={<DashboardLayout />}>
+            <Route path="/auction-flow" element={<AuctionFlowPage />} />
+<Route path="/collector-board" element={<CollectorBoardPage />} />
               <Route path="/browse" element={<BrowseAuctionsPage />} />
               <Route path="/dashboard" element={<UserDashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
@@ -81,6 +85,7 @@ export default function App() {
           {/* Admin routes */}
           <Route element={<ProtectedRoute roles={['admin']} />}>
             <Route element={<DashboardLayout />}>
+            
               <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
               <Route path="/admin/:section" element={<AdminManagementPage />} />
             </Route>
