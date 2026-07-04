@@ -37,7 +37,7 @@ export interface PaginatedAuctions {
 }
 
 // Existing function
-export const getAuctions = async (params?: { page?: number; size?: number; status?: string; search?: string }): Promise<PaginatedAuctions> => {
+export const getAuctions = async (params?: { page?: number; size?: number; status?: string; search?: string; category_id?: string }): Promise<PaginatedAuctions> => {
   const response = await apiClient.get<PaginatedAuctions>('/auctions/', { params });
   return response.data;
 };

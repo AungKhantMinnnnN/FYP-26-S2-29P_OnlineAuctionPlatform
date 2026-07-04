@@ -14,15 +14,17 @@ import EmptyState from '../components/EmptyState'
 
 export default function BrowseAuctionsPage() {
   const [mobileFilters, setMobileFilters] = useState(false)
+  const [view, setView] = useState<'grid' | 'list'>('grid')
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
 
   const page = parseInt(searchParams.get('page') || '1', 10)
   const searchQuery = searchParams.get('q') || ''
+  const categoryId = searchParams.get('category') || undefined
 
   const { data: auctionsData, isLoading } = useQuery({
-    queryKey: ['auctions', 'browse', page, searchQuery],
-    queryFn: () => getAuctions({ page, size: 20, search: searchQuery || undefined })
+    queryKey: ['auctions', 'browse', page, searchQuery, categoryId],
+    queryFn: () => getAuctions({ page, size: 20, search: searchQuery || undefined, category_id: categoryId })
   })
 
   // Real category names (listings only carry category_id).
@@ -58,7 +60,7 @@ export default function BrowseAuctionsPage() {
     image: listing.images.length > 0 ? listing.images[0].image_url : undefined
   })
 
-  // Trending payload is sparse (no image/condition/category) — fill unknowns neutrally.
+  // Trending items carry full listing data; display-only fields we don't use are filled neutrally.
   const mapTrendingToCard = (item: TrendingListing) => ({
     id: item.id,
     title: item.title,
@@ -72,7 +74,7 @@ export default function BrowseAuctionsPage() {
     watchers: 0,
     status: 'active',
     description: '',
-    image: undefined
+    image: item.images?.find(i => i.is_primary)?.image_url ?? item.images?.[0]?.image_url ?? undefined
   })
 
   const auctionsList = auctionsData ? auctionsData.items.map(mapToCardType) : []
@@ -87,6 +89,14 @@ export default function BrowseAuctionsPage() {
     setSearchParams(newParams);
   }
 
+  const handleCategoryChange = (id: string | null) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (id) newParams.set('category', id);
+    else newParams.delete('category');
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  }
+
   return (
     <div className="max-w-7xl mx-auto py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -96,13 +106,6 @@ export default function BrowseAuctionsPage() {
         </div>
         <div className="flex items-center gap-3">
           <SearchBar className="w-full md:w-64" />
-          <select className="rounded-full border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15">
-            <option>Ending Soonest</option>
-            <option>Newest</option>
-            <option>Price: Low to High</option>
-            <option>Price: High to Low</option>
-            <option>Most Bids</option>
-          </select>
           <button onClick={() => setMobileFilters(!mobileFilters)} className="md:hidden rounded-full border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm hover:bg-slate-50">
             <SlidersHorizontal size={18} />
           </button>
@@ -138,7 +141,7 @@ export default function BrowseAuctionsPage() {
             <button onClick={() => setMobileFilters(false)} className="text-sm font-semibold text-accent-600">Close</button>
           </div>
           <div className="md:h-full md:overflow-y-auto md:pr-2">
-            <FilterPanel />
+            <FilterPanel categories={metadata?.categories ?? []} selectedCategory={categoryId ?? null} onCategoryChange={handleCategoryChange} />
           </div>
         </aside>
         {mobileFilters && <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm md:hidden" onClick={() => setMobileFilters(false)} />}
@@ -149,8 +152,8 @@ export default function BrowseAuctionsPage() {
               {isLoading ? 'Loading...' : `${totalItems} results found`}
             </p>
             <div className="flex items-center gap-1">
-              <button className="p-2 rounded-xl bg-accent-50 text-accent-700 ring-1 ring-accent-100"><Grid3X3 size={16} /></button>
-              <button className="p-2 rounded-xl text-slate-400 transition-colors hover:bg-slate-100"><List size={16} /></button>
+              <button onClick={() => setView('grid')} className={`p-2 rounded-xl ${view === 'grid' ? 'bg-accent-50 text-accent-700 ring-1 ring-accent-100' : 'text-slate-400 transition-colors hover:bg-slate-100'}`}><Grid3X3 size={16} /></button>
+              <button onClick={() => setView('list')} className={`p-2 rounded-xl ${view === 'list' ? 'bg-accent-50 text-accent-700 ring-1 ring-accent-100' : 'text-slate-400 transition-colors hover:bg-slate-100'}`}><List size={16} /></button>
             </div>
           </div>
 
@@ -159,7 +162,7 @@ export default function BrowseAuctionsPage() {
               <p className="text-slate-500">Loading auctions...</p>
             </div>
           ) : auctionsList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+            <div className={`grid gap-5 mb-8 ${view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
               {auctionsList.map(a => <AuctionCard key={a.id} auction={a} />)}
             </div>
           ) : (

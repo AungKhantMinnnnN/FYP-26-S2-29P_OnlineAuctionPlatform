@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
-
-// TODO: Replace with actual data from backend
-const categories: string[] = []
-const conditions: string[] = []
+import type { Category } from '../api/auctionsApi'
 
 interface FilterPanelProps {
   className?: string
+  categories: Category[]
+  selectedCategory: string | null
+  onCategoryChange: (id: string | null) => void
 }
 
 interface SectionProps {
@@ -29,9 +29,8 @@ const Section = ({ title, children, isOpen, onToggle }: SectionProps) => (
   </div>
 )
 
-export default function FilterPanel({ className = '' }: FilterPanelProps) {
-  const [open, setOpen] = useState<Record<string, boolean>>({ category: true, condition: true, price: true })
-
+export default function FilterPanel({ className = '', categories, selectedCategory, onCategoryChange }: FilterPanelProps) {
+  const [open, setOpen] = useState<Record<string, boolean>>({ category: true })
 
   return (
     <div className={`rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm ${className}`}>
@@ -42,42 +41,35 @@ export default function FilterPanel({ className = '' }: FilterPanelProps) {
         <h3 className="font-semibold text-slate-950">Filters</h3>
       </div>
 
-      <Section title="Category" isOpen={open['category']} onToggle={() => setOpen(o => ({...o, category: !o.category}))}>
-        <div className="space-y-2">
-          {categories.map((c) => (
-            <label key={c} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50">
-              <input type="checkbox" className="rounded border-slate-300 text-accent-600 focus:ring-accent-500" />
-              {c}
+      <Section title="Category" isOpen={open['category']} onToggle={() => setOpen(o => ({ ...o, category: !o.category }))}>
+        {categories.length === 0 ? (
+          <p className="px-2 py-1 text-sm text-slate-400">No categories yet.</p>
+        ) : (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50">
+              <input
+                type="radio"
+                name="category"
+                checked={selectedCategory === null}
+                onChange={() => onCategoryChange(null)}
+                className="border-slate-300 text-accent-600 focus:ring-accent-500"
+              />
+              All categories
             </label>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Condition" isOpen={open['condition']} onToggle={() => setOpen(o => ({...o, condition: !o.condition}))}>
-        <div className="space-y-2">
-          {conditions.map((c) => (
-            <label key={c} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50">
-              <input type="radio" name="condition" className="border-slate-300 text-accent-600 focus:ring-accent-500" />
-              {c}
-            </label>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Price Range" isOpen={open['price']} onToggle={() => setOpen(o => ({...o, price: !o.price}))}>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            placeholder="Min"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15"
-          />
-          <span className="text-slate-400">-</span>
-          <input
-            type="number"
-            placeholder="Max"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15"
-          />
-        </div>
+            {categories.map((c) => (
+              <label key={c.id} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-50">
+                <input
+                  type="radio"
+                  name="category"
+                  checked={selectedCategory === c.id}
+                  onChange={() => onCategoryChange(c.id)}
+                  className="border-slate-300 text-accent-600 focus:ring-accent-500"
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        )}
       </Section>
     </div>
   )
