@@ -303,15 +303,15 @@ export default function ProfilePage() {
       )}
 
       {tab === 'security' && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-            <div className="border-b border-slate-200/80 px-6 py-4">
+            <div className="border-b border-slate-200/80 px-6 py-4 sm:px-8">
               <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
                 <ShieldCheck size={20} className="text-accent-600" /> Change Password
               </h2>
               <p className="mt-1 text-sm text-slate-500">Your current password is required to make changes.</p>
             </div>
-            <form onSubmit={handlePasswordSubmit} className="space-y-4 p-6">
+            <form onSubmit={handlePasswordSubmit} className="max-w-lg space-y-4 p-6 sm:p-8">
               <FormInput
                 label="Current Password"
                 type="password"
@@ -338,19 +338,19 @@ export default function ProfilePage() {
             </form>
           </div>
 
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 px-6 py-4 sm:flex-row sm:items-center sm:px-8">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 text-red-600" size={20} />
+              <AlertTriangle className="mt-0.5 shrink-0 text-red-600" size={18} />
               <div>
-                <h3 className="font-semibold text-red-900">Delete Account</h3>
-                <p className="mt-1 mb-4 text-sm text-red-700">
-                  This will permanently remove your profile, bids, and listings. This action cannot be undone.
+                <h3 className="text-sm font-semibold text-red-900">Delete Account</h3>
+                <p className="mt-0.5 text-xs leading-5 text-red-700 sm:max-w-md">
+                  Permanently remove your profile, bids, and listings. This cannot be undone.
                 </p>
-                <SecondaryButton onClick={() => setPendingAction({ type: 'delete-account' })}>
-                  Delete My Account
-                </SecondaryButton>
               </div>
             </div>
+            <SecondaryButton onClick={() => setPendingAction({ type: 'delete-account' })}>
+              Delete My Account
+            </SecondaryButton>
           </div>
         </div>
       )}
