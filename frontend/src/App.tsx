@@ -60,16 +60,10 @@ export default function App() {
             <Route path="/onboarding/interests" element={<ChooseInterestsPage />} />
           </Route>
 
-          {/* Browse — uses the same PublicLayout/Navbar as the landing page for a uniform header */}
-          <Route element={<ProtectedRoute roles={['user']} />}>
-            <Route element={<PublicLayout />}>
-              <Route path="/browse" element={<BrowseAuctionsPage />} />
-            </Route>
-          </Route>
-
           {/* User routes */}
           <Route element={<ProtectedRoute roles={['user']} />}>
             <Route element={<DashboardLayout />}>
+              <Route path="/browse" element={<BrowseAuctionsPage />} />
               <Route path="/dashboard" element={<UserDashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/bid-history" element={<BidHistoryPage />} />
