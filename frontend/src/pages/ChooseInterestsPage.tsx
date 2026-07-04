@@ -5,6 +5,7 @@ import { Check, Loader2 } from 'lucide-react'
 import { getFormMetadata } from '../api/auctionsApi'
 import type { Category } from '../api/auctionsApi'
 import { getMyInterests, updateMyInterests } from '../api/interestsApi'
+import type { InterestCategory } from '../api/interestsApi'
 import PrimaryButton from '../components/PrimaryButton'
 import EmptyState from '../components/EmptyState'
 
@@ -12,7 +13,7 @@ export default function ChooseInterestsPage() {
   const navigate = useNavigate()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [hydratedIds, setHydratedIds] = useState<string[] | null>(null)
+  const [hydratedItems, setHydratedItems] = useState<InterestCategory[] | null>(null)
 
   const {
     data: metadata,
@@ -33,9 +34,9 @@ export default function ChooseInterestsPage() {
 
   // Seed the selection from saved interests once they load. Render-time adjustment
   // guarded so it only runs when the fetched ids change (avoids setState-in-effect).
-  if (savedInterests?.category_ids && savedInterests.category_ids !== hydratedIds) {
-    setHydratedIds(savedInterests.category_ids)
-    setSelected(new Set(savedInterests.category_ids))
+  if (savedInterests?.items && savedInterests.items !== hydratedItems) {
+    setHydratedItems(savedInterests.items)
+    setSelected(new Set(savedInterests.items.map(i => i.id)))
   }
 
   const categories: Category[] = metadata?.categories ?? []

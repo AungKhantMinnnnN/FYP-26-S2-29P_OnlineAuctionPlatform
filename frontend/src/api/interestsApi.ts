@@ -1,7 +1,13 @@
 import apiClient from './apiClient';
 
+export interface InterestCategory {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface InterestsResponse {
-  category_ids: string[];
+  items: InterestCategory[];
 }
 
 // GET /users/me/interests — the current user's saved category interests.
