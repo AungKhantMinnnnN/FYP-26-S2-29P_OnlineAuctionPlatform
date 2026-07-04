@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Image, Save, Upload, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Upload, X, Save } from 'lucide-react';
 import FormInput from '../components/FormInput';
 import SelectField from '../components/SelectField';
 import TextAreaField from '../components/TextAreaField';
@@ -8,7 +8,6 @@ import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import { useAuth } from '../context/AuthContext';
 import { createListing, uploadAuctionImages, getFormMetadata, type Category, type EnumType } from '../api/auctionsApi';
-import { useEffect } from 'react';
 import Modal from '../components/Modal';
 import { CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 export default function ListingFormPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -27,7 +27,6 @@ export default function ListingFormPage() {
     min_increment: '5',
     start_time: '',
     end_time: '',
-    status: 'active',
   });
 
   const [images, setImages] = useState<File[]>([]);
@@ -42,32 +41,33 @@ export default function ListingFormPage() {
   const [conditions, setConditions] = useState<EnumType[]>([]);
   const [biddingTypes, setBiddingTypes] = useState<EnumType[]>([]);
 
+  // Load metadata (categories, conditions, bidding types)
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
         const data = await getFormMetadata();
-        setCategories(data.categories);
-        setConditions(data.conditions);
-        setBiddingTypes(data.biddingTypes);
-        
-        // Auto-select first item if exists and not already selected
-        if (data.categories.length > 0) {
+        setCategories(data.categories || []);
+        setConditions(data.conditions || []);
+        setBiddingTypes(data.biddingTypes || []);
+
+        // Auto-select first options
+        if (data.categories?.length > 0) {
           setFormData(prev => ({ ...prev, category_id: data.categories[0].id }));
         }
-        if (data.conditions.length > 0) {
+        if (data.conditions?.length > 0) {
           setFormData(prev => ({ ...prev, condition: data.conditions[0].id }));
         }
-        if (data.biddingTypes.length > 0) {
+        if (data.biddingTypes?.length > 0) {
           setFormData(prev => ({ ...prev, bidding_type: data.biddingTypes[0].id }));
         }
 
         const now = new Date();
         const nextWeek = new Date(now.getTime() + 7 * 86400000);
-        
+
         setFormData(prev => ({
           ...prev,
-          start_time: prev.start_time || now.toISOString(),
-          end_time: prev.end_time || nextWeek.toISOString()
+          start_time: prev.start_time || now.toISOString().slice(0, 16),
+          end_time: prev.end_time || nextWeek.toISOString().slice(0, 16)
         }));
       } catch (error) {
         console.error("Failed to load form metadata", error);
@@ -75,6 +75,7 @@ export default function ListingFormPage() {
         setMetadataLoading(false);
       }
     };
+
     fetchMetadata();
   }, []);
 
@@ -93,7 +94,7 @@ export default function ListingFormPage() {
     setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent | React.MouseEvent, isDraft: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
     e.preventDefault();
     if (!user) {
       alert("Please log in first");
@@ -106,7 +107,7 @@ export default function ListingFormPage() {
     const reservePriceNum = formData.reserve_price ? Number(formData.reserve_price) : startPriceNum;
 
     if (reservePriceNum < startPriceNum) {
-      alert("Error: Reserve price cannot be lower than the starting price.");
+      alert("Reserve price cannot be lower than the starting price.");
       setIsLoading(false);
       return;
     }
@@ -118,7 +119,7 @@ export default function ListingFormPage() {
       bidding_type: formData.bidding_type,
       starting_price: startPriceNum,
       reserve_price: reservePriceNum,
-      min_increment: formData.min_increment ? Number(formData.min_increment) : 1,
+      min_increment: Number(formData.min_increment) || 1,
       start_time: new Date(formData.start_time).toISOString(),
       end_time: new Date(formData.end_time).toISOString(),
       category_id: formData.category_id || null,
@@ -134,55 +135,46 @@ export default function ListingFormPage() {
       
       setCreatedListingId(result.id);
       setSuccessModalOpen(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       const detail = error.response?.data?.detail;
-      if (Array.isArray(detail)) {
-        // Extract the specific message from the first Pydantic validation error
-        alert(`Validation Error: ${detail[0].msg}`);
-      } else {
-        alert(detail || "Failed to create listing. Please check all fields.");
-      }
+      alert(detail || "Failed to create listing. Please check all fields.");
     } finally {
       setIsLoading(false);
     }
   };
 
   if (metadataLoading) {
-    return <div className="text-center py-20 text-slate-500">Loading form...</div>;
+    return <div className="text-center py-20 text-slate-500">Loading form metadata...</div>;
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 p-4">
-      <Modal isOpen={successModalOpen} onClose={() => navigate('/auctions')}>
+    <div className="max-w-3xl mx-auto p-4">
+      <Modal isOpen={successModalOpen} onClose={() => navigate('/browse')}>
         <div className="text-center py-6">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
             <CheckCircle2 className="h-10 w-10 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Listing Published!</h2>
-          <p className="text-slate-500 mb-8">
-            Your auction has been successfully created and is now live on the marketplace.
-          </p>
+          <p className="text-slate-500 mb-8">Your auction is now live on the marketplace.</p>
           <div className="flex flex-col gap-3">
             <PrimaryButton onClick={() => navigate(`/auction/${createdListingId}`)} fullWidth>
               View Listing
             </PrimaryButton>
-            <SecondaryButton onClick={() => {
-              setSuccessModalOpen(false);
-              window.location.reload();
-            }} fullWidth>
-              Create Another
+            <SecondaryButton onClick={() => window.location.reload()} fullWidth>
+              Create Another Listing
             </SecondaryButton>
           </div>
         </div>
       </Modal>
 
-      <div>
+      <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Create New Listing</h1>
-        <p className="text-slate-500">Fill in the details to list your item for auction.</p>
+        <p className="text-slate-500">Fill in the details below to list your item.</p>
       </div>
 
-      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 p-8 rounded-2xl">
+      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800">
+        
         <FormInput
           label="Title"
           placeholder="e.g. iPhone 17 Pro 256GB"
@@ -205,9 +197,8 @@ export default function ListingFormPage() {
             options={categories.map(c => c.name)}
             value={categories.find(c => c.id === formData.category_id)?.name || ''}
             onChange={(e) => {
-              const selectedName = e.target.value;
-              const cat = categories.find(c => c.name === selectedName);
-              setFormData({ ...formData, category_id: cat ? cat.id : '' })
+              const cat = categories.find(c => c.name === e.target.value);
+              setFormData({ ...formData, category_id: cat ? cat.id : '' });
             }}
           />
           <SelectField
@@ -215,9 +206,8 @@ export default function ListingFormPage() {
             options={conditions.map(c => c.name)}
             value={conditions.find(c => c.id === formData.condition)?.name || ''}
             onChange={(e) => {
-              const selectedName = e.target.value;
-              const cond = conditions.find(c => c.name === selectedName);
-              setFormData({ ...formData, condition: cond ? cond.id : '' })
+              const cond = conditions.find(c => c.name === e.target.value);
+              setFormData({ ...formData, condition: cond ? cond.id : '' });
             }}
           />
           <SelectField
@@ -225,49 +215,21 @@ export default function ListingFormPage() {
             options={biddingTypes.map(b => b.name)}
             value={biddingTypes.find(b => b.id === formData.bidding_type)?.name || ''}
             onChange={(e) => {
-              const selectedName = e.target.value;
-              const btype = biddingTypes.find(b => b.name === selectedName);
-              setFormData({ ...formData, bidding_type: btype ? btype.id : '' })
+              const btype = biddingTypes.find(b => b.name === e.target.value);
+              setFormData({ ...formData, bidding_type: btype ? btype.id : '' });
             }}
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormInput
-            label="Starting Price ($)"
-            type="number"
-            value={formData.starting_price}
-            onChange={(e) => setFormData({ ...formData, starting_price: e.target.value })}
-            required
-          />
-          <FormInput
-            label="Reserve Price ($)"
-            type="number"
-            value={formData.reserve_price}
-            onChange={(e) => setFormData({ ...formData, reserve_price: e.target.value })}
-          />
-          <FormInput
-            label="Min Increment ($)"
-            type="number"
-            value={formData.min_increment}
-            onChange={(e) => setFormData({ ...formData, min_increment: e.target.value })}
-          />
+          <FormInput label="Starting Price ($)" type="number" value={formData.starting_price} onChange={(e) => setFormData({ ...formData, starting_price: e.target.value })} required />
+          <FormInput label="Reserve Price ($)" type="number" value={formData.reserve_price} onChange={(e) => setFormData({ ...formData, reserve_price: e.target.value })} />
+          <FormInput label="Min Increment ($)" type="number" value={formData.min_increment} onChange={(e) => setFormData({ ...formData, min_increment: e.target.value })} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DatePickerField
-            label="Start Time"
-            selected={formData.start_time ? new Date(formData.start_time) : null}
-            onChange={(date) => setFormData({ ...formData, start_time: date ? date.toISOString() : '' })}
-            placeholderText="Select start date & time"
-          />
-          <DatePickerField
-            label="End Time"
-            selected={formData.end_time ? new Date(formData.end_time) : null}
-            onChange={(date) => setFormData({ ...formData, end_time: date ? date.toISOString() : '' })}
-            placeholderText="Select end date & time"
-            minDate={formData.start_time ? new Date(formData.start_time) : new Date()}
-          />
+          <DatePickerField label="Start Time" selected={formData.start_time ? new Date(formData.start_time) : null} onChange={(date) => setFormData({ ...formData, start_time: date ? date.toISOString().slice(0,16) : '' })} />
+          <DatePickerField label="End Time" selected={formData.end_time ? new Date(formData.end_time) : null} onChange={(date) => setFormData({ ...formData, end_time: date ? date.toISOString().slice(0,16) : '' })} minDate={formData.start_time ? new Date(formData.start_time) : undefined} />
         </div>
 
         {/* Image Upload */}
@@ -277,11 +239,7 @@ export default function ListingFormPage() {
             {previewUrls.map((url, i) => (
               <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200">
                 <img src={url} alt="preview" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-                >
+                <button type="button" onClick={() => removeImage(i)} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600">
                   <X size={16} />
                 </button>
               </div>
@@ -289,7 +247,7 @@ export default function ListingFormPage() {
 
             {previewUrls.length < 4 && (
               <label className="aspect-square border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-500">
-                <Image size={32} className="text-slate-400" />
+                <Upload size={32} className="text-slate-400" />
                 <span className="text-xs text-slate-500 mt-2">Add Image</span>
                 <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
               </label>
