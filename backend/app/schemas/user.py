@@ -100,6 +100,40 @@ class WalletResponse(BaseModel):
 # endregion
 
 
+# region Profile
+class ProfileUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[str] = None  # ISO date string: YYYY-MM-DD
+    bio: Optional[str] = None
+
+
+class ProfileResponse(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[str] = None
+    bio: Optional[str] = None
+# endregion
+
+
+# region Interests
+class InterestsUpdateRequest(BaseModel):
+    category_ids: List[UUID]
+
+
+class InterestCategory(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+
+
+class InterestsResponse(BaseModel):
+    items: List[InterestCategory]
+# endregion
+
+
 # region Subscription
 class SubscriptionActionRequest(BaseModel):
     action: Literal["renew", "cancel"]

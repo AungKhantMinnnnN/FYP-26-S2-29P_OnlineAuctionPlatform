@@ -4,7 +4,7 @@ import uuid
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.models.auction import (
     User, Bid, Listing, ListingStatus, ListingImages, AuctionResult,
     Watchlist, WalletTransaction, TransactionType, SubscriptionTier,
-    SubscriptionTierConfig,
+    SubscriptionTierConfig, UserProfiles, UserInterest, Categories,
 )
 
 
@@ -258,6 +258,71 @@ class UserService:
                 "pages": pages,
             },
         }
+    # endregion
+
+    # region Profile
+    @staticmethod
+    async def update_profile(db: AsyncSession, user: User, data: dict) -> dict:
+        profile = user.profile
+        if not profile:
+            profile = UserProfiles(user_id=user.id)
+            db.add(profile)
+
+        for field in ("full_name", "phone", "address", "bio"):
+            if data.get(field) is not None:
+                setattr(profile, field, data[field])
+
+        if data.get("dob") is not None:
+            try:
+                profile.dob = datetime.date.fromisoformat(data["dob"])
+            except ValueError:
+                raise HTTPException(status_code=400, detail="dob must be ISO format YYYY-MM-DD")
+
+        profile.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        await db.commit()
+        await db.refresh(profile)
+
+        return {
+            "full_name": profile.full_name,
+            "phone": profile.phone,
+            "address": profile.address,
+            "dob": profile.dob.isoformat() if profile.dob else None,
+            "bio": profile.bio,
+        }
+    # endregion
+
+    # region Interests
+    @staticmethod
+    async def get_interests(db: AsyncSession, user_id: uuid.UUID) -> list:
+        stmt = (
+            select(Categories)
+            .join(UserInterest, UserInterest.category_id == Categories.id)
+            .where(UserInterest.user_id == user_id)
+            .order_by(Categories.name)
+        )
+        categories = (await db.execute(stmt)).scalars().all()
+        return [{"id": c.id, "name": c.name, "slug": c.slug} for c in categories]
+
+    @staticmethod
+    async def update_interests(db: AsyncSession, user_id: uuid.UUID, category_ids: list) -> list:
+        if not category_ids:
+            raise HTTPException(status_code=400, detail="At least one category is required")
+
+        # Validate all category IDs exist
+        valid = (await db.execute(
+            select(Categories.id).where(Categories.id.in_(category_ids))
+        )).scalars().all()
+        invalid = set(str(c) for c in category_ids) - set(str(c) for c in valid)
+        if invalid:
+            raise HTTPException(status_code=404, detail=f"Unknown category IDs: {', '.join(invalid)}")
+
+        # Replace: delete existing then insert new set
+        await db.execute(delete(UserInterest).where(UserInterest.user_id == user_id))
+        for category_id in category_ids:
+            db.add(UserInterest(user_id=user_id, category_id=category_id))
+        await db.commit()
+
+        return await UserService.get_interests(db=db, user_id=user_id)
     # endregion
 
     # region Subscription

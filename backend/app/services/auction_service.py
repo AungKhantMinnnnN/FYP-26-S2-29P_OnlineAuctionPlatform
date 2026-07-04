@@ -195,6 +195,61 @@ class AuctionService:
         return uploaded_images
 
     @staticmethod
+    async def delete_listing(db: AsyncSession, auction_id: UUID, user_id: UUID) -> None:
+        result = await db.execute(select(Listing).where(Listing.id == auction_id))
+        listing = result.scalars().first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Auction listing not found")
+        if listing.seller_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorised to delete this listing")
+        if listing.status == ListingStatus.ended:
+            raise HTTPException(status_code=400, detail="Cannot delete an ended auction")
+        bid_count = await db.scalar(
+            select(func.count()).select_from(Bid).where(Bid.listing_id == auction_id)
+        )
+        if bid_count:
+            raise HTTPException(status_code=409, detail="Cannot delete a listing that has bids")
+        listing.status = ListingStatus.removed
+        listing.updated_at = datetime.now(timezone.utc)
+        await db.commit()
+
+    @staticmethod
+    async def update_listing_status(
+        db: AsyncSession, auction_id: UUID, user_id: UUID, new_status: ListingStatus
+    ) -> Listing:
+        result = await db.execute(
+            select(Listing)
+            .options(selectinload(Listing.images), selectinload(Listing.seller))
+            .where(Listing.id == auction_id)
+        )
+        listing = result.scalars().first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Auction listing not found")
+        if listing.seller_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorised to update this listing")
+        if listing.status == ListingStatus.ended:
+            raise HTTPException(status_code=400, detail="Cannot change the status of an ended auction")
+        if new_status == ListingStatus.ended:
+            raise HTTPException(status_code=400, detail="Status 'ended' is set by the system only")
+        # Prevent unpublishing an active listing that already has bids
+        if listing.status == ListingStatus.active and new_status in (
+            ListingStatus.draft, ListingStatus.pending_review
+        ):
+            bid_count = await db.scalar(
+                select(func.count()).select_from(Bid).where(Bid.listing_id == auction_id)
+            )
+            if bid_count:
+                raise HTTPException(
+                    status_code=409, detail="Cannot revert a listing that already has bids"
+                )
+        listing.status = new_status
+        listing.is_draft = new_status == ListingStatus.draft
+        listing.updated_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(listing)
+        return listing
+
+    @staticmethod
     async def get_form_metadata(db: AsyncSession) -> Dict[str, Any]:
         # Fetch active categories
         query = select(Categories).where(Categories.is_active == True)

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: str
     S3_SECRET_KEY: str
     S3_BUCKET_ASSETS: str
+    S3_BUCKET_VIDEOS: str = "auction-videos"
     S3_PUBLIC_URL: str | None = None  # genuinely optional: image_url falls back to S3_ENDPOINT when unset
 
     # Security

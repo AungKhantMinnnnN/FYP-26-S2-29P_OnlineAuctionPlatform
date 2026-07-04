@@ -5,7 +5,7 @@ from uuid import UUID
 from app.db.session import get_db
 from app.models.auction import ListingStatus, User
 from app.api.deps import get_current_user
-from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingImageResponse, MetadataResponse
+from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingImageResponse, MetadataResponse, ListingStatusUpdate
 from app.services.auction_service import AuctionService
 
 router = APIRouter()
@@ -81,3 +81,22 @@ async def get_auction(id: UUID, db: AsyncSession = Depends(get_db)):
 @router.get("/get_auction_bids/{id}/bids", response_model=List[BidResponse])
 async def get_auction_bids(id: UUID, db: AsyncSession = Depends(get_db)):
     return await AuctionService.get_auction_bids(db=db, auction_id=id)
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_listing(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await AuctionService.delete_listing(db=db, auction_id=id, user_id=current_user.id)
+
+@router.post("/{id}/status", response_model=AuctionListingResponse)
+async def update_listing_status(
+    id: UUID,
+    body: ListingStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await AuctionService.update_listing_status(
+        db=db, auction_id=id, user_id=current_user.id, new_status=body.status
+    )

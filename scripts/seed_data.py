@@ -18,6 +18,7 @@ from app.db.session import AsyncSessionLocal
 from app.models.auction import (
     User, UserProfiles, Listing, ListingImages, ListingStatus, ItemConditions,
     BiddingType, UserRole, Bid, Categories, UserInterest, SubscriptionTier,
+    SubscriptionTierConfig,
 )
 from app.core.security import get_password_hash
 from app.core.config import settings
@@ -106,7 +107,21 @@ async def seed_data():
             print(f"Ensured {len(normal_users)} Normal users exist.")
             users.extend(normal_users)
         
-        # 2. Create Categories (cold-start onboarding picks from these)
+        # 2. Seed subscription tiers
+        tier_defs = [
+            (SubscriptionTier.free,    0.0,  365, "Free tier - basic marketplace access"),
+            (SubscriptionTier.premium, 49.0, 365, "Premium - unlimited bids, priority support, 1 year"),
+        ]
+        for tier, price, days, desc in tier_defs:
+            existing = await db.execute(
+                select(SubscriptionTierConfig).where(SubscriptionTierConfig.tier == tier)
+            )
+            if not existing.scalars().first():
+                db.add(SubscriptionTierConfig(tier=tier, price=price, duration_days=days, description=desc))
+        await db.flush()
+        print("Ensured subscription tiers exist.")
+
+        # 4. Create Categories (cold-start onboarding picks from these)
         category_defs = [
             ("Electronics", "electronics"),
             ("Collectibles", "collectibles"),
@@ -126,7 +141,7 @@ async def seed_data():
             categories[slug] = category
         print(f"Ensured {len(categories)} categories exist.")
 
-        # 3. Cold-start: give each normal user a few interests, like onboarding does
+        # 5. Cold-start: give each normal user a few interests, like onboarding does
         for user in normal_users:
             existing = await db.execute(select(UserInterest).where(UserInterest.user_id == user.id))
             if existing.scalars().first():
@@ -136,7 +151,7 @@ async def seed_data():
                 db.add(UserInterest(user_id=user.id, category_id=category.id))
         await db.flush()
 
-        # 4. Create Auction Listings
+        # 6. Create Auction Listings
         print("Creating 20 auction listings...")
         items = [
             ("Vintage Watch", ItemConditions.used, 50.0, "Seiko", "collectibles"),
