@@ -1,31 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Trophy, TrendingUp } from 'lucide-react';
 import SectionHeader from '../components/SectionHeader';
-import AuctionCard from '../components/AuctionCard'; // Make sure this exists
+import AuctionCard from '../components/AuctionCard';
 import { getAuctions } from '../api/auctionsApi';
 
 export default function CollectorBoardPage() {
   const [trendingAuctions, setTrendingAuctions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        // Fetch active auctions and sort by popularity or current price
         const data = await getAuctions({ 
           page: 1, 
           size: 6, 
           status: 'active' 
         });
         
-        // You can sort by current_price or add real trending logic later
-        const sorted = [...data.items].sort((a, b) => 
+        // Sort by current price (highest first)
+        const sorted = [...(data.items || [])].sort((a, b) => 
           (b.current_price || 0) - (a.current_price || 0)
         );
         
         setTrendingAuctions(sorted.slice(0, 6));
-      } catch (error) {
-        console.error("Failed to fetch trending auctions", error);
+      } catch (err) {
+        console.error("Failed to fetch trending auctions", err);
+        setError("Failed to load trending auctions");
       } finally {
         setLoading(false);
       }
@@ -79,18 +80,18 @@ export default function CollectorBoardPage() {
 
         {loading ? (
           <p className="text-center py-12 text-slate-500">Loading trending auctions...</p>
-        ) : (
+        ) : error ? (
+          <p className="text-center py-12 text-red-500">{error}</p>
+        ) : trendingAuctions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {trendingAuctions.length > 0 ? (
-              trendingAuctions.map((auction) => (
-                <AuctionCard key={auction.id} auction={auction} />
-              ))
-            ) : (
-              <p className="col-span-full text-center py-12 text-slate-500">
-                No trending auctions available at the moment.
-              </p>
-            )}
+            {trendingAuctions.map((auction) => (
+              <AuctionCard key={auction.id} auction={auction} />
+            ))}
           </div>
+        ) : (
+          <p className="text-center py-12 text-slate-500">
+            No trending auctions available at the moment.
+          </p>
         )}
       </div>
     </div>
