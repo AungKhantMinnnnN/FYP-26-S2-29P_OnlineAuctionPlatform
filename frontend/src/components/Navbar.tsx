@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Menu, X, Gavel, ChevronDown, Wallet } from 'lucide-react'
+import { Menu, X, Gavel, ChevronDown } from 'lucide-react'
 import SearchBar from './SearchBar'
 import { useAuth } from '../context/AuthContext'
 import MarketplaceNav from './MarketplaceNav'
+import AccountMenu from './AccountMenu'
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
@@ -34,31 +35,26 @@ export default function Navbar() {
               <Link to="/browse" className="px-3.5 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-accent-600">Browse</Link>
             )}
             {user ? (
-              <div className="relative" onMouseEnter={() => setAccountOpen(true)} onMouseLeave={() => setAccountOpen(false)}>
-                <button onClick={() => setAccountOpen(!accountOpen)} className="ml-2 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
-                  <span>{role === 'admin' ? 'Admin' : accountLabel}</span>
-                  {role === 'admin' && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white/80">ADMIN</span>}
-                  <ChevronDown size={15} />
-                </button>
-                {accountOpen && (
-                  <div className="absolute right-0 top-full w-56 pt-2">
-                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                      {role === 'admin' ? (
+              role === 'admin' ? (
+                <div className="relative" onMouseEnter={() => setAccountOpen(true)} onMouseLeave={() => setAccountOpen(false)}>
+                  <button onClick={() => setAccountOpen(!accountOpen)} className="ml-2 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
+                    <span>Admin</span>
+                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white/80">ADMIN</span>
+                    <ChevronDown size={15} />
+                  </button>
+                  {accountOpen && (
+                    <div className="absolute right-0 top-full w-56 pt-2">
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
                         <button onClick={handleLogout} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
-                      ) : (
-                        <>
-                          <Link to="/wallet" onClick={() => setAccountOpen(false)} className="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                            <span className="inline-flex items-center gap-2"><Wallet size={15} /> Balance</span>
-                            <span className="font-semibold text-slate-950">${balance.toFixed(2)}</span>
-                          </Link>
-                          <Link to="/wallet/top-up" onClick={() => setAccountOpen(false)} className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Top Up</Link>
-                          <button onClick={handleLogout} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50">Sign Out</button>
-                        </>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <div className="ml-2">
+                  <AccountMenu />
+                </div>
+              )
             ) : (
               <>
                 <Link to="/login" className="px-4 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-accent-600">Sign In</Link>

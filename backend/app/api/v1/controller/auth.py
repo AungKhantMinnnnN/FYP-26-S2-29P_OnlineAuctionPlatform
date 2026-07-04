@@ -7,7 +7,7 @@ from app.models.auction import User
 from app.schemas.auth import (
     LoginRequest, RegisterRequest, Token, UserResponse,
     PasswordResetRequest, PasswordResetConfirm,
-    EmailVerificationConfirm, GenericMessageResponse,
+    EmailVerificationConfirm, ChangePasswordRequest, GenericMessageResponse,
 )
 from app.api.deps import get_current_user
 from app.services.auth_service import AuthService
@@ -86,3 +86,14 @@ async def email_verification_confirm(
 ):
     await EmailVerificationService.confirm_verification(db=db, token=request.token)
     return GenericMessageResponse(message="Email verified successfully.")
+
+
+@router.post("/change-password", response_model=GenericMessageResponse)
+async def change_password(
+    request: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Change the current user's password. Requires the correct current password."""
+    await AuthService.change_password(db=db, user=current_user, request=request)
+    return GenericMessageResponse(message="Password updated successfully.")
