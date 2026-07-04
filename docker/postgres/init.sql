@@ -1,0 +1,269 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm"; 
+
+-- Enums
+CREATE TYPE user_role AS ENUM ('user', 'admin');
+CREATE TYPE user_status AS ENUM ('active', 'suspended', 'deleted');
+CREATE TYPE listing_status AS ENUM ('draft', 'pending_review', 'active', 'ended', 'removed');
+CREATE TYPE bidding_type AS ENUM ('price_up', 'low_start', 'public');
+CREATE TYPE item_condition AS ENUM ('new', 'used', 'refurbished');
+CREATE TYPE bid_status AS ENUM ('accepted', 'rejected', 'cancelled');
+CREATE TYPE transaction_type AS ENUM ('topup', 'bid_hold', 'bid_release', 'settlement');
+CREATE TYPE dispute_status AS ENUM ('open', 'in_review', 'resolved', 'closed');
+CREATE TYPE interaction_action AS ENUM ('view', 'search', 'bid', 'watchlist');
+CREATE TYPE subscription_tier AS ENUM ('free', 'premium');
+
+-- Users
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    password_hash VARCHAR(255) NOT NULL,
+    role user_role NOT NULL DEFAULT 'user',
+    status user_status NOT NULL DEFAULT 'active',
+    subscription_tier subscription_tier NOT NULL DEFAULT 'free',
+    subscription_expires_at TIMESTAMPTZ NULL,
+    balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    avatar_key VARCHAR(500),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    full_name VARCHAR(100),
+    phone VARCHAR(20),
+    address TEXT,
+    dob DATE CHECK (dob < CURRENT_DATE),
+    bio TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id)
+);
+
+-- Subscription tier pricing config
+CREATE TABLE subscription_tiers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tier subscription_tier UNIQUE NOT NULL,
+    price DOUBLE PRECISION NOT NULL,
+    duration_days INTEGER NOT NULL,
+    description VARCHAR,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Categories
+CREATE TABLE categories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    parent_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ML cold-start: categories a user picks during onboarding
+CREATE TABLE user_interests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, category_id)
+);
+
+-- Listings
+CREATE TABLE listings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    seller_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    brand VARCHAR(100),
+    condition item_condition NOT NULL,
+    condition_confidence DECIMAL(5,2),
+    bidding_type bidding_type NOT NULL DEFAULT 'price_up',
+    starting_price DECIMAL(12,2) NOT NULL,
+    reserve_price DECIMAL(12,2),
+    current_price DECIMAL(12,2) NOT NULL,
+    min_increment DECIMAL(12,2) NOT NULL DEFAULT 1.00,
+    status listing_status NOT NULL DEFAULT 'draft',
+    is_draft BOOLEAN NOT NULL DEFAULT TRUE,
+    start_time TIMESTAMPTZ,
+    end_time TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE listing_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    s3_key VARCHAR(500) NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Bids
+CREATE TABLE bids (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE RESTRICT,
+    bidder_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    amount DECIMAL(12,2) NOT NULL,
+    status bid_status NOT NULL DEFAULT 'accepted',
+    placed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE auction_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    listing_id UUID NOT NULL UNIQUE REFERENCES listings(id) ON DELETE RESTRICT,
+    winner_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    winning_bid_id UUID REFERENCES bids(id) ON DELETE SET NULL,
+    final_price DECIMAL(12,2) NOT NULL,
+    ended_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- User activity
+CREATE TABLE watchlist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, listing_id)
+);
+
+CREATE TABLE wallet_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    type transaction_type NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    reference VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE issue_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE disputes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
+    issue_type_id UUID REFERENCES issue_types(id) ON DELETE SET NULL,
+    subject VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    status dispute_status NOT NULL DEFAULT 'open',
+    resolved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    resolution_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ
+);
+
+CREATE TABLE admin_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    admin_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    action VARCHAR(100) NOT NULL,
+    target_id UUID,
+    details TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_interactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    action interaction_action NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Puck CMS: one JSON payload per editable page, swapped without a redeploy
+CREATE TABLE site_content (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    content JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- User-submitted platform testimonials; admin flags which ones show on the landing page
+CREATE TABLE testimonials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Auth tokens
+CREATE TABLE password_reset_tokens (
+    token VARCHAR PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE email_verification_tokens (
+    token VARCHAR PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    verified_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Premium: collector boards (showcase of won items)
+CREATE TABLE collector_boards (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE board_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    board_id UUID NOT NULL REFERENCES collector_boards(id) ON DELETE CASCADE,
+    auction_result_id UUID NOT NULL REFERENCES auction_results(id) ON DELETE CASCADE,
+    note TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (board_id, auction_result_id)
+);
+
+-- Indexes
+CREATE INDEX idx_listings_seller ON listings(seller_id);
+CREATE INDEX idx_listings_category ON listings(category_id);
+CREATE INDEX idx_listings_status ON listings(status);
+CREATE INDEX idx_listings_end_time ON listings(end_time);
+CREATE INDEX idx_listings_brand ON listings(brand);
+CREATE INDEX idx_listings_title_trgm ON listings USING GIN (title gin_trgm_ops);
+CREATE INDEX idx_bids_listing ON bids(listing_id);
+CREATE INDEX idx_bids_bidder ON bids(bidder_id);
+CREATE INDEX idx_bids_placed_at ON bids(placed_at);
+CREATE INDEX idx_user_interactions_user ON user_interactions(user_id);
+CREATE INDEX idx_user_interactions_listing ON user_interactions(listing_id);
+CREATE INDEX idx_user_interactions_occurred ON user_interactions(occurred_at);
+CREATE INDEX idx_user_interests_user ON user_interests(user_id);
+CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
+CREATE INDEX idx_testimonials_featured ON testimonials(is_featured) WHERE is_featured = TRUE;
+CREATE INDEX idx_board_items_board ON board_items(board_id);
+CREATE INDEX idx_collector_boards_user ON collector_boards(user_id);
+CREATE INDEX ix_subscription_tiers_id ON subscription_tiers(id);
+CREATE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX ix_email_verification_tokens_user_id ON email_verification_tokens(user_id);

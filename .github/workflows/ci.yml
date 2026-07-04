@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+jobs:
+  lint-and-test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: auction_test
+          POSTGRES_USER: auction_user
+          POSTGRES_PASSWORD: testpassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-dev.txt
+
+      - name: Run linter
+        run: ruff check backend/
+
+      - name: Run type checker
+        run: mypy backend/app
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://auction_user:testpassword@localhost:5432/auction_test
+          REDIS_URL: redis://localhost:6379/0
+          APP_ENV: test
+        run: pytest backend/tests/ -v --tb=short
+
+  docker-build:
+    name: Docker build check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Postgres image
+        run: docker build ./docker/postgres -t auction-postgres:ci
+      - name: Compose up smoke test
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait
+          docker compose ps
+          docker compose down
