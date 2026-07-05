@@ -6,7 +6,6 @@ import { getAuctions } from '../api/auctionsApi';
 export default function CollectorBoardPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
