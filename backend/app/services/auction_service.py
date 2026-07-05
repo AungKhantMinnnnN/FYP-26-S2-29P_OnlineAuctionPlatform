@@ -21,6 +21,9 @@ class AuctionService:
         listing_status: Optional[ListingStatus],
         search: Optional[str],
         category_id: Optional[UUID] = None,
+        condition: Optional[str] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
     ) -> Dict[str, Any]:
         query = select(Listing).options(
             selectinload(Listing.images),
@@ -37,6 +40,15 @@ class AuctionService:
 
         if search:
             query = query.where(Listing.title.ilike(f"%{search}%"))
+
+        if condition:
+            query = query.where(Listing.condition == condition)
+
+        if min_price is not None:
+            query = query.where(Listing.current_price >= min_price)
+
+        if max_price is not None:
+            query = query.where(Listing.current_price <= max_price)
             
         # Count total
         count_query = select(func.count()).select_from(query.subquery())

@@ -163,7 +163,7 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
 
 * **`GET /v1.0.0/auctions/`**
   * **Description:** Get a paginated list of auctions. Excludes drafts by default unless `status=draft` is explicitly passed.
-  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100), `status` (enum, optional), `category_id` (uuid, optional), `search` (string, optional)
+  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100), `status` (enum, optional), `category_id` (uuid, optional), `search` (string, optional), `condition` (`new | used | refurbished`, optional), `min_price` (float ≥ 0, optional), `max_price` (float ≥ 0, optional)
   * **Response (200 OK):** JSON object (`PaginatedAuctionResponse`)
     ```json
     {
