@@ -12,6 +12,7 @@ from app.schemas.user import (
     WatchlistAddRequest, WatchlistAddResponse, WalletResponse,
     SubscriptionActionRequest, SubscriptionResponse,
     ProfileUpdateRequest, ProfileResponse, InterestsResponse, InterestsUpdateRequest,
+    SellerStatsResponse,
 )
 from app.services.user_service import UserService
 
@@ -116,3 +117,11 @@ async def manage_subscription(
     current_user: User = Depends(get_current_user),
 ):
     return await UserService.manage_subscription(db=db, user=current_user, action=request.action)
+
+
+@router.get("/me/stats", response_model=SellerStatsResponse)
+async def get_my_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await UserService.get_seller_stats(db=db, user_id=current_user.id)
