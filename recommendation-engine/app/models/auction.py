@@ -133,6 +133,7 @@ class Listing(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
     images = relationship("ListingImages", back_populates="listing", lazy="selectin")
+    seller = relationship("User", foreign_keys=[seller_id], lazy="selectin")
 
 class ListingImages(Base):
     __tablename__ = "listing_images"

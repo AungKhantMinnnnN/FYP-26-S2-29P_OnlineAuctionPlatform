@@ -21,7 +21,10 @@ async def get_auctions(
     size: int = Query(20, ge=1, le=100),
     listing_status: Optional[ListingStatus] = Query(None, alias="status"),
     category_id: Optional[UUID] = Query(None),
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    condition: Optional[str] = Query(None),
+    min_price: Optional[float] = Query(None, ge=0),
+    max_price: Optional[float] = Query(None, ge=0),
 ):
     return await AuctionService.get_auctions(
         db=db,
@@ -29,7 +32,10 @@ async def get_auctions(
         size=size,
         listing_status=listing_status,
         category_id=category_id,
-        search=search
+        search=search,
+        condition=condition,
+        min_price=min_price,
+        max_price=max_price,
     )
 
 @router.post("/create_listing", response_model=AuctionListingResponse, status_code=status.HTTP_201_CREATED)
