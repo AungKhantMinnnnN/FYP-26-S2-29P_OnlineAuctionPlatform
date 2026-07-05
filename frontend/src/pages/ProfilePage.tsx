@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { User as UserIcon, CreditCard, Bell, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { User as UserIcon, CreditCard, Bell, AlertTriangle, ShieldCheck, Tags, Check, Loader2 } from 'lucide-react'
 import FormInput from '../components/FormInput'
 import TextAreaField from '../components/TextAreaField'
 import PrimaryButton from '../components/PrimaryButton'
@@ -9,6 +10,21 @@ import { useAuth } from '../context/AuthContext'
 import { updateProfile, getSubscriptionTiers, manageSubscription } from '../api/usersApi'
 import type { SubscriptionTierItem } from '../api/usersApi'
 import { changePassword } from '../api/authApi'
+import { getFormMetadata } from '../api/auctionsApi'
+import type { Category } from '../api/auctionsApi'
+import { getMyInterests, updateMyInterests } from '../api/interestsApi'
+import EmptyState from '../components/EmptyState'
+
+type InterestsResponseWithItems = {
+  category_ids?: string[]
+  items?: { id: string }[]
+}
+
+const getProfileInterestCategoryIds = (interests?: InterestsResponseWithItems): string[] => {
+  if (!interests) return []
+  if (interests.category_ids) return interests.category_ids
+  return interests.items?.map((item) => item.id) ?? []
+}
 
 type ToggleProps = {
   title: string
@@ -58,7 +74,7 @@ function confirmCopy(action: PendingAction): { title: string; description: strin
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth()
-  const [tab, setTab] = useState<'personal' | 'security'>('personal')
+  const [tab, setTab] = useState<'personal' | 'security' | 'interests'>('personal')
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
 
@@ -94,6 +110,7 @@ export default function ProfilePage() {
 
   const isPremium = user?.subscription_tier === 'premium'
   const premiumTier = tiers.find((t) => t.tier === 'premium')
+  const insufficientWalletMessage = 'The wallet amount is not enough, please top up.'
 
   const runSubscriptionAction = async (nextAction: 'renew' | 'cancel') => {
     const res = await manageSubscription(nextAction)
@@ -105,6 +122,67 @@ export default function ProfilePage() {
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [pushNotifications, setPushNotifications] = useState(true)
   const [marketingEmails, setMarketingEmails] = useState(false)
+
+  // Interests
+  const [selectedInterests, setSelectedInterests] = useState<Set<string>>(new Set())
+  const [interestsMessage, setInterestsMessage] = useState<string | null>(null)
+  const [interestsError, setInterestsError] = useState<string | null>(null)
+
+  const {
+    data: metadata,
+    isLoading: categoriesLoading,
+    isError: categoriesError
+  } = useQuery({
+    queryKey: ['form_metadata'],
+    queryFn: getFormMetadata
+  })
+
+  const { data: savedInterests } = useQuery({
+    queryKey: ['my-interests'],
+    queryFn: getMyInterests,
+    retry: false
+  })
+
+  useEffect(() => {
+    const savedInterestIds = getProfileInterestCategoryIds(savedInterests)
+    setSelectedInterests(new Set(savedInterestIds))
+  }, [savedInterests])
+
+  const categories: Category[] = metadata?.categories ?? []
+
+  const toggleInterest = (id: string) => {
+    setInterestsMessage(null)
+    setInterestsError(null)
+    setSelectedInterests((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const saveInterestsMutation = useMutation({
+    mutationFn: () => updateMyInterests(Array.from(selectedInterests)),
+    onSuccess: (res) => {
+      setSelectedInterests(new Set(getProfileInterestCategoryIds(res)))
+      setInterestsError(null)
+      setInterestsMessage('Interests updated successfully.')
+    },
+    onError: () => {
+      setInterestsMessage(null)
+      setInterestsError("We couldn't update your interests right now. Please try again.")
+    }
+  })
+
+  const handleSaveInterests = () => {
+    setInterestsMessage(null)
+    setInterestsError(null)
+    if (selectedInterests.size === 0) {
+      setInterestsError('Select at least one interest.')
+      return
+    }
+    saveInterestsMutation.mutate()
+  }
 
   // Password change
   const [currentPassword, setCurrentPassword] = useState('')
@@ -158,7 +236,9 @@ export default function ProfilePage() {
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       if (pendingAction.type === 'password') setPasswordError(detail || 'Unable to update password.')
-      else if (pendingAction.type === 'subscription') setSubscriptionMessage(detail || 'Unable to update subscription.')
+      else if (pendingAction.type === 'subscription') {
+        setSubscriptionMessage(detail?.toLowerCase().includes('insufficient balance') ? insufficientWalletMessage : detail || 'Unable to update subscription.')
+      }
       else if (pendingAction.type === 'save-profile') setProfileMessage(detail || 'Unable to update profile.')
       setPendingAction(null)
     } finally {
@@ -183,10 +263,10 @@ export default function ProfilePage() {
         <p className="mt-1 text-slate-500">Manage your AuctionHub account settings and preferences.</p>
       </div>
 
-      <div className="flex gap-1 border-b border-slate-200/80">
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-200/80">
         <button
           onClick={() => setTab('personal')}
-          className={`px-4 py-3 text-sm font-semibold transition-colors ${
+          className={`shrink-0 px-4 py-3 text-sm font-semibold transition-colors ${
             tab === 'personal' ? 'border-b-2 border-accent-600 text-accent-600' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -194,11 +274,19 @@ export default function ProfilePage() {
         </button>
         <button
           onClick={() => setTab('security')}
-          className={`px-4 py-3 text-sm font-semibold transition-colors ${
+          className={`shrink-0 px-4 py-3 text-sm font-semibold transition-colors ${
             tab === 'security' ? 'border-b-2 border-accent-600 text-accent-600' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Password and Security
+        </button>
+        <button
+          onClick={() => setTab('interests')}
+          className={`shrink-0 px-4 py-3 text-sm font-semibold transition-colors ${
+            tab === 'interests' ? 'border-b-2 border-accent-600 text-accent-600' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Update Interests
         </button>
       </div>
 
@@ -292,6 +380,10 @@ export default function ProfilePage() {
               <PrimaryButton
                 onClick={() => {
                   setSubscriptionMessage(null)
+                  if (!isPremium && premiumTier && (user?.balance ?? 0) < premiumTier.price) {
+                    setSubscriptionMessage(insufficientWalletMessage)
+                    return
+                  }
                   setPendingAction({ type: 'subscription', nextAction: isPremium ? 'cancel' : 'renew' })
                 }}
               >
@@ -338,7 +430,7 @@ export default function ProfilePage() {
             </form>
           </div>
 
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <div className="self-start rounded-2xl border border-red-200 bg-red-50 p-6">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 text-red-600" size={20} />
               <div>
@@ -350,6 +442,68 @@ export default function ProfilePage() {
                   Delete My Account
                 </SecondaryButton>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'interests' && (
+        <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <div className="border-b border-slate-200/80 px-6 py-4">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+              <Tags size={20} className="text-accent-600" /> Update Interests
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">Choose the categories you want to see more often.</p>
+          </div>
+
+          <div className="p-6">
+            {interestsError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {interestsError}
+              </div>
+            )}
+            {interestsMessage && <p className="mb-4 text-sm font-medium text-accent-700">{interestsMessage}</p>}
+
+            {categoriesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-accent-600" size={28} />
+              </div>
+            ) : categoriesError ? (
+              <EmptyState message="We couldn't load categories right now. Please try again later." />
+            ) : categories.length === 0 ? (
+              <EmptyState message="No categories are available yet." />
+            ) : (
+              <div className="flex flex-wrap gap-2.5">
+                {categories.map((cat) => {
+                  const isSelected = selectedInterests.has(cat.id)
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleInterest(cat.id)}
+                      aria-pressed={isSelected}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                        isSelected
+                          ? 'border-accent-600 bg-accent-50 text-accent-700'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-accent-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {isSelected && <Check size={15} />}
+                      {cat.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="mt-8 flex justify-end">
+              <PrimaryButton
+                type="button"
+                onClick={handleSaveInterests}
+                disabled={saveInterestsMutation.isPending || selectedInterests.size === 0 || categoriesLoading || categoriesError}
+              >
+                {saveInterestsMutation.isPending ? 'Saving...' : `Save Interests${selectedInterests.size > 0 ? ` (${selectedInterests.size})` : ''}`}
+              </PrimaryButton>
             </div>
           </div>
         </div>
