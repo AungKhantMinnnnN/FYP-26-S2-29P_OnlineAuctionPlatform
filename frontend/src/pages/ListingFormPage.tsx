@@ -1,251 +1,149 @@
-import { useState, useEffect } from 'react';
-import { Upload, X, Save } from 'lucide-react';
-import FormInput from '../components/FormInput';
-import SelectField from '../components/SelectField';
-import TextAreaField from '../components/TextAreaField';
-import DatePickerField from '../components/DatePickerField';
+import { useState } from 'react';
+import { Upload, X, Plus } from 'lucide-react';
+import SectionHeader from '../components/SectionHeader';
 import PrimaryButton from '../components/PrimaryButton';
-import SecondaryButton from '../components/SecondaryButton';
-import { useAuth } from '../context/AuthContext';
-import { createListing, uploadAuctionImages, getFormMetadata } from '../api/auctionsApi';
-import Modal from '../components/Modal';
-import { CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function ListingFormPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const [step, setStep] = useState(1); // 1: Details, 2: Media, 3: Settings
 
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     title: '',
+    category: '',
+    condition: '',
     description: '',
-    category_id: '',
-    condition: 'new',
-    bidding_type: 'price_up',
-    starting_price: '',
-    reserve_price: '',
-    min_increment: '5',
-    start_time: '',
-    end_time: '',
+    startingPrice: '',
+    reservePrice: '',
+    duration: '7',
   });
 
-  const [images, setImages] = useState<File[]>([]);
-  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [metadataLoading, setMetadataLoading] = useState(true);
-  
-  const [successModalOpen, setSuccessModalOpen] = useState(false);
-  const [createdListingId, setCreatedListingId] = useState('');
-
-  const [categories, setCategories] = useState<any[]>([]);
-  const [conditions, setConditions] = useState<any[]>([]);
-  const [biddingTypes, setBiddingTypes] = useState<any[]>([]);
-
-  // Load metadata from backend
-  useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        const data = await getFormMetadata();
-        setCategories(data.categories || []);
-        setConditions(data.conditions || []);
-        setBiddingTypes(data.biddingTypes || []);
-
-        // Auto select first options
-        if (data.categories?.length > 0) setFormData(p => ({ ...p, category_id: data.categories[0].id }));
-        if (data.conditions?.length > 0) setFormData(p => ({ ...p, condition: data.conditions[0].id }));
-        if (data.biddingTypes?.length > 0) setFormData(p => ({ ...p, bidding_type: data.biddingTypes[0].id }));
-
-        const now = new Date();
-        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-        setFormData(p => ({
-          ...p,
-          start_time: p.start_time || now.toISOString().slice(0, 16),
-          end_time: p.end_time || nextWeek.toISOString().slice(0, 16)
-        }));
-      } catch (error) {
-        console.error("Failed to load metadata", error);
-      } finally {
-        setMetadataLoading(false);
-      }
-    };
-
-    fetchMetadata();
-  }, []);
+  const [images, setImages] = useState<string[]>([]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const newImages = [...images, ...files].slice(0, 4);
-    setImages(newImages);
-
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setPreviewUrls(prev => [...prev, ...newPreviews].slice(0, 4));
+    // Placeholder for image upload
+    alert("Image upload coming soon!");
   };
-
-  const removeImage = (index: number) => {
-    URL.revokeObjectURL(previewUrls[index]);
-    setImages(prev => prev.filter((_, i) => i !== index));
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = async (e: React.FormEvent, isDraft = false) => {
-    e.preventDefault();
-    if (!user) return alert("Please log in first");
-
-    setIsLoading(true);
-
-    const payload = {
-      title: formData.title,
-      description: formData.description,
-      condition: formData.condition,
-      bidding_type: formData.bidding_type,
-      starting_price: Number(formData.starting_price),
-      reserve_price: formData.reserve_price ? Number(formData.reserve_price) : undefined,
-      min_increment: Number(formData.min_increment) || 1,
-      start_time: new Date(formData.start_time).toISOString(),
-      end_time: new Date(formData.end_time).toISOString(),
-      category_id: formData.category_id || null,
-      status: isDraft ? 'draft' : 'active',
-    };
-
-    try {
-      const result = await createListing(payload);
-      
-      if (images.length > 0) {
-        await uploadAuctionImages(result.id, images);
-      }
-
-      setCreatedListingId(result.id);
-      setSuccessModalOpen(true);
-    } catch (error: any) {
-      console.error(error);
-      alert(error.response?.data?.detail || "Failed to create listing. Please check your input.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (metadataLoading) {
-    return <div className="text-center py-20 text-slate-500">Loading form data...</div>;
-  }
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <Modal isOpen={successModalOpen} onClose={() => navigate('/browse')}>
-        <div className="text-center py-8">
-          <CheckCircle2 className="mx-auto h-16 w-16 text-green-500 mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Listing Created Successfully!</h2>
-          <p className="text-slate-500 mb-6">Your item is now live on the marketplace.</p>
-          <PrimaryButton onClick={() => navigate(`/auction/${createdListingId}`)} fullWidth>
-            View My Listing
-          </PrimaryButton>
-        </div>
-      </Modal>
+    <div className="max-w-3xl mx-auto px-6 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Create New Listing</h1>
+        <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600">✕</button>
+      </div>
 
-      <h1 className="text-3xl font-bold mb-1">Create New Listing</h1>
-      <p className="text-slate-500 mb-8">Share something special with the community</p>
+      <p className="text-slate-500 mb-8">Provide precise details to maximize your item's auction performance.</p>
 
-      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800">
-        
-        <FormInput
-          label="Title"
-          placeholder="e.g. iPhone 17 Pro 256GB"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          required
-        />
+      {/* Stepper */}
+      <div className="flex items-center gap-3 mb-10">
+        <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-slate-200'}`} />
+        <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
+        <div className={`flex-1 h-1 rounded-full ${step >= 3 ? 'bg-blue-600' : 'bg-slate-200'}`} />
+      </div>
 
-        <TextAreaField
-          label="Description"
-          placeholder="Describe the item condition, history, and any defects..."
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          rows={5}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SelectField
-            label="Category"
-            options={categories.map(c => c.name)}
-            value={categories.find(c => c.id === formData.category_id)?.name || ''}
-            onChange={(e) => {
-              const cat = categories.find(c => c.name === e.target.value);
-              setFormData({ ...formData, category_id: cat ? cat.id : '' });
-            }}
+      {/* Step 1: Item Details */}
+      {step === 1 && (
+        <div className="space-y-6 bg-white p-8 rounded-3xl border">
+          <div className="flex items-center gap-2 text-blue-600 font-medium">
+            📋 Item Details
+          </div>
+          <input 
+            type="text" 
+            placeholder="e.g. Rare 1964 Vintage Chronograph" 
+            className="w-full p-4 border rounded-2xl focus:outline-none focus:border-blue-500" 
+            value={form.title}
+            onChange={(e) => setForm({...form, title: e.target.value})}
           />
-          <SelectField
-            label="Condition"
-            options={conditions.map(c => c.name)}
-            value={conditions.find(c => c.id === formData.condition)?.name || ''}
-            onChange={(e) => {
-              const cond = conditions.find(c => c.name === e.target.value);
-              setFormData({ ...formData, condition: cond ? cond.id : '' });
-            }}
-          />
-          <SelectField
-            label="Bidding Type"
-            options={biddingTypes.map(b => b.name)}
-            value={biddingTypes.find(b => b.id === formData.bidding_type)?.name || ''}
-            onChange={(e) => {
-              const btype = biddingTypes.find(b => b.name === e.target.value);
-              setFormData({ ...formData, bidding_type: btype ? btype.id : '' });
-            }}
+
+          <div className="grid grid-cols-2 gap-4">
+            <select className="p-4 border rounded-2xl" value={form.category} onChange={(e) => setForm({...form, category: e.target.value})}>
+              <option value="">Select a category</option>
+              <option value="watches">Watches</option>
+              <option value="electronics">Electronics</option>
+            </select>
+            <select className="p-4 border rounded-2xl" value={form.condition} onChange={(e) => setForm({...form, condition: e.target.value})}>
+              <option value="">Select condition</option>
+              <option value="new">New</option>
+              <option value="excellent">Excellent</option>
+            </select>
+          </div>
+
+          <textarea 
+            placeholder="Describe the item's history, features, and unique qualities..." 
+            className="w-full p-4 border rounded-2xl h-32" 
+            value={form.description}
+            onChange={(e) => setForm({...form, description: e.target.value})}
           />
         </div>
+      )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormInput label="Starting Price ($)" type="number" value={formData.starting_price} onChange={(e) => setFormData({ ...formData, starting_price: e.target.value })} required />
-          <FormInput label="Reserve Price ($)" type="number" value={formData.reserve_price} onChange={(e) => setFormData({ ...formData, reserve_price: e.target.value })} />
-          <FormInput label="Min Increment ($)" type="number" value={formData.min_increment} onChange={(e) => setFormData({ ...formData, min_increment: e.target.value })} />
-        </div>
+      {/* Step 2: Media Upload */}
+      {step === 2 && (
+        <div className="space-y-6 bg-white p-8 rounded-3xl border">
+          <div className="flex items-center gap-2 text-blue-600 font-medium">
+            📸 Media Upload
+          </div>
+          <div className="border-2 border-dashed border-slate-300 rounded-3xl p-12 text-center">
+            <Upload size={48} className="mx-auto text-slate-400" />
+            <p className="mt-4 font-medium">Drag and drop high-res images</p>
+            <p className="text-sm text-slate-500">Min resolution: 2048 × 2048px. Maximum 12 photos.</p>
+            <button className="mt-6 bg-blue-600 text-white px-8 py-3 rounded-2xl">Browse Files</button>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DatePickerField 
-            label="Start Time" 
-            selected={formData.start_time ? new Date(formData.start_time) : null} 
-            onChange={(date) => setFormData({ ...formData, start_time: date ? date.toISOString().slice(0,16) : '' })} 
-          />
-          <DatePickerField 
-            label="End Time" 
-            selected={formData.end_time ? new Date(formData.end_time) : null} 
-            onChange={(date) => setFormData({ ...formData, end_time: date ? date.toISOString().slice(0,16) : '' })} 
-            minDate={formData.start_time ? new Date(formData.start_time) : undefined} 
-          />
-        </div>
-
-        {/* Image Upload */}
-        <div>
-          <label className="block text-sm font-medium mb-3">Images (Max 4)</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {previewUrls.map((url, i) => (
-              <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200">
-                <img src={url} alt="preview" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => removeImage(i)} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600">
-                  <X size={16} />
-                </button>
+          <div className="grid grid-cols-3 gap-4">
+            {images.map((url, i) => (
+              <div key={i} className="aspect-square border rounded-2xl overflow-hidden relative">
+                <img src={url} alt="" className="w-full h-full object-cover" />
               </div>
             ))}
-
-            {previewUrls.length < 4 && (
-              <label className="aspect-square border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-500">
-                <Upload size={32} className="text-slate-400" />
-                <span className="text-xs text-slate-500 mt-2">Add Image</span>
-                <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
-              </label>
-            )}
+            <div className="aspect-square border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center cursor-pointer">
+              <Plus size={32} className="text-slate-400" />
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="flex gap-3 pt-6">
-          <SecondaryButton type="button" onClick={(e) => handleSubmit(e, true)} disabled={isLoading}>
-            <Save className="mr-2" size={18} /> Save as Draft
-          </SecondaryButton>
-          <PrimaryButton type="submit" disabled={isLoading}>
-            <Upload className="mr-2" size={18} />
-            {isLoading ? 'Publishing...' : 'Publish Listing'}
-          </PrimaryButton>
+      {/* Step 3: Auction Settings */}
+      {step === 3 && (
+        <div className="space-y-6 bg-white p-8 rounded-3xl border">
+          <div className="flex items-center gap-2 text-blue-600 font-medium">
+            ⚙️ Auction Settings
+          </div>
+
+          <div className="p-4 bg-blue-50 rounded-2xl text-center">
+            Timed Auction
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-slate-500">Starting Price (USD)</label>
+              <input type="number" className="w-full p-4 border rounded-2xl mt-1" placeholder="$0.00" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-500">Reserve Price (Optional)</label>
+              <input type="text" className="w-full p-4 border rounded-2xl mt-1" placeholder="Enter amount" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-slate-500 block mb-2">Auction Duration</label>
+            <div className="flex gap-3">
+              {[3,7,10,14].map(d => (
+                <button key={d} className={`flex-1 py-3 rounded-2xl border ${form.duration === d.toString() ? 'border-blue-600 bg-blue-50' : 'border-slate-200'}`} onClick={() => setForm({...form, duration: d.toString()})}>
+                  {d} Days
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </form>
+      )}
+
+      <div className="flex gap-4 mt-10">
+        {step > 1 && <button onClick={() => setStep(step - 1)} className="flex-1 py-4 border rounded-2xl">Back</button>}
+        <button onClick={() => step < 3 ? setStep(step + 1) : alert('Listing Published!')} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl">
+          {step === 3 ? 'Publish Auction' : 'Next'}
+        </button>
+      </div>
     </div>
   );
 }

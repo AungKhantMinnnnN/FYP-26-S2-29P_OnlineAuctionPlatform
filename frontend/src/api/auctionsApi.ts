@@ -88,3 +88,8 @@ export const getFormMetadata = async (): Promise<MetadataResponse> => {
   const response = await apiClient.get<MetadataResponse>('/auctions/form_metadata');
   return response.data;
 };
+export const getSellerStats = async () => {
+  // Generates: http://100.75.75
+  const response = await apiClient.get('/user/me/stats');
+  return response.data;
+};

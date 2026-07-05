@@ -1,25 +1,37 @@
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { getMyListings } from '../api/auctionsApi';
+import { getMyListings, getSellerStats } from '../api/auctionsApi';
 import { useNavigate } from 'react-router-dom';
 
 export default function SellerDashboardPage() {
   const navigate = useNavigate();
   const [listings, setListings] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    total_views: 0,
+    total_watchlists: 0,
+    total_revenue: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchListings = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getMyListings({ page: 1, size: 10 });
-        setListings(data.items || []);
+        const listingsData = await getMyListings({ page: 1, size: 10 });
+        setListings(listingsData.items || []);
+
+        try {
+          const statsData = await getSellerStats();
+          setStats(statsData);
+        } catch (statsError) {
+          console.warn("Stats failed, using fallback", statsError);
+        }
       } catch (error) {
         console.error(error);
       } finally {
         setLoading(false);
       }
     };
-    fetchListings();
+    fetchData();
   }, []);
 
   return (
@@ -37,23 +49,23 @@ export default function SellerDashboardPage() {
         </button>
       </div>
 
-      {/* Stats - Still hardcoded for now (can be improved later) */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
         <div className="bg-white border border-slate-200 rounded-3xl p-6">
           <div className="flex items-center gap-2 text-sm text-slate-500">👁 TOTAL VIEWS</div>
-          <div className="text-4xl font-bold mt-2">12.4k</div>
+          <div className="text-4xl font-bold mt-2">{stats.total_views.toLocaleString()}</div>
           <div className="text-green-600 text-sm mt-1">↑14% this month</div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-3xl p-6">
           <div className="flex items-center gap-2 text-sm text-slate-500">❤️ WATCHERS</div>
-          <div className="text-4xl font-bold mt-2">842</div>
+          <div className="text-4xl font-bold mt-2">{stats.total_watchlists}</div>
           <div className="text-slate-500 text-sm mt-1">Across 12 active items</div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-3xl p-6">
           <div className="flex items-center gap-2 text-sm text-slate-500">💰 SALES VOLUME</div>
-          <div className="text-4xl font-bold mt-2">$42.8k</div>
+          <div className="text-4xl font-bold mt-2">${stats.total_revenue.toLocaleString()}</div>
           <div className="text-slate-500 text-sm mt-1">YTD Revenue</div>
         </div>
 
@@ -63,7 +75,7 @@ export default function SellerDashboardPage() {
         </div>
       </div>
 
-      {/* Table - Real data from backend */}
+      {/* Table */}
       <div className="bg-white rounded-3xl overflow-hidden border">
         <table className="w-full">
           <thead className="bg-slate-50">
