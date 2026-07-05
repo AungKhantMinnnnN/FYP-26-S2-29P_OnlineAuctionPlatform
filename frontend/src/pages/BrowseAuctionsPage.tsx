@@ -20,10 +20,21 @@ export default function BrowseAuctionsPage() {
   const page = parseInt(searchParams.get('page') || '1', 10)
   const searchQuery = searchParams.get('q') || ''
   const categoryId = searchParams.get('category') || undefined
+  const conditionParam = searchParams.get('condition') || undefined
+  const minPriceParam = searchParams.get('min_price') || undefined
+  const maxPriceParam = searchParams.get('max_price') || undefined
 
   const { data: auctionsData, isLoading } = useQuery({
-    queryKey: ['auctions', 'browse', page, searchQuery, categoryId],
-    queryFn: () => getAuctions({ page, size: 20, search: searchQuery || undefined, category_id: categoryId })
+    queryKey: ['auctions', 'browse', page, searchQuery, categoryId, conditionParam, minPriceParam, maxPriceParam],
+    queryFn: () => getAuctions({
+      page,
+      size: 20,
+      search: searchQuery || undefined,
+      category_id: categoryId,
+      condition: conditionParam,
+      min_price: minPriceParam ? Number(minPriceParam) : undefined,
+      max_price: maxPriceParam ? Number(maxPriceParam) : undefined
+    })
   })
 
   // Real category names (listings only carry category_id).
@@ -96,6 +107,24 @@ export default function BrowseAuctionsPage() {
     setSearchParams(newParams);
   }
 
+  const handleConditionChange = (value: string | null) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) newParams.set('condition', value);
+    else newParams.delete('condition');
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  }
+
+  const handlePriceChange = (min: string, max: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (min) newParams.set('min_price', min);
+    else newParams.delete('min_price');
+    if (max) newParams.set('max_price', max);
+    else newParams.delete('max_price');
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  }
+
   return (
     <div className="max-w-7xl mx-auto py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -118,7 +147,17 @@ export default function BrowseAuctionsPage() {
             <button onClick={() => setMobileFilters(false)} className="text-sm font-semibold text-accent-600">Close</button>
           </div>
           <div className="md:h-full md:overflow-y-auto md:pr-2">
-            <FilterPanel categories={metadata?.categories ?? []} selectedCategory={categoryId ?? null} onCategoryChange={handleCategoryChange} />
+            <FilterPanel
+              categories={metadata?.categories ?? []}
+              selectedCategory={categoryId ?? null}
+              onCategoryChange={handleCategoryChange}
+              conditions={metadata?.conditions ?? []}
+              selectedCondition={conditionParam ?? null}
+              onConditionChange={handleConditionChange}
+              minPrice={minPriceParam ?? ''}
+              maxPrice={maxPriceParam ?? ''}
+              onPriceChange={handlePriceChange}
+            />
           </div>
         </aside>
         {mobileFilters && <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm md:hidden" onClick={() => setMobileFilters(false)} />}
