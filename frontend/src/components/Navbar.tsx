@@ -30,10 +30,15 @@ export default function Navbar() {
             <span className="font-bold text-xl text-accent-600">AuctionHub</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-6">
             {role !== 'admin' && (
-              <Link to="/browse" className="px-3.5 py-2 text-sm font-medium text-slate-500 transition-colors hover:text-accent-600">Browse</Link>
+              <>
+                <Link to="/browse" className="text-sm font-medium text-slate-500 hover:text-accent-600">Browse</Link>
+                <Link to="/auction-flow" className="text-sm font-medium text-slate-500 hover:text-accent-600">How Auctions Work</Link>
+                <Link to="/collector-board" className="text-sm font-medium text-slate-500 hover:text-accent-600">Collector Board</Link>
+              </>
             )}
+            
             {user ? (
               role === 'admin' ? (
                 <div className="relative" onMouseEnter={() => setAccountOpen(true)} onMouseLeave={() => setAccountOpen(false)}>
@@ -69,6 +74,7 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* Marketplace Nav for logged in users */}
       {role === 'user' && (
         <div className="border-t border-slate-200/50 bg-white/80">
           <div className="max-w-[1280px] mx-auto px-4 py-2 sm:px-8">
@@ -77,12 +83,14 @@ export default function Navbar() {
         </div>
       )}
 
+      {/* Mobile Menu */}
       {open && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-1.5 shadow-xl">
           <SearchBar />
-          {!user && (
-            <Link to="/browse" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Browse Auctions</Link>
-          )}
+          <Link to="/browse" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Browse Auctions</Link>
+          <Link to="/auction-flow" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>How Auctions Work</Link>
+          <Link to="/collector-board" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Collector Board</Link>
+          
           {user ? (
             <>
               <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900">
