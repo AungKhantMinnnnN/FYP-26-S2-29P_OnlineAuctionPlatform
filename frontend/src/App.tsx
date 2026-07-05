@@ -65,8 +65,8 @@ export default function App() {
           {/* User routes */}
           <Route element={<ProtectedRoute roles={['user']} />}>
             <Route element={<DashboardLayout />}>
-            <Route path="/auction-flow" element={<AuctionFlowPage />} />
-<Route path="/collector-board" element={<CollectorBoardPage />} />
+              <Route path="/auction-flow" element={<AuctionFlowPage />} />
+              <Route path="/collector-board" element={<CollectorBoardPage />} />
               <Route path="/browse" element={<BrowseAuctionsPage />} />
               <Route path="/dashboard" element={<UserDashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
