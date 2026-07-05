@@ -34,8 +34,7 @@ export default function Navbar() {
             {role !== 'admin' && (
               <>
                 <Link to="/browse" className="text-sm font-medium text-slate-500 hover:text-accent-600">Browse</Link>
-                <Link to="/auction-flow" className="text-sm font-medium text-slate-500 hover:text-accent-600">How Auctions Work</Link>
-                <Link to="/collector-board" className="text-sm font-medium text-slate-500 hover:text-accent-600">Collector Board</Link>
+                
               </>
             )}
             
@@ -76,12 +75,14 @@ export default function Navbar() {
 
       {/* Marketplace Nav for logged in users */}
       {role === 'user' && (
-        <div className="border-t border-slate-200/50 bg-white/80">
-          <div className="max-w-[1280px] mx-auto px-4 py-2 sm:px-8">
-            <MarketplaceNav compact />
-          </div>
-        </div>
-      )}
+  <div className="border-t border-slate-200/50 bg-white/80">
+    <div className="max-w-[1280px] mx-auto px-4 py-2 sm:px-8 flex items-center gap-6 text-sm">
+      <MarketplaceNav compact />
+      <Link to="/auction-flow" className="hover:text-accent-600 font-medium">How Auctions Work</Link>
+      <Link to="/collector-board" className="hover:text-accent-600 font-medium">Collector Board</Link>
+    </div>
+  </div>
+)}
 
       {/* Mobile Menu */}
       {open && (
