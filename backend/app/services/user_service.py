@@ -13,6 +13,7 @@ from app.models.auction import (
     User, Bid, Listing, ListingStatus, ListingImages, AuctionResult,
     Watchlist, WalletTransaction, TransactionType, SubscriptionTier,
     SubscriptionTierConfig, UserProfiles, UserInterest, Categories,
+    UserInteraction, InteractionAction,
 )
 
 
@@ -391,4 +392,36 @@ class UserService:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid action. Must be 'renew' or 'cancel'.",
         )
+    # endregion
+
+    # region Stats
+    @staticmethod
+    async def get_seller_stats(db: AsyncSession, user_id: uuid.UUID) -> dict:
+        seller_listing_ids_q = select(Listing.id).where(Listing.seller_id == user_id)
+
+        total_views = await db.scalar(
+            select(func.count(UserInteraction.id))
+            .where(UserInteraction.listing_id.in_(seller_listing_ids_q))
+            .where(UserInteraction.action == InteractionAction.view)
+        ) or 0
+
+        total_watchlists = await db.scalar(
+            select(func.count(Watchlist.id))
+            .where(Watchlist.listing_id.in_(seller_listing_ids_q))
+        ) or 0
+
+        sales_result = await db.execute(
+            select(func.count(AuctionResult.id), func.coalesce(func.sum(AuctionResult.final_price), 0.0))
+            .join(Listing, Listing.id == AuctionResult.listing_id)
+            .where(Listing.seller_id == user_id)
+            .where(AuctionResult.winner_id.isnot(None))
+        )
+        total_sales, total_revenue = sales_result.one()
+
+        return {
+            "total_views": total_views,
+            "total_watchlists": total_watchlists,
+            "total_sales": total_sales,
+            "total_revenue": float(total_revenue),
+        }
     # endregion

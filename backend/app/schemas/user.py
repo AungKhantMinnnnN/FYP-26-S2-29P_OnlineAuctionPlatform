@@ -145,3 +145,11 @@ class SubscriptionResponse(BaseModel):
     balance: float
     message: str
 # endregion
+
+# region Stats
+class SellerStatsResponse(BaseModel):
+    total_views: int
+    total_watchlists: int
+    total_sales: int
+    total_revenue: float
+# endregion
