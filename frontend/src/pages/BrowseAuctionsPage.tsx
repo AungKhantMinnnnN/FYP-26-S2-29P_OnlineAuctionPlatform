@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal, Grid3X3, List, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
+import { SlidersHorizontal, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
 import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
 import { getTrending } from '../api/recommendationsApi'
@@ -14,7 +14,6 @@ import EmptyState from '../components/EmptyState'
 
 export default function BrowseAuctionsPage() {
   const [mobileFilters, setMobileFilters] = useState(false)
-  const [view, setView] = useState<'grid' | 'list'>('grid')
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
 
@@ -112,28 +111,6 @@ export default function BrowseAuctionsPage() {
         </div>
       </div>
 
-      {!searchQuery && (
-        <section className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
-              <TrendingUp size={18} />
-            </span>
-            <h2 className="text-lg font-bold tracking-tight text-slate-950">Trending Now</h2>
-          </div>
-          {trendingLoading ? (
-            <p className="text-sm text-slate-500">Loading trending items...</p>
-          ) : trendingError ? (
-            <p className="text-sm text-slate-500">Trending items are unavailable right now.</p>
-          ) : trendingList.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {trendingList.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={false} />)}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">No trending items yet.</p>
-          )}
-        </section>
-      )}
-
       <div className="flex flex-col md:flex-row gap-6">
         <aside className={`fixed inset-y-0 left-0 z-40 w-72 pt-16 bg-white/95 border-r border-slate-200/80 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-300 ease-in-out md:sticky md:top-20 md:z-auto md:h-[calc(100vh-6rem)] md:transform-none md:border-0 md:w-64 md:shrink-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none ${mobileFilters ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
           <div className="md:hidden flex items-center justify-between mb-4">
@@ -147,14 +124,32 @@ export default function BrowseAuctionsPage() {
         {mobileFilters && <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm md:hidden" onClick={() => setMobileFilters(false)} />}
 
         <div className="flex-1 min-w-0 flex flex-col">
+          {!searchQuery && (
+            <section className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+                  <TrendingUp size={18} />
+                </span>
+                <h2 className="text-lg font-bold tracking-tight text-slate-950">Trending Now</h2>
+              </div>
+              {trendingLoading ? (
+                <p className="text-sm text-slate-500">Loading trending items...</p>
+              ) : trendingError ? (
+                <p className="text-sm text-slate-500">Trending items are unavailable right now.</p>
+              ) : trendingList.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {trendingList.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={false} />)}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No trending items yet.</p>
+              )}
+            </section>
+          )}
+
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-500">
               {isLoading ? 'Loading...' : `${totalItems} results found`}
             </p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setView('grid')} className={`p-2 rounded-xl ${view === 'grid' ? 'bg-accent-50 text-accent-700 ring-1 ring-accent-100' : 'text-slate-400 transition-colors hover:bg-slate-100'}`}><Grid3X3 size={16} /></button>
-              <button onClick={() => setView('list')} className={`p-2 rounded-xl ${view === 'list' ? 'bg-accent-50 text-accent-700 ring-1 ring-accent-100' : 'text-slate-400 transition-colors hover:bg-slate-100'}`}><List size={16} /></button>
-            </div>
           </div>
 
           {isLoading ? (
@@ -162,7 +157,7 @@ export default function BrowseAuctionsPage() {
               <p className="text-slate-500">Loading auctions...</p>
             </div>
           ) : auctionsList.length > 0 ? (
-            <div className={`grid gap-5 mb-8 ${view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
               {auctionsList.map(a => <AuctionCard key={a.id} auction={a} />)}
             </div>
           ) : (
