@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     BACKEND_URL: str
     REDIS_URL: str
+    S3_PUBLIC_URL: str
 
     LOG_DIR: str
 
