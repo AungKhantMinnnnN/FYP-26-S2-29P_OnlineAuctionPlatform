@@ -27,6 +27,7 @@ from app.models.auction import (
     CollectorBoard, BoardItem,
     AuctionDuration,
     Testimonial,
+    IssueType,
 )
 from app.core.security import get_password_hash
 from app.core.config import settings
@@ -632,19 +633,43 @@ async def seed_data():
         await db.flush()
         print("Testimonials: 3 created.")
 
+        # ── 14. Issue types ────────────────────────────────────────────────────
+        issue_type_names = [
+            "Item Not Received",
+            "Item Not as Described",
+            "Counterfeit / Fake Item",
+            "Seller Unresponsive",
+            "Billing / Payment Issue",
+            "Fraudulent Listing",
+            "Technical Problem",
+            "Other",
+        ]
+        existing_issue_types = (await db.execute(select(IssueType.name))).scalars().all()
+        existing_names = set(existing_issue_types)
+        new_issue_types = [
+            IssueType(name=name)
+            for name in issue_type_names
+            if name not in existing_names
+        ]
+        if new_issue_types:
+            db.add_all(new_issue_types)
+            await db.flush()
+        print(f"Issue types: {len(new_issue_types)} created, {len(issue_type_names) - len(new_issue_types)} already existed.")
+
         await db.commit()
         print(f"""
-=== Seeding complete! ===
-  Ended listings : {len(ended_specs)}  (with bids + auction_results)
-  Active listings: {len(active_listings)}  (with bids + interactions)
-  Draft listings :  3
-  Auction results: {len(ended_specs)}
-  Collector boards: 3  (Premium Picks, Hidden Gems, Tech Collection)
-  Testimonials   : 3  (all featured)
+            === Seeding complete! ===
+            Ended listings : {len(ended_specs)}  (with bids + auction_results)
+            Active listings: {len(active_listings)}  (with bids + interactions)
+            Draft listings :  3
+            Auction results: {len(ended_specs)}
+            Collector boards: 3  (Premium Picks, Hidden Gems, Tech Collection)
+            Testimonials   : 3  (all featured)
+            Issue types    : {len(issue_type_names)}
 
-  Credentials (all users): password123
-  Premium accounts: normal_user_1, normal_user_2
-""")
+            Credentials (all users): password123
+            Premium accounts: normal_user_1, normal_user_2
+        """)
 
 
 if __name__ == "__main__":
