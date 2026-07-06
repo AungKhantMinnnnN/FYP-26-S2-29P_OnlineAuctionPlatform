@@ -78,10 +78,16 @@ export interface EnumType {
   name: string;
 }
 
+export interface DurationOption {
+  value: number;
+  label: string;
+}
+
 export interface MetadataResponse {
   categories: Category[];
   conditions: EnumType[];
   biddingTypes: EnumType[];
+  durations: DurationOption[];
 }
 
 export const getFormMetadata = async (): Promise<MetadataResponse> => {
@@ -89,7 +95,6 @@ export const getFormMetadata = async (): Promise<MetadataResponse> => {
   return response.data;
 };
 export const getSellerStats = async () => {
-  // Generates: http://100.75.75
-  const response = await apiClient.get('/user/me/stats');
+  const response = await apiClient.get('/users/me/stats');
   return response.data;
 };

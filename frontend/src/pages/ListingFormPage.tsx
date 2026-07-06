@@ -1,149 +1,295 @@
-import { useState } from 'react';
-import { Upload, X, Plus } from 'lucide-react';
-import SectionHeader from '../components/SectionHeader';
-import PrimaryButton from '../components/PrimaryButton';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ImagePlus, Package, Settings2, X } from 'lucide-react'
+import FormInput from '../components/FormInput'
+import SelectField from '../components/SelectField'
+import TextAreaField from '../components/TextAreaField'
+import PrimaryButton from '../components/PrimaryButton'
+import SecondaryButton from '../components/SecondaryButton'
+import { createListing, uploadAuctionImages, getFormMetadata } from '../api/auctionsApi'
+import type { Category, DurationOption, EnumType } from '../api/auctionsApi'
 
 export default function ListingFormPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: Details, 2: Media, 3: Settings
+  const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [categories, setCategories] = useState<Category[]>([])
+  const [conditions, setConditions] = useState<EnumType[]>([])
+  const [durations, setDurations] = useState<DurationOption[]>([])
   const [form, setForm] = useState({
     title: '',
-    category: '',
+    category_id: '',
     condition: '',
     description: '',
-    startingPrice: '',
-    reservePrice: '',
+    starting_price: '',
+    reserve_price: '',
     duration: '7',
-  });
+  })
+  const [images, setImages] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [images, setImages] = useState<string[]>([]);
+  useEffect(() => {
+    getFormMetadata()
+      .then(data => {
+        setCategories(data.categories.filter(c => c.is_active))
+        setConditions(data.conditions)
+        setDurations(data.durations)
+        if (data.durations.length > 0)
+          setForm(f => ({ ...f, duration: String(data.durations[1]?.value ?? data.durations[0].value) }))
+      })
+      .catch(console.error)
+  }, [])
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Placeholder for image upload
-    alert("Image upload coming soon!");
-  };
+  const set =
+    (key: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm(f => ({ ...f, [key]: e.target.value }))
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    const toAdd = files.slice(0, 4 - images.length)
+    setImages(prev => [...prev, ...toAdd])
+    setPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
+    e.target.value = ''
+  }
+
+  const removeImage = (idx: number) => {
+    URL.revokeObjectURL(previews[idx])
+    setImages(prev => prev.filter((_, i) => i !== idx))
+    setPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const validate = () => {
+    const e: Record<string, string> = {}
+    if (!form.title.trim()) e.title = 'Title is required'
+    if (!form.condition) e.condition = 'Condition is required'
+    if (!form.starting_price || parseFloat(form.starting_price) <= 0)
+      e.starting_price = 'Starting price must be greater than 0'
+    if (
+      form.reserve_price &&
+      parseFloat(form.reserve_price) < parseFloat(form.starting_price)
+    )
+      e.reserve_price = 'Reserve price must be at least the starting price'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  const submit = async (status: 'draft' | 'active') => {
+    if (!validate()) return
+    setIsSubmitting(true)
+    try {
+      const now = new Date()
+      const endTime = new Date(
+        now.getTime() + parseInt(form.duration) * 24 * 60 * 60 * 1000,
+      )
+      const listing = await createListing({
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        condition: form.condition,
+        bidding_type: 'price_up',
+        starting_price: parseFloat(form.starting_price),
+        reserve_price: form.reserve_price ? parseFloat(form.reserve_price) : null,
+        min_increment: 1.0,
+        category_id: form.category_id || null,
+        start_time: now.toISOString(),
+        end_time: endTime.toISOString(),
+        status,
+      })
+      if (images.length > 0) {
+        await uploadAuctionImages(listing.id, images)
+      }
+      navigate('/activity')
+    } catch (err) {
+      console.error('Failed to create listing', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Create New Listing</h1>
-        <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600">✕</button>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Create New Listing</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Fill in the details below to list your item for auction.
+        </p>
       </div>
 
-      <p className="text-slate-500 mb-8">Provide precise details to maximize your item's auction performance.</p>
-
-      {/* Stepper */}
-      <div className="flex items-center gap-3 mb-10">
-        <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-        <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-        <div className={`flex-1 h-1 rounded-full ${step >= 3 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-      </div>
-
-      {/* Step 1: Item Details */}
-      {step === 1 && (
-        <div className="space-y-6 bg-white p-8 rounded-3xl border">
-          <div className="flex items-center gap-2 text-blue-600 font-medium">
-            📋 Item Details
-          </div>
-          <input 
-            type="text" 
-            placeholder="e.g. Rare 1964 Vintage Chronograph" 
-            className="w-full p-4 border rounded-2xl focus:outline-none focus:border-blue-500" 
-            value={form.title}
-            onChange={(e) => setForm({...form, title: e.target.value})}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <select className="p-4 border rounded-2xl" value={form.category} onChange={(e) => setForm({...form, category: e.target.value})}>
-              <option value="">Select a category</option>
-              <option value="watches">Watches</option>
-              <option value="electronics">Electronics</option>
-            </select>
-            <select className="p-4 border rounded-2xl" value={form.condition} onChange={(e) => setForm({...form, condition: e.target.value})}>
-              <option value="">Select condition</option>
-              <option value="new">New</option>
-              <option value="excellent">Excellent</option>
-            </select>
-          </div>
-
-          <textarea 
-            placeholder="Describe the item's history, features, and unique qualities..." 
-            className="w-full p-4 border rounded-2xl h-32" 
-            value={form.description}
-            onChange={(e) => setForm({...form, description: e.target.value})}
-          />
-        </div>
-      )}
-
-      {/* Step 2: Media Upload */}
-      {step === 2 && (
-        <div className="space-y-6 bg-white p-8 rounded-3xl border">
-          <div className="flex items-center gap-2 text-blue-600 font-medium">
-            📸 Media Upload
-          </div>
-          <div className="border-2 border-dashed border-slate-300 rounded-3xl p-12 text-center">
-            <Upload size={48} className="mx-auto text-slate-400" />
-            <p className="mt-4 font-medium">Drag and drop high-res images</p>
-            <p className="text-sm text-slate-500">Min resolution: 2048 × 2048px. Maximum 12 photos.</p>
-            <button className="mt-6 bg-blue-600 text-white px-8 py-3 rounded-2xl">Browse Files</button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            {images.map((url, i) => (
-              <div key={i} className="aspect-square border rounded-2xl overflow-hidden relative">
-                <img src={url} alt="" className="w-full h-full object-cover" />
-              </div>
-            ))}
-            <div className="aspect-square border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center cursor-pointer">
-              <Plus size={32} className="text-slate-400" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Auction Settings */}
-      {step === 3 && (
-        <div className="space-y-6 bg-white p-8 rounded-3xl border">
-          <div className="flex items-center gap-2 text-blue-600 font-medium">
-            ⚙️ Auction Settings
-          </div>
-
-          <div className="p-4 bg-blue-50 rounded-2xl text-center">
-            Timed Auction
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm text-slate-500">Starting Price (USD)</label>
-              <input type="number" className="w-full p-4 border rounded-2xl mt-1" placeholder="$0.00" />
-            </div>
-            <div>
-              <label className="text-sm text-slate-500">Reserve Price (Optional)</label>
-              <input type="text" className="w-full p-4 border rounded-2xl mt-1" placeholder="Enter amount" />
-            </div>
-          </div>
-
+      {/* Item Details */}
+      <div className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+            <Package size={18} />
+          </span>
           <div>
-            <label className="text-sm text-slate-500 block mb-2">Auction Duration</label>
-            <div className="flex gap-3">
-              {[3,7,10,14].map(d => (
-                <button key={d} className={`flex-1 py-3 rounded-2xl border ${form.duration === d.toString() ? 'border-blue-600 bg-blue-50' : 'border-slate-200'}`} onClick={() => setForm({...form, duration: d.toString()})}>
-                  {d} Days
-                </button>
+            <h2 className="font-semibold text-slate-950">Item Details</h2>
+            <p className="text-xs text-slate-500">Describe what you're selling</p>
+          </div>
+        </div>
+
+        <FormInput
+          label="Listing Title"
+          placeholder="e.g. Vintage Rolex Submariner 1965"
+          value={form.title}
+          onChange={set('title')}
+          error={errors.title}
+        />
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <SelectField
+            label="Category"
+            value={form.category_id}
+            onChange={set('category_id') as React.ChangeEventHandler<HTMLSelectElement>}
+            placeholder="Select a category"
+            options={categories.map(c => ({ value: c.id, label: c.name }))}
+          />
+          <div>
+            <SelectField
+              label="Item Condition"
+              value={form.condition}
+              onChange={set('condition') as React.ChangeEventHandler<HTMLSelectElement>}
+              placeholder="Select condition"
+              options={conditions.map(c => ({ value: c.id, label: c.name }))}
+            />
+            {errors.condition && (
+              <p className="mt-1.5 text-xs font-medium text-red-600">{errors.condition}</p>
+            )}
+          </div>
+        </div>
+
+        <TextAreaField
+          label="Description"
+          placeholder="Describe your item's history, features, and unique qualities..."
+          value={form.description}
+          onChange={set('description')}
+          rows={4}
+        />
+
+        {/* Media upload */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            Photos{' '}
+            <span className="font-normal text-slate-400">({images.length} / 4)</span>
+          </label>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+            disabled={images.length >= 4}
+          />
+
+          {images.length < 4 && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 transition hover:border-accent-300 hover:bg-accent-50"
+            >
+              <ImagePlus size={22} className="text-slate-400" />
+              <span className="text-sm font-medium text-slate-600">Click to upload images</span>
+              <span className="text-xs text-slate-400">PNG, JPG, WEBP — up to 4 photos</span>
+            </button>
+          )}
+
+          {previews.length > 0 && (
+            <div className="mt-3 grid grid-cols-4 gap-3">
+              {previews.map((src, i) => (
+                <div
+                  key={i}
+                  className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200"
+                >
+                  <img src={src} alt={`Preview ${i + 1}`} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-600 opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <X size={12} />
+                  </button>
+                  {i === 0 && (
+                    <span className="absolute bottom-1.5 left-1.5 rounded-full bg-accent-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      Cover
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Auction Settings */}
+      <div className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+            <Settings2 size={18} />
+          </span>
+          <div>
+            <h2 className="font-semibold text-slate-950">Auction Settings</h2>
+            <p className="text-xs text-slate-500">Set your pricing and timing</p>
           </div>
         </div>
-      )}
 
-      <div className="flex gap-4 mt-10">
-        {step > 1 && <button onClick={() => setStep(step - 1)} className="flex-1 py-4 border rounded-2xl">Back</button>}
-        <button onClick={() => step < 3 ? setStep(step + 1) : alert('Listing Published!')} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl">
-          {step === 3 ? 'Publish Auction' : 'Next'}
-        </button>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormInput
+            label="Starting Price ($)"
+            type="number"
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            value={form.starting_price}
+            onChange={set('starting_price')}
+            error={errors.starting_price}
+          />
+          <FormInput
+            label="Reserve Price ($)"
+            type="number"
+            placeholder="Optional — leave blank for no reserve"
+            min="0"
+            step="0.01"
+            value={form.reserve_price}
+            onChange={set('reserve_price')}
+            error={errors.reserve_price}
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Auction Duration
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {durations.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, duration: String(value) }))}
+                className={`rounded-xl border py-3 text-sm font-semibold transition ${
+                  form.duration === String(value)
+                    ? 'border-accent-500 bg-accent-50 text-accent-700 ring-2 ring-accent-500/20'
+                    : 'border-slate-200 text-slate-600 hover:border-accent-300 hover:text-accent-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end">
+        <SecondaryButton onClick={() => submit('draft')} disabled={isSubmitting}>
+          {isSubmitting ? 'Saving…' : 'Save as Draft'}
+        </SecondaryButton>
+        <PrimaryButton onClick={() => submit('active')} disabled={isSubmitting}>
+          {isSubmitting ? 'Publishing…' : 'Publish Auction'}
+        </PrimaryButton>
       </div>
     </div>
-  );
+  )
 }

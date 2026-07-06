@@ -6,6 +6,7 @@ const map: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700 ring-slate-200',
   outbid: 'bg-red-50 text-red-700 ring-red-200',
   won: 'bg-accent-50 text-accent-700 ring-accent-200',
+  leading: 'bg-blue-50 text-blue-700 ring-blue-200',
   reported: 'bg-orange-50 text-orange-700 ring-orange-200',
   open: 'bg-amber-50 text-amber-700 ring-amber-200',
   resolved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',

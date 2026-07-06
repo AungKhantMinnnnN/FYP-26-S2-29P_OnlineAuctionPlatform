@@ -31,13 +31,6 @@ export default function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
-            {role !== 'admin' && (
-              <>
-                <Link to="/browse" className="text-sm font-medium text-slate-500 hover:text-accent-600">Browse</Link>
-                
-              </>
-            )}
-            
             {user ? (
               role === 'admin' ? (
                 <div className="relative" onMouseEnter={() => setAccountOpen(true)} onMouseLeave={() => setAccountOpen(false)}>
@@ -75,21 +68,19 @@ export default function Navbar() {
 
       {/* Marketplace Nav for logged in users */}
       {role === 'user' && (
-  <div className="border-t border-slate-200/50 bg-white/80">
-    <div className="max-w-[1280px] mx-auto px-4 py-2 sm:px-8 flex items-center gap-6 text-sm">
-      <MarketplaceNav compact />
-      <Link to="/auction-flow" className="hover:text-accent-600 font-medium">How Auctions Work</Link>
-      <Link to="/collector-board" className="hover:text-accent-600 font-medium">Collector Board</Link>
-    </div>
-  </div>
-)}
+        <div className="border-t border-slate-200/50 bg-white/80">
+          <div className="max-w-[1280px] mx-auto px-4 py-2 sm:px-8 flex justify-center">
+            <MarketplaceNav compact />
+          </div>
+        </div>
+      )}
 
       {/* Mobile Menu */}
       {open && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-1.5 shadow-xl">
           <SearchBar />
           <Link to="/browse" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Browse Auctions</Link>
-          <Link to="/auction-flow" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>How Auctions Work</Link>
+          <Link to="/activity" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Activity</Link>
           <Link to="/collector-board" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Collector Board</Link>
           
           {user ? (
