@@ -78,13 +78,23 @@ export interface EnumType {
   name: string;
 }
 
+export interface DurationOption {
+  value: number;
+  label: string;
+}
+
 export interface MetadataResponse {
   categories: Category[];
   conditions: EnumType[];
   biddingTypes: EnumType[];
+  durations: DurationOption[];
 }
 
 export const getFormMetadata = async (): Promise<MetadataResponse> => {
   const response = await apiClient.get<MetadataResponse>('/auctions/form_metadata');
+  return response.data;
+};
+export const getSellerStats = async () => {
+  const response = await apiClient.get('/users/me/stats');
   return response.data;
 };

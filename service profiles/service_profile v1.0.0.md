@@ -136,6 +136,24 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     }
     ```
 
+* **`POST /v1.0.0/auth/change-password`**
+  * **Description:** Change the current authenticated user's password. Requires the correct current password for verification before the new password is applied.
+  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Request:** JSON object (`ChangePasswordRequest`)
+    ```json
+    {
+      "current_password": "string",
+      "new_password": "string"
+    }
+    ```
+  * **Response (200 OK):** JSON object (`GenericMessageResponse`)
+    ```json
+    {
+      "message": "Password updated successfully."
+    }
+    ```
+  * **Errors:** `400` if `current_password` is incorrect.
+
 ### Auctions (`/v1.0.0/auctions`)
 
 * **`GET /v1.0.0/auctions/form_metadata`**
@@ -653,6 +671,18 @@ All routes require authentication (`Authorization: Bearer <token>`).
     }
     ```
 
+* **`GET /v1.0.0/users/me/stats`**
+  * **Description:** Returns aggregated seller statistics for the current user — total views on all their listings, how many users have watchlisted their items, number of completed sales (won auctions where the seller is the current user), and cumulative sales revenue.
+  * **Response (200 OK):** `SellerStatsResponse`
+    ```json
+    {
+      "total_views": "int",
+      "total_watchlists": "int",
+      "total_sales": "int",
+      "total_revenue": "float"
+    }
+    ```
+
 ---
 
 ### Subscription Tiers (`/v1.0.0/subscription-tiers`)
@@ -886,12 +916,12 @@ High-concurrency, real-time bid processing service using WebSockets and Redis di
 ---
 
 ## 3. Recommendation Engine - v1.0.0
-Provides personalized and trending auction suggestions. All routes are served under the prefix `/{version}/recs` (e.g. `/v1.0.0/recs`). Personalization uses a hybrid of demographic segment matching (age group, city) and category affinity derived from behavioral history; when no behavioral history exists, falls back to cold-start onboarding interests (`user_interests` table).
+Provides personalized and trending auction suggestions. All routes are served under the prefix `/{version}/recs` (e.g. `/v1.0.0/recs`). Personalization uses a hybrid of demographic segment matching (age group, city), category affinity, and brand affinity, derived from multiple signal sources: `user_interactions` (view, search, bid, watchlist events), explicit `bids` placed, active `watchlist` entries, `auction_results` (won auctions), and `board_items` curated on collector boards. Condition quality (`condition_confidence`) acts as a tie-breaker quality weight. When no behavioral history exists, falls back to cold-start onboarding interests (`user_interests` table).
 
 ### Recommendations (`/recs`)
 
 * **`GET /v1.0.0/recs/trending`**
-  * **Description:** Returns ranked active listings. When `user_id` is supplied and the user has a profile or interaction history, the ranking is personalized (demographic segment boost + category affinity boost). Without `user_id`, or for users with no profile/history/interests, returns pure engagement-weighted trending.
+  * **Description:** Returns ranked active listings. When `user_id` is supplied and the user has a profile or interaction history, the ranking is personalized (demographic segment boost + category affinity boost + brand affinity boost + condition quality boost). Without `user_id`, or for users with no profile/history/interests, returns pure engagement-weighted trending. Category affinity cascades through: window interactions → auction wins → board-curated items → cold-start interests.
   * **Request Parameters:**
 
     | Param | Type | Required | Default | Description |

@@ -1,13 +1,14 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Gavel, User, History, Store, PlusCircle, Shield, Users, Tags, FileWarning, ScrollText } from 'lucide-react'
+import { LayoutDashboard, Gavel, User, Activity, Store, PlusCircle, Shield, Users, Tags, FileWarning, ScrollText, LayoutGrid } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const links = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['user'] },
-  { to: '/bid-history', label: 'Bid History', icon: History, roles: ['user'] },
-  { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store, roles: ['user'] },
-  { to: '/create-listing', label: 'Create Listing', icon: PlusCircle, roles: ['user'] },
-  { to: '/profile', label: 'Profile', icon: User, roles: ['user'] },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['user'], badge: null },
+  { to: '/activity', label: 'Activity', icon: Activity, roles: ['user'], badge: null },
+  { to: '/seller-dashboard', label: 'Seller Dashboard', icon: Store, roles: ['user'], badge: null },
+  { to: '/create-listing', label: 'Create Listing', icon: PlusCircle, roles: ['user'], badge: null },
+  { to: '/collector-board', label: 'Collector Board', icon: LayoutGrid, roles: ['user'], badge: 'PRO' },
+  { to: '/profile', label: 'Profile', icon: User, roles: ['user'], badge: null },
   { to: '/admin-dashboard', label: 'Admin Panel', icon: Shield, roles: ['admin'] },
   { to: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { to: '/admin/listings', label: 'Listings', icon: Gavel, roles: ['admin'] },
@@ -33,7 +34,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <span className="font-bold text-lg text-slate-950">AuctionHub</span>
       </div>
       <nav className="flex-1 px-2 space-y-1.5">
-        {visibleLinks.map(({ to, label, icon: Icon }) => (
+        {visibleLinks.map(({ to, label, icon: Icon, badge }) => (
           <NavLink
             key={to}
             to={to}
@@ -47,7 +48,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             }
           >
             <Icon size={18} />
-            {label}
+            <span className="flex-1">{label}</span>
+            {badge && (
+              <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 ring-1 ring-amber-200">
+                {badge}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

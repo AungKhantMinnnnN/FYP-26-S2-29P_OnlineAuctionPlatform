@@ -1,312 +1,295 @@
-import { useState } from 'react';
-import { Image, Save, Upload, X } from 'lucide-react';
-import FormInput from '../components/FormInput';
-import SelectField from '../components/SelectField';
-import TextAreaField from '../components/TextAreaField';
-import DatePickerField from '../components/DatePickerField';
-import PrimaryButton from '../components/PrimaryButton';
-import SecondaryButton from '../components/SecondaryButton';
-import { useAuth } from '../context/AuthContext';
-import { createListing, uploadAuctionImages, getFormMetadata, type Category, type EnumType } from '../api/auctionsApi';
-import { useEffect } from 'react';
-import Modal from '../components/Modal';
-import { CheckCircle2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ImagePlus, Package, Settings2, X } from 'lucide-react'
+import FormInput from '../components/FormInput'
+import SelectField from '../components/SelectField'
+import TextAreaField from '../components/TextAreaField'
+import PrimaryButton from '../components/PrimaryButton'
+import SecondaryButton from '../components/SecondaryButton'
+import { createListing, uploadAuctionImages, getFormMetadata } from '../api/auctionsApi'
+import type { Category, DurationOption, EnumType } from '../api/auctionsApi'
 
 export default function ListingFormPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [categories, setCategories] = useState<Category[]>([])
+  const [conditions, setConditions] = useState<EnumType[]>([])
+  const [durations, setDurations] = useState<DurationOption[]>([])
+  const [form, setForm] = useState({
     title: '',
-    description: '',
     category_id: '',
-    condition: 'new',
-    bidding_type: 'price_up',
+    condition: '',
+    description: '',
     starting_price: '',
     reserve_price: '',
-    min_increment: '5',
-    start_time: '',
-    end_time: '',
-    status: 'active',
-  });
-
-  const [images, setImages] = useState<File[]>([]);
-  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [metadataLoading, setMetadataLoading] = useState(true);
-  
-  const [successModalOpen, setSuccessModalOpen] = useState(false);
-  const [createdListingId, setCreatedListingId] = useState('');
-
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [conditions, setConditions] = useState<EnumType[]>([]);
-  const [biddingTypes, setBiddingTypes] = useState<EnumType[]>([]);
+    duration: '7',
+  })
+  const [images, setImages] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        const data = await getFormMetadata();
-        setCategories(data.categories);
-        setConditions(data.conditions);
-        setBiddingTypes(data.biddingTypes);
-        
-        // Auto-select first item if exists and not already selected
-        if (data.categories.length > 0) {
-          setFormData(prev => ({ ...prev, category_id: data.categories[0].id }));
-        }
-        if (data.conditions.length > 0) {
-          setFormData(prev => ({ ...prev, condition: data.conditions[0].id }));
-        }
-        if (data.biddingTypes.length > 0) {
-          setFormData(prev => ({ ...prev, bidding_type: data.biddingTypes[0].id }));
-        }
+    getFormMetadata()
+      .then(data => {
+        setCategories(data.categories.filter(c => c.is_active))
+        setConditions(data.conditions)
+        setDurations(data.durations)
+        if (data.durations.length > 0)
+          setForm(f => ({ ...f, duration: String(data.durations[1]?.value ?? data.durations[0].value) }))
+      })
+      .catch(console.error)
+  }, [])
 
-        const now = new Date();
-        const nextWeek = new Date(now.getTime() + 7 * 86400000);
-        
-        setFormData(prev => ({
-          ...prev,
-          start_time: prev.start_time || now.toISOString(),
-          end_time: prev.end_time || nextWeek.toISOString()
-        }));
-      } catch (error) {
-        console.error("Failed to load form metadata", error);
-      } finally {
-        setMetadataLoading(false);
-      }
-    };
-    fetchMetadata();
-  }, []);
+  const set =
+    (key: string) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm(f => ({ ...f, [key]: e.target.value }))
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const newImages = [...images, ...files].slice(0, 4);
-    setImages(newImages);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    const toAdd = files.slice(0, 4 - images.length)
+    setImages(prev => [...prev, ...toAdd])
+    setPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
+    e.target.value = ''
+  }
 
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setPreviewUrls(prev => [...prev, ...newPreviews].slice(0, 4));
-  };
+  const removeImage = (idx: number) => {
+    URL.revokeObjectURL(previews[idx])
+    setImages(prev => prev.filter((_, i) => i !== idx))
+    setPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
 
-  const removeImage = (index: number) => {
-    URL.revokeObjectURL(previewUrls[index]);
-    setImages(prev => prev.filter((_, i) => i !== index));
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
-  };
+  const validate = () => {
+    const e: Record<string, string> = {}
+    if (!form.title.trim()) e.title = 'Title is required'
+    if (!form.condition) e.condition = 'Condition is required'
+    if (!form.starting_price || parseFloat(form.starting_price) <= 0)
+      e.starting_price = 'Starting price must be greater than 0'
+    if (
+      form.reserve_price &&
+      parseFloat(form.reserve_price) < parseFloat(form.starting_price)
+    )
+      e.reserve_price = 'Reserve price must be at least the starting price'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
 
-  const handleSubmit = async (e: React.FormEvent | React.MouseEvent, isDraft: boolean = false) => {
-    e.preventDefault();
-    if (!user) {
-      alert("Please log in first");
-      return;
-    }
-
-    setIsLoading(true);
-
-    const startPriceNum = Number(formData.starting_price);
-    const reservePriceNum = formData.reserve_price ? Number(formData.reserve_price) : startPriceNum;
-
-    if (reservePriceNum < startPriceNum) {
-      alert("Error: Reserve price cannot be lower than the starting price.");
-      setIsLoading(false);
-      return;
-    }
-
-    const payload = {
-      title: formData.title,
-      description: formData.description,
-      condition: formData.condition,
-      bidding_type: formData.bidding_type,
-      starting_price: startPriceNum,
-      reserve_price: reservePriceNum,
-      min_increment: formData.min_increment ? Number(formData.min_increment) : 1,
-      start_time: new Date(formData.start_time).toISOString(),
-      end_time: new Date(formData.end_time).toISOString(),
-      category_id: formData.category_id || null,
-      status: isDraft ? 'draft' : 'active',
-    };
-
+  const submit = async (status: 'draft' | 'active') => {
+    if (!validate()) return
+    setIsSubmitting(true)
     try {
-      const result = await createListing(payload);
-      
+      const now = new Date()
+      const endTime = new Date(
+        now.getTime() + parseInt(form.duration) * 24 * 60 * 60 * 1000,
+      )
+      const listing = await createListing({
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        condition: form.condition,
+        bidding_type: 'price_up',
+        starting_price: parseFloat(form.starting_price),
+        reserve_price: form.reserve_price ? parseFloat(form.reserve_price) : null,
+        min_increment: 1.0,
+        category_id: form.category_id || null,
+        start_time: now.toISOString(),
+        end_time: endTime.toISOString(),
+        status,
+      })
       if (images.length > 0) {
-        await uploadAuctionImages(result.id, images);
+        await uploadAuctionImages(listing.id, images)
       }
-      
-      setCreatedListingId(result.id);
-      setSuccessModalOpen(true);
-    } catch (error) {
-      console.error(error);
-      const detail = error.response?.data?.detail;
-      if (Array.isArray(detail)) {
-        // Extract the specific message from the first Pydantic validation error
-        alert(`Validation Error: ${detail[0].msg}`);
-      } else {
-        alert(detail || "Failed to create listing. Please check all fields.");
-      }
+      navigate('/activity')
+    } catch (err) {
+      console.error('Failed to create listing', err)
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false)
     }
-  };
-
-  if (metadataLoading) {
-    return <div className="text-center py-20 text-slate-500">Loading form...</div>;
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 p-4">
-      <Modal isOpen={successModalOpen} onClose={() => navigate('/auctions')}>
-        <div className="text-center py-6">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
-            <CheckCircle2 className="h-10 w-10 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Listing Published!</h2>
-          <p className="text-slate-500 mb-8">
-            Your auction has been successfully created and is now live on the marketplace.
-          </p>
-          <div className="flex flex-col gap-3">
-            <PrimaryButton onClick={() => navigate(`/auction/${createdListingId}`)} fullWidth>
-              View Listing
-            </PrimaryButton>
-            <SecondaryButton onClick={() => {
-              setSuccessModalOpen(false);
-              window.location.reload();
-            }} fullWidth>
-              Create Another
-            </SecondaryButton>
-          </div>
-        </div>
-      </Modal>
-
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Create New Listing</h1>
-        <p className="text-slate-500">Fill in the details to list your item for auction.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Create New Listing</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Fill in the details below to list your item for auction.
+        </p>
       </div>
 
-      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 p-8 rounded-2xl">
+      {/* Item Details */}
+      <div className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+            <Package size={18} />
+          </span>
+          <div>
+            <h2 className="font-semibold text-slate-950">Item Details</h2>
+            <p className="text-xs text-slate-500">Describe what you're selling</p>
+          </div>
+        </div>
+
         <FormInput
-          label="Title"
-          placeholder="e.g. iPhone 17 Pro 256GB"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          required
+          label="Listing Title"
+          placeholder="e.g. Vintage Rolex Submariner 1965"
+          value={form.title}
+          onChange={set('title')}
+          error={errors.title}
         />
 
-        <TextAreaField
-          label="Description"
-          placeholder="Describe the item condition, history, and any defects..."
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          rows={5}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SelectField
             label="Category"
-            options={categories.map(c => c.name)}
-            value={categories.find(c => c.id === formData.category_id)?.name || ''}
-            onChange={(e) => {
-              const selectedName = e.target.value;
-              const cat = categories.find(c => c.name === selectedName);
-              setFormData({ ...formData, category_id: cat ? cat.id : '' })
-            }}
+            value={form.category_id}
+            onChange={set('category_id') as React.ChangeEventHandler<HTMLSelectElement>}
+            placeholder="Select a category"
+            options={categories.map(c => ({ value: c.id, label: c.name }))}
           />
-          <SelectField
-            label="Condition"
-            options={conditions.map(c => c.name)}
-            value={conditions.find(c => c.id === formData.condition)?.name || ''}
-            onChange={(e) => {
-              const selectedName = e.target.value;
-              const cond = conditions.find(c => c.name === selectedName);
-              setFormData({ ...formData, condition: cond ? cond.id : '' })
-            }}
-          />
-          <SelectField
-            label="Bidding Type"
-            options={biddingTypes.map(b => b.name)}
-            value={biddingTypes.find(b => b.id === formData.bidding_type)?.name || ''}
-            onChange={(e) => {
-              const selectedName = e.target.value;
-              const btype = biddingTypes.find(b => b.name === selectedName);
-              setFormData({ ...formData, bidding_type: btype ? btype.id : '' })
-            }}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormInput
-            label="Starting Price ($)"
-            type="number"
-            value={formData.starting_price}
-            onChange={(e) => setFormData({ ...formData, starting_price: e.target.value })}
-            required
-          />
-          <FormInput
-            label="Reserve Price ($)"
-            type="number"
-            value={formData.reserve_price}
-            onChange={(e) => setFormData({ ...formData, reserve_price: e.target.value })}
-          />
-          <FormInput
-            label="Min Increment ($)"
-            type="number"
-            value={formData.min_increment}
-            onChange={(e) => setFormData({ ...formData, min_increment: e.target.value })}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DatePickerField
-            label="Start Time"
-            selected={formData.start_time ? new Date(formData.start_time) : null}
-            onChange={(date) => setFormData({ ...formData, start_time: date ? date.toISOString() : '' })}
-            placeholderText="Select start date & time"
-          />
-          <DatePickerField
-            label="End Time"
-            selected={formData.end_time ? new Date(formData.end_time) : null}
-            onChange={(date) => setFormData({ ...formData, end_time: date ? date.toISOString() : '' })}
-            placeholderText="Select end date & time"
-            minDate={formData.start_time ? new Date(formData.start_time) : new Date()}
-          />
-        </div>
-
-        {/* Image Upload */}
-        <div>
-          <label className="block text-sm font-medium mb-3">Images (Max 4)</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {previewUrls.map((url, i) => (
-              <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200">
-                <img src={url} alt="preview" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ))}
-
-            {previewUrls.length < 4 && (
-              <label className="aspect-square border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-500">
-                <Image size={32} className="text-slate-400" />
-                <span className="text-xs text-slate-500 mt-2">Add Image</span>
-                <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
-              </label>
+          <div>
+            <SelectField
+              label="Item Condition"
+              value={form.condition}
+              onChange={set('condition') as React.ChangeEventHandler<HTMLSelectElement>}
+              placeholder="Select condition"
+              options={conditions.map(c => ({ value: c.id, label: c.name }))}
+            />
+            {errors.condition && (
+              <p className="mt-1.5 text-xs font-medium text-red-600">{errors.condition}</p>
             )}
           </div>
         </div>
 
-        <div className="flex gap-3 pt-6">
-          <SecondaryButton type="button" onClick={(e) => handleSubmit(e, true)} disabled={isLoading}>
-            <Save className="mr-2" size={18} /> Save as Draft
-          </SecondaryButton>
-          <PrimaryButton type="submit" disabled={isLoading}>
-            <Upload className="mr-2" size={18} />
-            {isLoading ? 'Publishing...' : 'Publish Listing'}
-          </PrimaryButton>
+        <TextAreaField
+          label="Description"
+          placeholder="Describe your item's history, features, and unique qualities..."
+          value={form.description}
+          onChange={set('description')}
+          rows={4}
+        />
+
+        {/* Media upload */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            Photos{' '}
+            <span className="font-normal text-slate-400">({images.length} / 4)</span>
+          </label>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+            disabled={images.length >= 4}
+          />
+
+          {images.length < 4 && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 transition hover:border-accent-300 hover:bg-accent-50"
+            >
+              <ImagePlus size={22} className="text-slate-400" />
+              <span className="text-sm font-medium text-slate-600">Click to upload images</span>
+              <span className="text-xs text-slate-400">PNG, JPG, WEBP — up to 4 photos</span>
+            </button>
+          )}
+
+          {previews.length > 0 && (
+            <div className="mt-3 grid grid-cols-4 gap-3">
+              {previews.map((src, i) => (
+                <div
+                  key={i}
+                  className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200"
+                >
+                  <img src={src} alt={`Preview ${i + 1}`} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-600 opacity-0 shadow-sm transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <X size={12} />
+                  </button>
+                  {i === 0 && (
+                    <span className="absolute bottom-1.5 left-1.5 rounded-full bg-accent-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      Cover
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </form>
+      </div>
+
+      {/* Auction Settings */}
+      <div className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+            <Settings2 size={18} />
+          </span>
+          <div>
+            <h2 className="font-semibold text-slate-950">Auction Settings</h2>
+            <p className="text-xs text-slate-500">Set your pricing and timing</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormInput
+            label="Starting Price ($)"
+            type="number"
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            value={form.starting_price}
+            onChange={set('starting_price')}
+            error={errors.starting_price}
+          />
+          <FormInput
+            label="Reserve Price ($)"
+            type="number"
+            placeholder="Optional — leave blank for no reserve"
+            min="0"
+            step="0.01"
+            value={form.reserve_price}
+            onChange={set('reserve_price')}
+            error={errors.reserve_price}
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Auction Duration
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {durations.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, duration: String(value) }))}
+                className={`rounded-xl border py-3 text-sm font-semibold transition ${
+                  form.duration === String(value)
+                    ? 'border-accent-500 bg-accent-50 text-accent-700 ring-2 ring-accent-500/20'
+                    : 'border-slate-200 text-slate-600 hover:border-accent-300 hover:text-accent-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end">
+        <SecondaryButton onClick={() => submit('draft')} disabled={isSubmitting}>
+          {isSubmitting ? 'Saving…' : 'Save as Draft'}
+        </SecondaryButton>
+        <PrimaryButton onClick={() => submit('active')} disabled={isSubmitting}>
+          {isSubmitting ? 'Publishing…' : 'Publish Auction'}
+        </PrimaryButton>
+      </div>
     </div>
-  );
+  )
 }
