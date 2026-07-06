@@ -8,6 +8,7 @@ import SecondaryButton from '../components/SecondaryButton'
 import AuctionCard from '../components/AuctionCard'
 import { useAuth } from '../context/AuthContext'
 import apiClient from '../api/apiClient'
+import { getMyWatchlist, addToWatchlist, removeFromWatchlist } from '../api/watchlistApi'
 
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,6 +26,8 @@ export default function AuctionDetailPage() {
   const [bidMessage, setBidMessage] = useState('')
   const [bidError, setBidError] = useState('')
   const [watched, setWatched] = useState(false)
+  const [watchLoading, setWatchLoading] = useState(false)
+  const [watchError, setWatchError] = useState('')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   
   const related = []
@@ -125,6 +128,43 @@ export default function AuctionDetailPage() {
     }
   }, [id, user, refreshUser])
 
+  // Reflect whether this listing is already on the user's watchlist.
+  useEffect(() => {
+    if (!user || !id) return
+    let active = true
+    getMyWatchlist()
+      .then((data) => {
+        if (active) setWatched(data.listing_ids.includes(id))
+      })
+      .catch(() => {
+        // Non-fatal — leave the button in its default (unwatched) state.
+      })
+    return () => { active = false }
+  }, [user, id])
+
+  const handleToggleWatch = async () => {
+    setWatchError('')
+    if (!user) {
+      setWatchError('Please log in to use your watchlist.')
+      return
+    }
+    if (!id || watchLoading) return
+    setWatchLoading(true)
+    try {
+      if (watched) {
+        await removeFromWatchlist(id)
+        setWatched(false)
+      } else {
+        await addToWatchlist(id)
+        setWatched(true)
+      }
+    } catch {
+      setWatchError('Could not update your watchlist. Please try again.')
+    } finally {
+      setWatchLoading(false)
+    }
+  }
+
   if (loading) return <div className="text-center py-20 text-slate-500">Loading auction details...</div>
   if (error || !auction) return <div className="text-center py-20 text-red-500">{error || 'Auction not found'}</div>
 
@@ -213,6 +253,7 @@ export default function AuctionDetailPage() {
             <div className="flex items-center gap-2 mb-3">
               <StatusBadge status={auction.status} />
               <span className="text-xs text-slate-500">{auction.condition}</span>
+              {auction.brand && <span className="text-xs text-slate-500">• {auction.brand}</span>}
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 mb-3">{auction.title}</h1>
             <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
@@ -262,6 +303,30 @@ export default function AuctionDetailPage() {
                 {auction.bidding_type === 'public' && <span className="text-sm text-slate-500 font-normal ml-2">(Any higher amount)</span>}
               </p>
             </div>
+            <div className="mb-4 space-y-1.5 border-t border-slate-100 pt-4 text-sm">
+              {auction.starting_price != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Starting price</span>
+                  <span className="font-medium text-slate-900">${auction.starting_price.toFixed(2)}</span>
+                </div>
+              )}
+              {auction.min_increment != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Min. increment</span>
+                  <span className="font-medium text-slate-900">${auction.min_increment.toFixed(2)}</span>
+                </div>
+              )}
+              {auction.reserve_price != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Reserve</span>
+                  {currentBid >= auction.reserve_price ? (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">Reserve met</span>
+                  ) : (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">Reserve not met</span>
+                  )}
+                </div>
+              )}
+            </div>
             {user && (
               <div className="mb-4 rounded-2xl bg-accent-50 p-3 text-sm text-accent-800 ring-1 ring-accent-100">
                 <p className="flex items-center justify-between font-semibold">
@@ -291,10 +356,11 @@ export default function AuctionDetailPage() {
             </form>
 
             <div className="flex items-center gap-2 mt-3">
-              <SecondaryButton fullWidth onClick={() => setWatched(!watched)}>
-                <Heart size={16} className={`mr-1 ${watched ? 'fill-red-500 text-red-500' : ''}`} /> {watched ? 'Added to Watchlist' : 'Watchlist'}
+              <SecondaryButton fullWidth onClick={handleToggleWatch} disabled={watchLoading}>
+                <Heart size={16} className={`mr-1 ${watched ? 'fill-red-500 text-red-500' : ''}`} /> {watchLoading ? 'Updating...' : watched ? 'Added to Watchlist' : 'Watchlist'}
               </SecondaryButton>
             </div>
+            {watchError && <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{watchError}</p>}
 
             <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1">
               <p className="flex items-center gap-1">
