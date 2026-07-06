@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
-from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType
+from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType, AuctionDuration
 from app.schemas.auction import ListingCreate
 from app.core.storage import storage_service
 from fastapi import UploadFile
@@ -271,9 +271,18 @@ class AuctionService:
         # Enums
         conditions = [{"id": e.value, "name": e.name} for e in ItemConditions]
         bidding_types = [{"id": e.value, "name": e.name} for e in BiddingType]
-        
+
+        # Durations from DB
+        duration_result = await db.execute(
+            select(AuctionDuration)
+            .where(AuctionDuration.is_active == True)
+            .order_by(AuctionDuration.sort_order)
+        )
+        durations = duration_result.scalars().all()
+
         return {
             "categories": categories,
             "conditions": conditions,
-            "biddingTypes": bidding_types
+            "biddingTypes": bidding_types,
+            "durations": durations,
         }

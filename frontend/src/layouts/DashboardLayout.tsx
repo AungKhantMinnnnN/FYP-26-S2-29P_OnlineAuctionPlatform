@@ -29,7 +29,7 @@ export default function DashboardLayout() {
                 <MarketplaceNav compact />
               </div>
 
-              <div className="hidden lg:flex w-72 items-center rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">
+              {/* <div className="hidden lg:flex w-72 items-center rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">
                 <Search size={16} className="mr-2" />
                 <input
                   type="text"
@@ -40,7 +40,7 @@ export default function DashboardLayout() {
 
             <button className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-accent-700">
               <Bell size={17} />
-            </button>
+            </button> */}
 
               <AccountMenu />
             </div>

@@ -17,10 +17,17 @@ class EnumResponse(BaseModel):
     id: str
     name: str
 
+class DurationOption(BaseModel):
+    value: int
+    label: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 class MetadataResponse(BaseModel):
     categories: List[CategoryResponse]
     conditions: List[EnumResponse]
     biddingTypes: List[EnumResponse]
+    durations: List[DurationOption]
 
 class ListingCreate(BaseModel):
     title: str

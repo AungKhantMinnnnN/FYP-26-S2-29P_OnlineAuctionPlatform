@@ -77,6 +77,8 @@ export default function AuctionDetailPage() {
     const token = sessionStorage.getItem('token')
     if (!token) return
 
+    let closedIntentionally = false
+
     const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8001/v1.0.0/bids/ws'
     const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${id}?token=${token}`
     ws.current = new WebSocket(wsUrl)
@@ -93,7 +95,7 @@ export default function AuctionDetailPage() {
           ])
           setBidError('')
           setBidMessage('A new bid was placed!')
-          
+
           if (user && data.bidder_id === user.id) {
               refreshUser()
           }
@@ -107,21 +109,22 @@ export default function AuctionDetailPage() {
     }
 
     ws.current.onerror = () => {
-      setBidError('Connection error with the bidding server.')
-      setBidMessage('')
+      if (!closedIntentionally) {
+        setBidError('Connection error with the bidding server.')
+        setBidMessage('')
+      }
     }
 
     ws.current.onclose = (event) => {
-      if (!event.wasClean) {
+      if (!closedIntentionally && !event.wasClean) {
         setBidError('Lost connection to bidding server. Please refresh.')
         setBidMessage('')
       }
     }
 
     return () => {
-      if (ws.current) {
-        ws.current.close()
-      }
+      closedIntentionally = true
+      ws.current?.close()
     }
   }, [id, user, refreshUser])
 

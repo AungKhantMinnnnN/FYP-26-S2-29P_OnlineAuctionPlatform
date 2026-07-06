@@ -321,4 +321,14 @@ class BoardItem(Base):
 
     board = relationship("CollectorBoard", back_populates="items")
     result = relationship("AuctionResult", lazy="joined")
+
+class AuctionDuration(Base):
+    __tablename__ = "auction_durations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    value = Column(Integer, nullable=False, unique=True)
+    label = Column(String(50), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 #endregion

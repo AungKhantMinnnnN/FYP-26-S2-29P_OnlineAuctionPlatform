@@ -13,7 +13,6 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import UserDashboardPage from './pages/UserDashboardPage'
 import ProfilePage from './pages/ProfilePage'
-import BidHistoryPage from './pages/BidHistoryPage'
 import SellerDashboardPage from './pages/SellerDashboardPage'
 import ListingFormPage from './pages/ListingFormPage'
 import AdminLoginPage from './pages/AdminLoginPage'
@@ -21,7 +20,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage'
 import WatchlistPage from './pages/WatchlistPage'
 import WalletPage from './pages/WalletPage'
 import ChooseInterestsPage from './pages/ChooseInterestsPage'
-import AuctionFlowPage from './pages/AuctionFlowPage';
+import UserActivityPage from './pages/UserActivityPage'
 import CollectorBoardPage from './pages/CollectorBoardPage';
 
 import AdminManagementPage from './pages/AdminManagementPage'
@@ -65,12 +64,11 @@ export default function App() {
           {/* User routes */}
           <Route element={<ProtectedRoute roles={['user']} />}>
             <Route element={<DashboardLayout />}>
-              <Route path="/auction-flow" element={<AuctionFlowPage />} />
+              <Route path="/activity" element={<UserActivityPage />} />
               <Route path="/collector-board" element={<CollectorBoardPage />} />
               <Route path="/browse" element={<BrowseAuctionsPage />} />
               <Route path="/dashboard" element={<UserDashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/bid-history" element={<BidHistoryPage />} />
               <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
               <Route path="/create-listing" element={<ListingFormPage />} />
               <Route path="/watchlist" element={<WatchlistPage />} />

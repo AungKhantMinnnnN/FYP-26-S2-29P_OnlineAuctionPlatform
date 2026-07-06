@@ -246,6 +246,15 @@ CREATE TABLE board_items (
     UNIQUE (board_id, auction_result_id)
 );
 
+CREATE TABLE auction_durations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    value INTEGER NOT NULL UNIQUE,
+    label VARCHAR(50) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX idx_listings_seller ON listings(seller_id);
 CREATE INDEX idx_listings_category ON listings(category_id);

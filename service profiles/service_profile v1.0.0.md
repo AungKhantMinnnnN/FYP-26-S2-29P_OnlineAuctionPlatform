@@ -136,6 +136,24 @@ Handles authentication, core auction CRUD operations, image uploads, and routing
     }
     ```
 
+* **`POST /v1.0.0/auth/change-password`**
+  * **Description:** Change the current authenticated user's password. Requires the correct current password for verification before the new password is applied.
+  * **Request Headers:** `Authorization: Bearer <token>`
+  * **Request:** JSON object (`ChangePasswordRequest`)
+    ```json
+    {
+      "current_password": "string",
+      "new_password": "string"
+    }
+    ```
+  * **Response (200 OK):** JSON object (`GenericMessageResponse`)
+    ```json
+    {
+      "message": "Password updated successfully."
+    }
+    ```
+  * **Errors:** `400` if `current_password` is incorrect.
+
 ### Auctions (`/v1.0.0/auctions`)
 
 * **`GET /v1.0.0/auctions/form_metadata`**

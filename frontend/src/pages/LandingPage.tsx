@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Search, Gavel, Zap, ChevronRight, Shield, TrendingUp, Play, Star, Check, BarChart3, BadgeCheck, Headphones } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { getAuctions } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
@@ -34,6 +35,9 @@ const testimonials = [
 ]
 
 export default function LandingPage() {
+  const { isAuthenticated, user } = useAuth()
+  const isPremium = user?.subscription_tier === 'premium'
+  const isFreeUser = isAuthenticated && !isPremium
   const { data: auctionsData, isLoading } = useQuery({
     queryKey: ['auctions', 'landing'],
     queryFn: () => getAuctions({ size: 20 })
@@ -94,7 +98,7 @@ export default function LandingPage() {
 
       {/* ── 2. Featured Auctions ── */}
       <section className="space-y-6">
-        <SectionHeader title="Featured Auctions" actionText="View all" actionTo="/browse" />
+        <SectionHeader title="Featured Auctions" />
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
@@ -118,7 +122,7 @@ export default function LandingPage() {
 
       {/* ── 3. Trending Items ── */}
       <section className="space-y-6">
-        <SectionHeader title="Trending Items" subtitle="Most bid-on auctions in the last 24 hours" actionText="See trends" actionTo="/browse" />
+        <SectionHeader title="Trending Items" subtitle="Most bid-on auctions in the last 24 hours" />
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
@@ -229,37 +233,47 @@ export default function LandingPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Free Tier */}
-          <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm flex flex-col">
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-slate-950">Free</h3>
-              <p className="text-sm text-slate-500 mt-1">For casual buyers and sellers starting out.</p>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-bold text-slate-950">$0</span>
-                <span className="text-slate-500 text-sm">/month</span>
+          <div className={`bg-white rounded-xl p-8 shadow-sm flex flex-col relative ${isFreeUser ? 'border-2 border-slate-400' : 'border border-slate-200'}`}>
+            {isFreeUser && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-slate-700 text-white font-bold text-[10px] px-3 py-1 rounded-full uppercase tracking-widest shadow-md">Your Plan</span>
               </div>
-            </div>
-            <ul className="space-y-4 mb-8 flex-grow">
-              <li className="flex items-start gap-3 text-sm text-slate-950">
-                <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
-                Full marketplace browsing access
-              </li>
-              <li className="flex items-start gap-3 text-sm text-slate-950">
-                <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
-                Up to 3 active bids per hour
-              </li>
-              <li className="flex items-start gap-3 text-sm text-slate-950">
-                <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
-                Standard seller verification
-              </li>
-            </ul>
-            <Link to="/register" className="w-full text-center bg-slate-100 border border-slate-200 text-slate-950 font-bold text-xs py-3 rounded-lg hover:bg-slate-200 transition-all">
-              Sign Up Free
-            </Link>
+            )}
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-slate-950">Free</h3>
+                <p className="text-sm text-slate-500 mt-1">For casual buyers and sellers starting out.</p>
+                <div className="mt-6 flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-slate-950">$0</span>
+                  <span className="text-slate-500 text-sm">/month</span>
+                </div>
+              </div>
+              <ul className="space-y-4 mb-8 flex-grow">
+                <li className="flex items-start gap-3 text-sm text-slate-950">
+                  <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
+                  Full marketplace browsing access
+                </li>
+                <li className="flex items-start gap-3 text-sm text-slate-950">
+                  <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
+                  Up to 3 active bids per hour
+                </li>
+                <li className="flex items-start gap-3 text-sm text-slate-950">
+                  <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
+                  Standard seller verification
+                </li>
+              </ul>
+              {!isAuthenticated && (
+                <Link to="/register" className="w-full text-center bg-slate-100 border border-slate-200 text-slate-950 font-bold text-xs py-3 rounded-lg hover:bg-slate-200 transition-all">
+                  Sign Up Free
+                </Link>
+              )}
           </div>
-          {/* Premium Tier */}
+
+          {/* Premium Tier — always shown */}
           <div className="bg-white border-2 border-accent-600 rounded-xl p-8 shadow-xl relative flex flex-col transform md:scale-105">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <span className="bg-accent-600 text-white font-bold text-[10px] px-3 py-1 rounded-full uppercase tracking-widest shadow-md">Most Popular</span>
+              <span className="bg-accent-600 text-white font-bold text-[10px] px-3 py-1 rounded-full uppercase tracking-widest shadow-md">
+                {isPremium ? 'Your Plan' : 'Most Popular'}
+              </span>
             </div>
             <div className="mb-8">
               <h3 className="text-xl font-bold text-accent-600">Premium</h3>
@@ -287,26 +301,35 @@ export default function LandingPage() {
                 24/7 VIP Concierge Support
               </li>
             </ul>
-            <Link to="/register" className="w-full text-center bg-accent-600 text-white font-bold text-xs py-3 rounded-lg hover:brightness-110 transition-all shadow-md">
-              Get Premium Now
-            </Link>
+            {!isAuthenticated && (
+              <Link to="/register" className="w-full text-center bg-accent-600 text-white font-bold text-xs py-3 rounded-lg hover:brightness-110 transition-all shadow-md">
+                Get Premium Now
+              </Link>
+            )}
+            {isFreeUser && (
+              <Link to="/profile" className="w-full text-center bg-accent-600 text-white font-bold text-xs py-3 rounded-lg hover:brightness-110 transition-all shadow-md">
+                Upgrade to Premium
+              </Link>
+            )}
           </div>
         </div>
       </section>
 
       {/* ── 8. CTA Banner ── */}
-      <section className="bg-accent-600 rounded-xl p-10 md:p-14 text-center">
-        <h2 className="text-2xl font-bold text-white mb-3">Ready to start bidding?</h2>
-        <p className="text-accent-100 text-sm mb-8 max-w-lg mx-auto leading-relaxed">Join thousands of local buyers and sellers. Registration is free and PDPA-compliant.</p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link to="/register" className="inline-flex w-full sm:w-auto items-center justify-center bg-white text-accent-700 font-semibold text-sm px-7 py-3 rounded-lg shadow-md hover:bg-accent-50 transition-all">
-            Register Now
-          </Link>
-          <Link to="/login" className="inline-flex w-full sm:w-auto items-center justify-center border border-white/30 text-white font-semibold text-sm px-7 py-3 rounded-lg hover:bg-white/10 transition-all">
-            Log In
-          </Link>
-        </div>
-      </section>
+      {!isAuthenticated && (
+        <section className="bg-accent-600 rounded-xl p-10 md:p-14 text-center">
+          <h2 className="text-2xl font-bold text-white mb-3">Ready to start bidding?</h2>
+          <p className="text-accent-100 text-sm mb-8 max-w-lg mx-auto leading-relaxed">Join thousands of local buyers and sellers. Registration is free and PDPA-compliant.</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link to="/register" className="inline-flex w-full sm:w-auto items-center justify-center bg-white text-accent-700 font-semibold text-sm px-7 py-3 rounded-lg shadow-md hover:bg-accent-50 transition-all">
+              Register Now
+            </Link>
+            <Link to="/login" className="inline-flex w-full sm:w-auto items-center justify-center border border-white/30 text-white font-semibold text-sm px-7 py-3 rounded-lg hover:bg-white/10 transition-all">
+              Log In
+            </Link>
+          </div>
+        </section>
+      )}
     </div>
   )
 }
