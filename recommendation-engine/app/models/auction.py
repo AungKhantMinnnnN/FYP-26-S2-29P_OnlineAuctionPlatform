@@ -165,7 +165,6 @@ class AuctionResult(Base):
     winner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     winning_bid_id = Column(UUID(as_uuid=True), ForeignKey("bids.id"), nullable=True)
     final_price = Column(Float, nullable=False)
-    reserve_met = Column(Boolean, default=False, nullable=False)
     ended_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Watchlist(Base):
@@ -184,7 +183,6 @@ class WalletTransaction(Base):
     type = Column(Enum(TransactionType, name="transaction_type"), nullable=False)
     amount = Column(Float, nullable=False)
     reference = Column(String(255))
-    status = Column(String(50), default="completed", nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class Notification(Base):
@@ -192,9 +190,8 @@ class Notification(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    type = Column(String(50), nullable=False)
+    title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    ref_listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=True)
     is_read = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
@@ -218,9 +215,8 @@ class AdminLog(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     action = Column(String(100), nullable=False)
-    target_type = Column(String(50), nullable=False)
     target_id = Column(UUID(as_uuid=True))
-    metadata_ = Column("metadata", JSONB)
+    details = Column(Text)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
 class UserInteraction(Base):
@@ -231,4 +227,25 @@ class UserInteraction(Base):
     listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id"), nullable=False, index=True)
     action = Column(Enum(InteractionAction, name="interaction_action"), nullable=False)
     occurred_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False, index=True)
+
+class CollectorBoard(Base):
+    __tablename__ = "collector_boards"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    is_public = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    items = relationship("BoardItem", back_populates="board", lazy="selectin")
+
+class BoardItem(Base):
+    __tablename__ = "board_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    board_id = Column(UUID(as_uuid=True), ForeignKey("collector_boards.id"), nullable=False, index=True)
+    auction_result_id = Column(UUID(as_uuid=True), ForeignKey("auction_results.id"), nullable=False)
+    added_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    board = relationship("CollectorBoard", back_populates="items")
 #endregion
