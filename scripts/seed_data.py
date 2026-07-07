@@ -28,6 +28,7 @@ from app.models.auction import (
     AuctionDuration,
     Testimonial,
     IssueType,
+    Dispute, DisputeStatus,
 )
 from app.core.security import get_password_hash
 from app.core.config import settings
@@ -84,6 +85,54 @@ async def seed_data():
 
         # ── 1. Users ───────────────────────────────────────────────────────────
         users_spec = [
+            {
+                "username": "stewie",
+                "email": "stewie@auctionhub.com",
+                "role": UserRole.user,
+                "tier": SubscriptionTier.premium,
+                "balance": 100000.0,
+                "full_name": "Aung Khant Minn",
+            },
+            {
+                "username": "zixin",
+                "email": "zixin@auctionhub.com",
+                "role": UserRole.user,
+                "tier": SubscriptionTier.premium,
+                "balance": 100000.0,
+                "full_name": "Mah Zi Xin",
+            },
+            {
+                "username": "ethan",
+                "email": "ethan@auctionhub.com",
+                "role": UserRole.user,
+                "tier": SubscriptionTier.premium,
+                "balance": 100000.0,
+                "full_name": "Xu Huitong",
+            },
+            {
+                "username": "jn",
+                "email": "jn@auctionhub.com",
+                "role": UserRole.user,
+                "tier": SubscriptionTier.premium,
+                "balance": 100000.0,
+                "full_name": "Tiew Jie Nee",
+            },
+            {
+                "username": "wesley",
+                "email": "wesley@auctionhub.com",
+                "role": UserRole.user,
+                "tier": SubscriptionTier.premium,
+                "balance": 100000.0,
+                "full_name": "Wesley Tan",
+            },
+            {
+                "username": "gavrel",
+                "email": "gavrel@auctionhub.com",
+                "role": UserRole.user,
+                "tier": SubscriptionTier.premium,
+                "balance": 100000.0,
+                "full_name": "Gavrel saw",
+            },
             {
                 "username": "admin_user",
                 "email": "admin@example.com",
@@ -256,62 +305,131 @@ async def seed_data():
         # ── 6. Ended listings + bids + auction results ─────────────────────────
         #
         # seller_idx / winner_idx are 0-based indices into normal_users.
-        #   0 = normal_user_1 (Alex Chen,   premium)
-        #   1 = normal_user_2 (Jordan Williams, premium)
-        #   2 = normal_user_3 (Sam Mitchell, free)
-        #   3 = normal_user_4 (Riley Thompson, free)
-        #   4 = normal_user_5 (Morgan Davis, free)
-        #   5 = normal_user_6 (Casey Johnson, free)
+        #   0  = stewie        (Aung Khant Minn,   premium)
+        #   1  = zixin         (Mah Zi Xin,        premium)
+        #   2  = ethan         (Xu Huitong,        premium)
+        #   3  = jn            (Tiew Jie Nee,      premium)
+        #   4  = wesley        (Wesley Tan,        premium)
+        #   5  = gavrel        (Gavrel saw,        premium)
+        #   6  = normal_user_1 (Alex Chen,         premium)
+        #   7  = normal_user_2 (Jordan Williams,   premium)
+        #   8  = normal_user_3 (Sam Mitchell,      free)
+        #   9  = normal_user_4 (Riley Thompson,    free)
+        #   10 = normal_user_5 (Morgan Davis,      free)
+        #   11 = normal_user_6 (Casey Johnson,     free)
+        #   12 = normal_user_7 (Drew Anderson,     free)
+        #   13 = normal_user_8 (Taylor Brown,      free)
+        #   14 = normal_user_9 (Blake Wilson,      free)
+        #
+        # Each new premium user wins 2 items → sufficient for collector board testing.
         #
         ended_specs = [
             # title, cat, condition, start_price, brand, description, seller_idx, winner_idx, final_price, ended_days_ago
+
+            # stewie wins ×2
             (
                 "Vintage Omega Seamaster 1960s",
                 "collectibles", ItemConditions.used, 450.0, "Omega",
                 "Pristine example of the iconic Seamaster. Original dial, hands, and crown intact. Box and papers included.",
-                2, 0, 780.0, 3,
+                8, 0, 780.0, 3,
             ),
+            (
+                "Rolex Datejust 36mm (Ref. 126200, 2020)",
+                "collectibles", ItemConditions.used, 3800.0, "Rolex",
+                "Oystersteel bracelet, Jubilee band. Fluted bezel, white dial. Full set — box, papers, hang tags.",
+                1, 0, 4500.0, 8,
+            ),
+
+            # zixin wins ×2
             (
                 "Sony PlayStation 5 Console (Disc Edition)",
                 "electronics", ItemConditions.used, 350.0, "Sony",
                 "Barely used PS5 disc edition. Two DualSense controllers, HDMI cable, and power cable included.",
-                2, 0, 520.0, 5,
+                9, 1, 520.0, 5,
             ),
+            (
+                "Apple iPad Pro 12.9-inch M2 (256GB, WiFi)",
+                "electronics", ItemConditions.used, 550.0, "Apple",
+                "Space Grey. 2022 model. AppleCare valid until 2025. Pristine condition — no scratches.",
+                2, 1, 650.0, 3,
+            ),
+
+            # ethan wins ×2
             (
                 "Canon EOS R5 Mirrorless Camera Body",
                 "electronics", ItemConditions.used, 1800.0, "Canon",
                 "Professional full-frame mirrorless. ~8,000 shutter actuations. Sensor in perfect condition. No marks.",
-                2, 0, 2450.0, 1,
+                10, 2, 2450.0, 4,
             ),
+            (
+                "Vintage Gibson Les Paul Standard 1978",
+                "collectibles", ItemConditions.used, 1800.0, "Gibson",
+                "Tobacco burst finish. Original PAF humbuckers. Weighs 4.1kg. Comes with original hard case.",
+                3, 2, 2100.0, 4,
+            ),
+
+            # jn wins ×2
             (
                 "Fender American Vintage '62 Stratocaster",
                 "collectibles", ItemConditions.used, 900.0, "Fender",
                 "1992 USA reissue. Sunburst finish, original pickups, lightweight alder body. Plays beautifully.",
-                2, 0, 1250.0, 2,
+                11, 3, 1250.0, 2,
             ),
+            (
+                "DJI Mavic 3 Pro Drone (Fly More Combo)",
+                "electronics", ItemConditions.used, 380.0, "DJI",
+                "Triple camera Hasselblad system. Under 30 flight hours. Extra batteries, shoulder bag included.",
+                4, 3, 480.0, 2,
+            ),
+
+            # wesley wins ×2
             (
                 "Apple MacBook Pro M3 14-inch (16GB/512GB)",
                 "electronics", ItemConditions.used, 1500.0, "Apple",
                 "Late 2023 model. Space Grey. AppleCare until 2026. Pristine screen, no dead pixels.",
-                3, 1, 1820.0, 4,
+                12, 4, 1820.0, 6,
             ),
+            (
+                "Razer Blade 15 (RTX 4070, 2023)",
+                "electronics", ItemConditions.used, 950.0, "Razer",
+                "Mercury White. 240Hz display. 16GB RAM, 1TB SSD. Original charger and box included.",
+                5, 4, 1200.0, 6,
+            ),
+
+            # gavrel wins ×2
             (
                 "Sony WH-1000XM5 Wireless Headphones",
                 "electronics", ItemConditions.new, 250.0, "Sony",
                 "Factory sealed box. Midnight Black. Industry-leading ANC. Purchased as spare, never opened.",
-                3, 1, 350.0, 6,
+                13, 5, 350.0, 3,
             ),
+            (
+                "Nintendo Switch OLED (White, Boxed)",
+                "electronics", ItemConditions.used, 200.0, "Nintendo",
+                "Excellent condition. Pro Controller, carrying case, and 4 game cartridges included.",
+                14, 5, 280.0, 1,
+            ),
+
+            # normal_user_1 (Alex) wins ×2
             (
                 "Trek Domane SL 6 Road Bike (56cm)",
                 "sporting-goods", ItemConditions.used, 1200.0, "Trek",
                 "2022 model. Shimano 105 R7000 groupset. Carbon fork. Under 500 miles. Saddle and pedals included.",
-                4, 2, 1750.0, 2,
+                8, 6, 1750.0, 2,
             ),
             (
                 "Harry Potter and the Philosopher's Stone — 1st UK Edition",
                 "books-media", ItemConditions.used, 800.0, None,
                 "1997 Bloomsbury first print, first edition. Minor shelf wear to cover. All pages clean and tight.",
-                5, 3, 1980.0, 7,
+                9, 6, 1980.0, 7,
+            ),
+
+            # normal_user_2 (Jordan) wins ×1
+            (
+                "Vintage Leica M3 Double Stroke (1954)",
+                "collectibles", ItemConditions.used, 700.0, "Leica",
+                "Classic rangefinder. Working shutter and meter. Light seals replaced. Comes with Summicron 50mm.",
+                0, 7, 950.0, 5,
             ),
         ]
 
@@ -467,11 +585,14 @@ async def seed_data():
         print(f"  {len(active_listings)} active listings created.")
 
         # ── 8. Draft listings ──────────────────────────────────────────────────
-        #   seller_idx = index in normal_users
+        #   seller_idx = index in normal_users (one draft per new user)
         draft_specs = [
-            ("Leica M6 Film Camera (Mint, 0.72 finder)",    "collectibles", ItemConditions.used, 1400.0, "Leica",  0),
-            ("Vintage Gibson ES-335 Semi-Hollow (Sunburst)", "collectibles", ItemConditions.used, 1600.0, "Gibson", 1),
-            ("Bose QuietComfort 45 Headphones (Sealed)",    "electronics",  ItemConditions.new,   180.0, "Bose",   2),
+            ("Omega Constellation Co-Axial Master Chronometer", "collectibles",   ItemConditions.used, 3200.0, "Omega",    0),  # stewie
+            ("Fujifilm GFX 100S Medium Format Camera Body",     "electronics",    ItemConditions.used, 2800.0, "Fujifilm", 1),  # zixin
+            ("Bose QuietComfort 45 Headphones (Sealed)",        "electronics",    ItemConditions.new,   180.0, "Bose",     2),  # ethan
+            ("Leica M6 Film Camera (Mint, 0.72 finder)",        "collectibles",   ItemConditions.used, 1400.0, "Leica",    3),  # jn
+            ("Trek Émonda SLR 9 Road Bike (52cm)",              "sporting-goods", ItemConditions.used, 2200.0, "Trek",     4),  # wesley
+            ("Vintage Gibson ES-335 Semi-Hollow (Sunburst)",    "collectibles",   ItemConditions.used, 1600.0, "Gibson",   5),  # gavrel
         ]
         for title, cat_slug, condition, start_price, brand, seller_idx in draft_specs:
             db.add(Listing(
@@ -493,9 +614,20 @@ async def seed_data():
         print("Draft listings: 3 created.")
 
         # ── 9. Watchlist ───────────────────────────────────────────────────────
-        # normal_user_1 watches 5 active listings, normal_user_2 watches 3
-        for user, count in [(normal_users[0], 5), (normal_users[1], 3), (normal_users[2], 2)]:
-            for listing in random.sample(active_listings, min(count, len(active_listings))):
+        watchlist_counts = [
+            (normal_users[0],  5),   # stewie
+            (normal_users[1],  5),   # zixin
+            (normal_users[2],  4),   # ethan
+            (normal_users[3],  4),   # jn
+            (normal_users[4],  3),   # wesley
+            (normal_users[5],  3),   # gavrel
+            (normal_users[6],  5),   # normal_user_1 / Alex
+            (normal_users[7],  3),   # normal_user_2 / Jordan
+            (normal_users[8],  2),   # normal_user_3 / Sam
+        ]
+        for user, count in watchlist_counts:
+            sample = random.sample(active_listings, min(count, len(active_listings)))
+            for listing in sample:
                 db.add(Watchlist(user_id=user.id, listing_id=listing.id))
         await db.flush()
         print("Watchlist: entries created.")
@@ -569,69 +701,102 @@ async def seed_data():
         print("Wallet transactions: created.")
 
         # ── 12. Collector boards ───────────────────────────────────────────────
-        # normal_user_1 (Alex): 4 wins → "Premium Picks" (3 items) + "Hidden Gems" (1 item)
-        # normal_user_2 (Jordan): 2 wins → "Tech Collection" (2 items)
-        user1_wins = [(r, l) for r, l, w in ended_results if w.id == normal_users[0].id]
-        user2_wins = [(r, l) for r, l, w in ended_results if w.id == normal_users[1].id]
-
-        board_premium = CollectorBoard(
-            user_id=normal_users[0].id,
-            name="Premium Picks",
-            description="My finest auction wins — watches, cameras, and rare classics.",
-            is_public=True,
-        )
-        board_hidden = CollectorBoard(
-            user_id=normal_users[0].id,
-            name="Hidden Gems",
-            description="Underrated finds I keep off the radar.",
-            is_public=False,
-        )
-        board_tech = CollectorBoard(
-            user_id=normal_users[1].id,
-            name="Tech Collection",
-            description="Best tech pieces I've picked up at auction.",
-            is_public=True,
-        )
-        db.add_all([board_premium, board_hidden, board_tech])
+        # One public board per new premium user, populated with their 2 wins.
+        # Alex (normal_user_1) gets two boards; Jordan (normal_user_2) gets one.
+        board_specs = [
+            # (owner_idx, name, description, is_public)
+            (0, "Timepiece Collection",    "Rare watches and horological pieces I've won at auction.", True),
+            (1, "Gaming & Tech",           "Latest gaming consoles and gadgets from the auction floor.", True),
+            (2, "Camera & Music Gear",     "Professional cameras and vintage instruments.", True),
+            (3, "Guitars & Drones",        "Six-strings and flying machines — my two passions.", True),
+            (4, "Mobile Workstations",     "High-performance laptops I've snagged at great prices.", True),
+            (5, "Audio & Gaming Setup",    "Headphones, consoles, and everything in between.", False),
+            (6, "Premium Picks",           "My finest auction wins — bikes, rare books, and classics.", True),
+            (6, "Hidden Gems",             "Underrated finds I keep off the radar.", False),
+            (7, "Vintage Cameras",         "Rangefinders and classic film cameras.", True),
+        ]
+        boards = []
+        for owner_idx, name, description, is_public in board_specs:
+            b = CollectorBoard(
+                user_id=normal_users[owner_idx].id,
+                name=name,
+                description=description,
+                is_public=is_public,
+            )
+            db.add(b)
+            boards.append((owner_idx, b))
         await db.flush()
 
-        # First 3 of user1's wins → "Premium Picks", remainder → "Hidden Gems"
-        for i, (auction_result, _) in enumerate(user1_wins):
-            board = board_premium if i < 3 else board_hidden
-            db.add(BoardItem(board_id=board.id, auction_result_id=auction_result.id, sort_order=i % 3))
+        # Map each user's wins to their first board (index ordering matches board_specs order)
+        wins_by_user = {}
+        for auction_result, listing, winner in ended_results:
+            wins_by_user.setdefault(winner.id, []).append(auction_result)
 
-        # All of user2's wins → "Tech Collection"
-        for i, (auction_result, _) in enumerate(user2_wins):
-            db.add(BoardItem(board_id=board_tech.id, auction_result_id=auction_result.id, sort_order=i))
+        # For each board, add items from that owner's wins (round-robin across multiple boards)
+        board_item_counts = {}  # board.id → item count for sort_order
+        for owner_idx, board in boards:
+            owner_id = normal_users[owner_idx].id
+            owner_wins = wins_by_user.get(owner_id, [])
+            # Distribute wins across boards belonging to same owner
+            same_owner_boards = [b for oi, b in boards if oi == owner_idx]
+            board_position = same_owner_boards.index(board)
+            # Assign wins to this board: round-robin by board position
+            assigned = [w for i, w in enumerate(owner_wins) if i % len(same_owner_boards) == board_position]
+            for sort_idx, auction_result in enumerate(assigned):
+                db.add(BoardItem(
+                    board_id=board.id,
+                    auction_result_id=auction_result.id,
+                    sort_order=sort_idx,
+                ))
+                board_item_counts[board.id] = sort_idx + 1
 
         await db.flush()
-        print("Collector boards: 3 boards created with items.")
+        total_boards = len(boards)
+        print(f"Collector boards: {total_boards} boards created with items.")
 
         # ── 13. Testimonials ───────────────────────────────────────────────────
         testimonial_data = [
             (
-                normal_users[0],
-                "AuctionHub completely changed how I find rare collectibles. The bidding is fair, "
-                "fast, and transparent. Won my dream Omega in minutes!",
+                normal_users[0],  # stewie
+                "AuctionHub completely changed how I find rare collectibles. Won my dream Omega watch "
+                "in minutes — the bidding is fair, fast, and totally transparent.",
                 5, True,
             ),
             (
-                normal_users[1],
-                "The Collector Board feature alone is worth the Premium subscription. "
-                "I love being able to showcase my wins publicly.",
+                normal_users[1],  # zixin
+                "The platform is incredibly smooth. Snagged a sealed PS5 and an iPad Pro within the "
+                "same week. The real-time bidding experience is unmatched.",
                 5, True,
             ),
             (
-                normal_users[2],
-                "Sold three items in a week with no hassle. The AI condition scoring builds "
-                "real trust with buyers. Highly recommend.",
+                normal_users[2],  # ethan
+                "As a photographer, finding a Canon R5 at this price was a dream. The AI condition "
+                "scoring gave me the confidence to bid without hesitation.",
+                5, True,
+            ),
+            (
+                normal_users[3],  # jn
+                "The Collector Board feature is brilliant — I love being able to showcase my Fender "
+                "Strat and DJI drone together in one public board.",
+                4, True,
+            ),
+            (
+                normal_users[4],  # wesley
+                "Sold three items in a week with zero hassle. The escrow system means I always get "
+                "paid. Highly recommend for any serious seller.",
+                5, True,
+            ),
+            (
+                normal_users[5],  # gavrel
+                "Premium membership pays for itself instantly. No bidding limits, priority support, "
+                "and the collector boards make the whole experience feel premium.",
                 4, True,
             ),
         ]
         for user, content, rating, featured in testimonial_data:
             db.add(Testimonial(user_id=user.id, content=content, rating=rating, is_featured=featured))
         await db.flush()
-        print("Testimonials: 3 created.")
+        print(f"Testimonials: {len(testimonial_data)} created.")
 
         # ── 14. Issue types ────────────────────────────────────────────────────
         issue_type_names = [
@@ -654,22 +819,105 @@ async def seed_data():
         if new_issue_types:
             db.add_all(new_issue_types)
             await db.flush()
+        # Build a name→id map for dispute seeding below
+        all_issue_types_rows = (await db.execute(select(IssueType))).scalars().all()
+        issue_type_map = {it.name: it for it in all_issue_types_rows}
         print(f"Issue types: {len(new_issue_types)} created, {len(issue_type_names) - len(new_issue_types)} already existed.")
+
+        # ── 15. Disputes ──────────────────────────────────────────────────────
+        # Mix of statuses to test the full admin dispute workflow.
+        dispute_specs = [
+            # (reporter_idx, listing (None or active), issue_type_name, subject, category, description, status, resolution_note)
+            (
+                0, None,
+                "Technical Problem",
+                "Bid confirmation not received",
+                "Technical",
+                "I placed a bid of $820 on the Rolex listing but never received a confirmation message "
+                "in the bid panel. The amount was deducted from my wallet. Please investigate.",
+                DisputeStatus.open, None,
+            ),
+            (
+                1, None,
+                "Billing / Payment Issue",
+                "Wallet top-up not reflected",
+                "Billing",
+                "I topped up $500 via the wallet page two days ago but my balance has not updated. "
+                "Transaction ID attached. Please check on this urgently.",
+                DisputeStatus.in_review, None,
+            ),
+            (
+                2, None,
+                "Item Not as Described",
+                "Canon R5 shutter count higher than listed",
+                "Item Quality",
+                "The Canon R5 I won was listed as ~8,000 actuations but my in-camera count shows 22,450. "
+                "This is a significant misrepresentation. I would like a partial refund.",
+                DisputeStatus.in_review,
+                "We have contacted the seller and are awaiting their response. Hold tight.",
+            ),
+            (
+                3, None,
+                "Seller Unresponsive",
+                "No contact from seller after winning",
+                "Fulfilment",
+                "I won the Fender Stratocaster auction 4 days ago. The seller has not responded to any "
+                "messages and the item has not been marked as shipped. Please assist.",
+                DisputeStatus.resolved,
+                "Seller has been reminded and confirmed dispatch. Tracking number sent to buyer.",
+            ),
+            (
+                4, None,
+                "Other",
+                "General feedback on auction extension",
+                "Feedback",
+                "I think the 60-second anti-sniping extension is too aggressive — it extended my auction "
+                "by 12 minutes due to last-second bids. Consider making it configurable.",
+                DisputeStatus.closed, None,
+            ),
+            (
+                5, None,
+                "Fraudulent Listing",
+                "Suspected counterfeit Rolex listing",
+                "Fraud",
+                "The Rolex Datejust listing (currently active) shows a reference number inconsistent "
+                "with the year of manufacture. I believe this may be a replica sold as genuine.",
+                DisputeStatus.open, None,
+            ),
+        ]
+
+        for (
+            reporter_idx, _listing, issue_type_name, subject, category, description, status, resolution_note
+        ) in dispute_specs:
+            it = issue_type_map.get(issue_type_name)
+            db.add(Dispute(
+                reporter_id=normal_users[reporter_idx].id,
+                issue_type_id=it.id if it else None,
+                subject=subject,
+                category=category,
+                description=description,
+                status=status,
+                resolution_note=resolution_note,
+            ))
+        await db.flush()
+        print(f"Disputes: {len(dispute_specs)} created (open/in_review/resolved/closed mix).")
 
         await db.commit()
         print(f"""
-            === Seeding complete! ===
-            Ended listings : {len(ended_specs)}  (with bids + auction_results)
-            Active listings: {len(active_listings)}  (with bids + interactions)
-            Draft listings :  3
-            Auction results: {len(ended_specs)}
-            Collector boards: 3  (Premium Picks, Hidden Gems, Tech Collection)
-            Testimonials   : 3  (all featured)
-            Issue types    : {len(issue_type_names)}
+=== Seeding complete! ===
+  Ended listings : {len(ended_specs)}  (with bids + auction_results)
+  Active listings: {len(active_listings)}  (with bids + interactions)
+  Draft listings : {len(draft_specs)}  (one per new user)
+  Auction results: {len(ended_specs)}
+  Collector boards: {total_boards}
+  Testimonials   : 6  (all featured)
+  Issue types    : {len(issue_type_names)}
+  Disputes       : {len(dispute_specs)}  (open / in_review / resolved / closed)
 
-            Credentials (all users): password123
-            Premium accounts: normal_user_1, normal_user_2
-        """)
+  Credentials (all users): password123
+  New premium accounts : stewie, zixin, ethan, jn, wesley, gavrel
+  Legacy test accounts : normal_user_1 (Alex), normal_user_2 (Jordan)
+""")
 
 
 if __name__ == "__main__":
