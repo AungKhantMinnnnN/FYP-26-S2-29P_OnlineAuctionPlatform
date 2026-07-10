@@ -329,6 +329,14 @@ export default function AuctionDetailPage() {
                   )}
                 </div>
               )}
+              {auction.bidding_type && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Auction type</span>
+                  <span className="font-medium text-slate-900">
+                    {{ price_up: 'Standard (Price Up)', low_start: 'Low Start', public: 'Public (Open Bids)' }[auction.bidding_type as string] ?? auction.bidding_type}
+                  </span>
+                </div>
+              )}
             </div>
             {user && (
               <div className="mb-4 rounded-2xl bg-accent-50 p-3 text-sm text-accent-800 ring-1 ring-accent-100">
@@ -343,26 +351,37 @@ export default function AuctionDetailPage() {
               <CountdownBadge endTime={auction.endTime} className="text-sm px-3 py-1.5" />
             </div>
 
-            <form className="space-y-3" onSubmit={handleBid}>
-              <input
-                type="number"
-                min={minimumBid}
-                step={auction.bidding_type === 'public' ? 1.0 : auction.minIncrement}
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                placeholder={`Enter at least $${minimumBid.toFixed(2)}`}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15"
-              />
-              {bidError && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{bidError}</p>}
-              {bidMessage && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{bidMessage}</p>}
-              <PrimaryButton fullWidth type="submit">Place Bid</PrimaryButton>
-            </form>
+            {user ? (
+              <form className="space-y-3" onSubmit={handleBid}>
+                <input
+                  type="number"
+                  min={minimumBid}
+                  step={auction.bidding_type === 'public' ? 1.0 : auction.minIncrement}
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                  placeholder={`Enter at least $${minimumBid.toFixed(2)}`}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15"
+                />
+                {bidError && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{bidError}</p>}
+                {bidMessage && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{bidMessage}</p>}
+                <PrimaryButton fullWidth type="submit">Place Bid</PrimaryButton>
+              </form>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center">
+                <p className="text-sm text-slate-600 mb-3">Sign in to place a bid on this auction.</p>
+                <Link to="/login" className="inline-flex items-center justify-center rounded-full bg-accent-600 px-5 py-2 text-sm font-semibold text-white hover:bg-accent-700 transition-colors">
+                  Sign In to Bid
+                </Link>
+              </div>
+            )}
 
-            <div className="flex items-center gap-2 mt-3">
-              <SecondaryButton fullWidth onClick={handleToggleWatch} disabled={watchLoading}>
-                <Heart size={16} className={`mr-1 ${watched ? 'fill-red-500 text-red-500' : ''}`} /> {watchLoading ? 'Updating...' : watched ? 'Added to Watchlist' : 'Watchlist'}
-              </SecondaryButton>
-            </div>
+            {user && (
+              <div className="flex items-center gap-2 mt-3">
+                <SecondaryButton fullWidth onClick={handleToggleWatch} disabled={watchLoading}>
+                  <Heart size={16} className={`mr-1 ${watched ? 'fill-red-500 text-red-500' : ''}`} /> {watchLoading ? 'Updating...' : watched ? 'Added to Watchlist' : 'Watchlist'}
+                </SecondaryButton>
+              </div>
+            )}
             {watchError && <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{watchError}</p>}
 
             <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1">

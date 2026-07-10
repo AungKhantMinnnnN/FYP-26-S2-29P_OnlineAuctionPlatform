@@ -1,38 +1,14 @@
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Gavel, Zap, ChevronRight, Shield, TrendingUp, Play, Star, Check, BarChart3, BadgeCheck, Headphones } from 'lucide-react'
+import { Zap, ChevronLeft, ChevronRight, Shield, TrendingUp, Play, Star, Check, BarChart3, BadgeCheck, Headphones, Mail } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
-import { getAuctions } from '../api/auctionsApi'
+import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
-import SearchBar from '../components/SearchBar'
+import { getPublicFeedback } from '../api/feedbackApi'
 import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
 import EmptyState from '../components/EmptyState'
-
-// TODO: Replace with actual data from backend
-const categories: string[] = []
-
-// TODO: Replace with actual testimonials from backend
-const testimonials = [
-  {
-    quote: 'The technical precision gives me the confidence to make split-second decisions on rare items I can\'t find anywhere else. Truly a game changer.',
-    name: 'Eleanor Vance',
-    role: 'Fine Art Collector',
-    initials: 'EV'
-  },
-  {
-    quote: 'The Verified Badge system ensures I\'m always dealing with serious buyers. Selling here is effortless and the UX is brilliant.',
-    name: 'Marcus Reed',
-    role: 'Verified Power Seller',
-    initials: 'MR'
-  },
-  {
-    quote: 'I\'ve tried other platforms, but the lack of limits on the Premium tier here is a game-changer for high-volume trading.',
-    name: 'Sarah Jenkins',
-    role: 'Luxury Watch Dealer',
-    initials: 'SJ'
-  }
-]
 
 export default function LandingPage() {
   const { isAuthenticated, user } = useAuth()
@@ -42,6 +18,18 @@ export default function LandingPage() {
     queryKey: ['auctions', 'landing'],
     queryFn: () => getAuctions({ size: 20 })
   })
+
+  const { data: metadata } = useQuery({
+    queryKey: ['form_metadata'],
+    queryFn: getFormMetadata
+  })
+  const categories = (metadata?.categories ?? []).filter(c => c.is_active)
+
+  const { data: feedbackData } = useQuery({
+    queryKey: ['feedback', 'public'],
+    queryFn: () => getPublicFeedback(8)
+  })
+  const feedbackItems = feedbackData ?? []
 
   const mapToCardType = (listing: AuctionListing) => ({
     id: listing.id,
@@ -60,13 +48,60 @@ export default function LandingPage() {
   })
 
   const auctionsList = auctionsData ? auctionsData.items.map(mapToCardType) : []
-  const featured = auctionsList.slice(0, 10)
-  const trending = auctionsList.slice(10, 20)
+  const trending = auctionsList.slice(0, 10)
+
+  const testimonialRef = useRef<HTMLDivElement>(null)
+  const [activeTestimonial, setActiveTestimonial] = useState(0)
+
+  const scrollToTestimonial = (index: number) => {
+    const el = testimonialRef.current
+    if (!el) return
+    const card = el.children[index] as HTMLElement
+    el.scrollTo({ left: card.offsetLeft - el.offsetLeft, behavior: 'smooth' })
+    setActiveTestimonial(index)
+  }
+
+  const handleTestimonialScroll = () => {
+    const el = testimonialRef.current
+    if (!el) return
+    const card = el.children[0] as HTMLElement
+    const cardWidth = card.clientWidth + 24 // gap-6 = 24px
+    setActiveTestimonial(Math.round(el.scrollLeft / cardWidth))
+  }
+
+  const NAV_SECTIONS = [
+    { label: 'Browse', href: '#categories' },
+    { label: 'Trending', href: '#trending' },
+    { label: 'Features', href: '#features' },
+    { label: 'Feedback', href: '#feedback' },
+    { label: 'Pricing', href: '#pricing' },
+    { label: 'Contact', href: '#contact' },
+  ]
 
   return (
+    <>
+      {/* Guest sticky section nav */}
+      {!isAuthenticated && (
+        <nav className="sticky top-16 z-40 w-full border-b border-slate-200/60 bg-white/90 backdrop-blur-md shadow-sm">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-8">
+            <div className="flex items-center justify-center gap-1 overflow-x-auto py-2" style={{ scrollbarWidth: 'none' }}>
+              {NAV_SECTIONS.map(({ label, href }) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-accent-50 hover:text-accent-700"
+                >
+                  {label}
+                </a>
+              ))}
+            </div>
+          </div>
+        </nav>
+      )}
+
     <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-8 py-12 space-y-20">
       {/* ── 1. Hero ── */}
-      <section className="flex flex-col items-center text-center space-y-6">
+      <section id="hero" className="flex flex-col items-center text-center space-y-6">
         <div className="space-y-4 max-w-3xl">
           <h1 className="text-2xl sm:text-[32px] font-bold text-slate-950 leading-[1.2] tracking-tight">
             The Premium Marketplace for Serious Collectors
@@ -96,32 +131,37 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 2. Featured Auctions ── */}
-      <section className="space-y-6">
-        <SectionHeader title="Featured Auctions" />
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                <div className="h-40 bg-slate-100 animate-pulse" />
-                <div className="p-4 space-y-3">
-                  <div className="h-3 w-16 rounded-full bg-slate-100 animate-pulse" />
-                  <div className="h-4 w-full rounded-full bg-slate-100 animate-pulse" />
-                  <div className="h-4 w-2/3 rounded-full bg-slate-100 animate-pulse" />
-                  <div className="h-8 w-full rounded-full bg-slate-100 animate-pulse mt-4" />
-                </div>
+      {/* ── 2. Browse by Category ── */}
+      <section id="categories" className="space-y-6">
+        <div className="flex items-end justify-between">
+          <SectionHeader title="Browse by Category" subtitle="Explore curated collections across every niche" />
+          <Link to="/browse" className="text-accent-600 text-xs font-bold flex items-center gap-1 hover:underline shrink-0">
+            View All <ChevronRight size={14} />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {!metadata ? (
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="rounded-2xl border border-slate-200/80 bg-white px-6 py-5 flex items-center justify-center">
+                <div className="h-3 w-28 rounded-full bg-slate-100 animate-pulse" />
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {featured.length > 0 ? featured.map(a => <AuctionCard key={a.id} auction={a} />) : <EmptyState message="No featured auctions yet." actionText="Browse all" actionTo="/browse" />}
-          </div>
-        )}
+            ))
+          ) : (
+            categories.map(c => (
+              <Link
+                key={c.id}
+                to={`/browse?category=${c.slug}`}
+                className="group flex items-center justify-center rounded-2xl border border-slate-200/80 bg-white px-6 py-5 shadow-sm text-center transition-all hover:-translate-y-1 hover:border-accent-200 hover:shadow-soft"
+              >
+                <span className="text-sm font-semibold text-slate-950 group-hover:text-accent-600 transition-colors">{c.name}</span>
+              </Link>
+            ))
+          )}
+        </div>
       </section>
 
       {/* ── 3. Trending Items ── */}
-      <section className="space-y-6">
+      <section id="trending" className="space-y-6">
         <SectionHeader title="Trending Items" subtitle="Most bid-on auctions in the last 24 hours" />
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -144,33 +184,8 @@ export default function LandingPage() {
         )}
       </section>
 
-      {/* ── 4. Browse by Category ── */}
-      {categories.length > 0 && (
-        <section className="space-y-6">
-          <div className="flex justify-between items-end">
-            <div>
-              <h2 className="text-xl font-bold text-slate-950">Popular Categories</h2>
-              <p className="text-sm text-slate-500">Explore curated collections from verified sellers</p>
-            </div>
-            <Link to="/browse" className="text-accent-600 text-xs font-bold flex items-center gap-1 hover:underline">
-              View All <ChevronRight size={14} />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {categories.map(c => (
-              <Link key={c} to={`/browse?cat=${c}`} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white aspect-[4/3] cursor-pointer">
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 text-white">
-                  <p className="text-xs font-bold">{c}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* ── 5. Platform Advantages ── */}
-      <section className="bg-slate-50 rounded-xl p-6 md:p-12 border border-slate-200">
+      <section id="features" className="bg-slate-50 rounded-xl p-6 md:p-12 border border-slate-200">
         <div className="text-center mb-12">
           <h2 className="text-xl font-bold text-slate-950">The AuctionHub Advantage</h2>
           <p className="text-sm text-slate-500 max-w-xl mx-auto mt-2">Built for high-stakes trading with enterprise-grade technology.</p>
@@ -200,33 +215,90 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 6. Testimonials ── */}
-      <section className="space-y-10">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-slate-950">Trusted by Professionals</h2>
-          <p className="text-sm text-slate-500">See why thousands of collectors choose AuctionHub</p>
+      {/* ── 6. Community Feedback ── */}
+      {feedbackItems.length > 0 && (
+      <section id="feedback" className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">What Our Community Says</h2>
+            <p className="text-sm text-slate-500">Real feedback from buyers and sellers on the platform</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => scrollToTestimonial(Math.max(0, activeTestimonial - 1))}
+              disabled={activeTestimonial === 0}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-accent-200 hover:text-accent-600 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => scrollToTestimonial(Math.min(feedbackItems.length - 1, activeTestimonial + 1))}
+              disabled={activeTestimonial === feedbackItems.length - 1}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-accent-200 hover:text-accent-600 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
-        <div className="flex gap-6 overflow-x-auto pb-4 snap-x" style={{ scrollbarWidth: 'none' }}>
-          {testimonials.map(t => (
-            <div key={t.name} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex-shrink-0">
-              <div className="flex gap-1 text-accent-600 mb-4">
-                {[...Array(5)].map((_, i) => <Star key={i} size={16} className="fill-accent-600" />)}
-              </div>
-              <p className="text-sm text-slate-950 italic mb-8 leading-relaxed">"{t.quote}"</p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-accent-600/15 flex items-center justify-center text-accent-600 font-bold text-sm">{t.initials}</div>
-                <div>
-                  <div className="text-xs font-bold text-slate-950">{t.name}</div>
-                  <div className="text-xs text-slate-500">{t.role}</div>
+
+        <div
+          ref={testimonialRef}
+          onScroll={handleTestimonialScroll}
+          className="flex gap-6 overflow-x-auto pb-2 snap-x snap-mandatory"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {feedbackItems.map(f => (
+            <div key={f.id} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-shrink-0 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={15} className={i < f.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
+                  ))}
                 </div>
+                {f.feedback_type && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 rounded-full px-2.5 py-1">
+                    {f.feedback_type.name}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-slate-950 italic leading-relaxed flex-1 mb-6">
+                "{f.comment || 'No comment provided.'}"
+              </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-accent-600/15 flex items-center justify-center text-accent-700 font-bold text-xs">
+                    {f.reviewer?.username?.[0]?.toUpperCase() ?? '?'}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-950">{f.reviewer?.username ?? 'Anonymous'}</span>
+                </div>
+                {f.listing && (
+                  <span className="text-xs text-slate-400 truncate max-w-[140px]" title={f.listing.title}>
+                    {f.listing.title}
+                  </span>
+                )}
               </div>
             </div>
           ))}
         </div>
+
+        <div className="flex items-center justify-center gap-2">
+          {feedbackItems.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => scrollToTestimonial(i)}
+              className={`rounded-full transition-all ${
+                i === activeTestimonial
+                  ? 'w-6 h-2 bg-accent-600'
+                  : 'w-2 h-2 bg-slate-300 hover:bg-slate-400'
+              }`}
+            />
+          ))}
+        </div>
       </section>
+      )}
 
       {/* ── 7. Subscription Plans ── */}
-      <section className="space-y-10 pt-4">
+      <section id="pricing" className="space-y-10 pt-4">
         <div className="text-center">
           <h2 className="text-xl font-bold text-slate-950">Transparent Pricing</h2>
           <p className="text-sm text-slate-500">Scale your collecting hobby or business with ease</p>
@@ -254,7 +326,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3 text-sm text-slate-950">
                   <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
-                  Up to 3 active bids per hour
+                  Up to 10 active bids per hour
                 </li>
                 <li className="flex items-start gap-3 text-sm text-slate-950">
                   <Check size={18} className="text-accent-600 mt-0.5 flex-shrink-0" />
@@ -315,7 +387,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 8. CTA Banner ── */}
+      {/* ── 8. Contact ── */}
+      <section id="contact" className="rounded-2xl border border-slate-200/80 bg-white shadow-sm p-8 md:p-12">
+        <div className="max-w-2xl mx-auto text-center space-y-4 mb-10">
+          <h2 className="text-xl font-bold text-slate-950">Get in Touch</h2>
+          <p className="text-sm text-slate-500">Have a question, dispute, or partnership enquiry? Our team is here to help.</p>
+        </div>
+        <div className="max-w-3xl mx-auto text-center">
+          <a href="mailto:support@auctionhub.com" className="group flex flex-col items-center gap-3 rounded-2xl border border-slate-100 p-6 hover:border-accent-200 hover:bg-accent-50/30 transition-all">
+            <div className="w-12 h-12 rounded-full bg-accent-50 flex items-center justify-center text-accent-600 group-hover:bg-accent-100 transition-colors">
+              <Mail size={22} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Email</p>
+              <p className="text-sm font-medium text-slate-950">support@auctionhub.com</p>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      {/* ── 9. CTA Banner ── */}
       {!isAuthenticated && (
         <section className="bg-accent-600 rounded-xl p-10 md:p-14 text-center">
           <h2 className="text-2xl font-bold text-white mb-3">Ready to start bidding?</h2>
@@ -331,5 +422,6 @@ export default function LandingPage() {
         </section>
       )}
     </div>
+    </>
   )
 }

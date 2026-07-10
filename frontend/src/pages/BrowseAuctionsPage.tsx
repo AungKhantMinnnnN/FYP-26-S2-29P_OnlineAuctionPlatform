@@ -19,30 +19,39 @@ export default function BrowseAuctionsPage() {
 
   const page = parseInt(searchParams.get('page') || '1', 10)
   const searchQuery = searchParams.get('q') || ''
-  const categoryId = searchParams.get('category') || undefined
+  const categoryParam = searchParams.get('category') || undefined
   const conditionParam = searchParams.get('condition') || undefined
   const minPriceParam = searchParams.get('min_price') || undefined
   const maxPriceParam = searchParams.get('max_price') || undefined
 
-  const { data: auctionsData, isLoading } = useQuery({
-    queryKey: ['auctions', 'browse', page, searchQuery, categoryId, conditionParam, minPriceParam, maxPriceParam],
-    queryFn: () => getAuctions({
-      page,
-      size: 20,
-      search: searchQuery || undefined,
-      category_id: categoryId,
-      condition: conditionParam,
-      min_price: minPriceParam ? Number(minPriceParam) : undefined,
-      max_price: maxPriceParam ? Number(maxPriceParam) : undefined
-    })
-  })
-
-  // Real category names (listings only carry category_id).
+  // Metadata must load first so we can resolve category slugs → UUIDs.
   const { data: metadata } = useQuery({
     queryKey: ['form_metadata'],
     queryFn: getFormMetadata
   })
   const categoryMap = new Map((metadata?.categories ?? []).map(c => [c.id, c.name]))
+  const slugMap = new Map((metadata?.categories ?? []).map(c => [c.slug, c.id]))
+
+  // categoryParam may be a slug (from landing page) or a UUID (from FilterPanel).
+  // slugMap.get() returns undefined for UUIDs, so we fall through to the raw param.
+  const resolvedCategoryId = categoryParam
+    ? (slugMap.get(categoryParam) ?? categoryParam)
+    : undefined
+
+  const { data: auctionsData, isLoading } = useQuery({
+    queryKey: ['auctions', 'browse', page, searchQuery, resolvedCategoryId, conditionParam, minPriceParam, maxPriceParam],
+    queryFn: () => getAuctions({
+      page,
+      size: 20,
+      search: searchQuery || undefined,
+      category_id: resolvedCategoryId,
+      condition: conditionParam,
+      min_price: minPriceParam ? Number(minPriceParam) : undefined,
+      max_price: maxPriceParam ? Number(maxPriceParam) : undefined
+    }),
+    // Wait for metadata when a category param is present, to avoid fetching unfiltered results first.
+    enabled: !categoryParam || !!metadata
+  })
 
   // Trending items — personalized when logged in, global otherwise.
   const {
@@ -101,7 +110,7 @@ export default function BrowseAuctionsPage() {
 
   const handleCategoryChange = (id: string | null) => {
     const newParams = new URLSearchParams(searchParams);
-    if (id) newParams.set('category', id);
+    if (id) newParams.set('category', id); // FilterPanel always passes UUIDs
     else newParams.delete('category');
     newParams.set('page', '1');
     setSearchParams(newParams);
@@ -130,40 +139,46 @@ export default function BrowseAuctionsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">Browse Auctions</h1>
-          <p className="mt-1 text-sm text-slate-500">Find active auctions by category, condition, price, or time remaining.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {user ? 'Find active auctions by category, condition, price, or time remaining.' : 'Explore active auctions. Sign in to filter, search, and save items.'}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <SearchBar className="w-full md:w-64" />
-          <button onClick={() => setMobileFilters(!mobileFilters)} className="md:hidden rounded-full border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm hover:bg-slate-50">
-            <SlidersHorizontal size={18} />
-          </button>
-        </div>
+        {user && (
+          <div className="flex items-center gap-3">
+            <SearchBar className="w-full md:w-64" />
+            <button onClick={() => setMobileFilters(!mobileFilters)} className="md:hidden rounded-full border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm hover:bg-slate-50">
+              <SlidersHorizontal size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-6">
-        <aside className={`fixed inset-y-0 left-0 z-40 w-72 pt-16 bg-white/95 border-r border-slate-200/80 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-300 ease-in-out md:sticky md:top-20 md:z-auto md:h-[calc(100vh-6rem)] md:transform-none md:border-0 md:w-64 md:shrink-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none ${mobileFilters ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-          <div className="md:hidden flex items-center justify-between mb-4">
-            <span className="font-semibold text-slate-950">Filters</span>
-            <button onClick={() => setMobileFilters(false)} className="text-sm font-semibold text-accent-600">Close</button>
-          </div>
-          <div className="md:h-full md:overflow-y-auto md:pr-2">
-            <FilterPanel
-              categories={metadata?.categories ?? []}
-              selectedCategory={categoryId ?? null}
-              onCategoryChange={handleCategoryChange}
-              conditions={metadata?.conditions ?? []}
-              selectedCondition={conditionParam ?? null}
-              onConditionChange={handleConditionChange}
-              minPrice={minPriceParam ?? ''}
-              maxPrice={maxPriceParam ?? ''}
-              onPriceChange={handlePriceChange}
-            />
-          </div>
-        </aside>
+        {user && (
+          <aside className={`fixed inset-y-0 left-0 z-40 w-72 pt-16 bg-white/95 border-r border-slate-200/80 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur transform transition-transform duration-300 ease-in-out md:sticky md:top-20 md:z-auto md:h-[calc(100vh-6rem)] md:transform-none md:border-0 md:w-64 md:shrink-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none ${mobileFilters ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+            <div className="md:hidden flex items-center justify-between mb-4">
+              <span className="font-semibold text-slate-950">Filters</span>
+              <button onClick={() => setMobileFilters(false)} className="text-sm font-semibold text-accent-600">Close</button>
+            </div>
+            <div className="md:h-full md:overflow-y-auto md:pr-2">
+              <FilterPanel
+                categories={metadata?.categories ?? []}
+                selectedCategory={resolvedCategoryId ?? null}
+                onCategoryChange={handleCategoryChange}
+                conditions={metadata?.conditions ?? []}
+                selectedCondition={conditionParam ?? null}
+                onConditionChange={handleConditionChange}
+                minPrice={minPriceParam ?? ''}
+                maxPrice={maxPriceParam ?? ''}
+                onPriceChange={handlePriceChange}
+              />
+            </div>
+          </aside>
+        )}
         {mobileFilters && <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm md:hidden" onClick={() => setMobileFilters(false)} />}
 
         <div className="flex-1 min-w-0 flex flex-col">
-          {!searchQuery && (
+          {user && !searchQuery && (
             <section className="mb-8">
               <div className="flex items-center gap-2 mb-4">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
@@ -197,7 +212,7 @@ export default function BrowseAuctionsPage() {
             </div>
           ) : auctionsList.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-              {auctionsList.map(a => <AuctionCard key={a.id} auction={a} />)}
+              {auctionsList.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={!!user} />)}
             </div>
           ) : (
             <div className="mb-8">

@@ -331,4 +331,33 @@ class AuctionDuration(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     sort_order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+class FeedbackType(Base):
+    __tablename__ = "feedback_types"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    name = Column(String(50), nullable=False, unique=True)
+    reviewer_role = Column(String(10), nullable=False)  # 'buyer' or 'seller'
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    feedbacks = relationship("ItemFeedback", back_populates="feedback_type")
+
+class ItemFeedback(Base):
+    __tablename__ = "item_feedback"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True)
+    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    reviewee_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    feedback_type_id = Column(UUID(as_uuid=True), ForeignKey("feedback_types.id", ondelete="RESTRICT"), nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=True)
+    is_public = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    listing = relationship("Listing", foreign_keys=[listing_id], lazy="joined")
+    reviewer = relationship("User", foreign_keys=[reviewer_id], lazy="joined")
+    reviewee = relationship("User", foreign_keys=[reviewee_id], lazy="joined")
+    feedback_type = relationship("FeedbackType", back_populates="feedbacks", lazy="joined")
 #endregion

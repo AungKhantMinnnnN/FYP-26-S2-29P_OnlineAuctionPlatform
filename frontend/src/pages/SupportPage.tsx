@@ -11,14 +11,23 @@ import {
   Sparkles,
   Star,
   Wrench,
+  ThumbsUp,
 } from 'lucide-react'
 import {
   createSupportTicket,
   createTestimonial,
   getIssueTypes,
 } from '../api/supportApi'
+import {
+  getFeedbackTypes,
+  checkFeedbackEligibility,
+  submitFeedback,
+} from '../api/feedbackApi'
+import type { FeedbackType } from '../api/feedbackApi'
+import { useAuth } from '../context/AuthContext'
+import { getMyBids } from '../api/usersApi'
 
-type TabType = 'support' | 'story'
+type TabType = 'support' | 'story' | 'feedback'
 
 const sortIssueTypes = (issueTypes: { id: string; name: string }[]) => {
   return [...issueTypes].sort((a, b) => {
@@ -29,10 +38,9 @@ const sortIssueTypes = (issueTypes: { id: string; name: string }[]) => {
 }
 
 export default function SupportPage() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('support')
-  const [issueTypes, setIssueTypes] = useState<
-    { id: string; name: string }[]
-  >([])
+  const [issueTypes, setIssueTypes] = useState<{ id: string; name: string }[]>([])
   const [selectedIssueTypeId, setSelectedIssueTypeId] = useState('')
   const [category, setCategory] = useState('')
   const [subject, setSubject] = useState('')
@@ -44,18 +52,29 @@ export default function SupportPage() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
+  // Feedback tab state
+  const [feedbackTypes, setFeedbackTypes] = useState<FeedbackType[]>([])
+  const [biddedListings, setBiddedListings] = useState<{ id: string; title: string; seller_id: string }[]>([])
+  const [fbListingId, setFbListingId] = useState('')
+  const [fbRevieweeId, setFbRevieweeId] = useState('')
+  const [fbTypeId, setFbTypeId] = useState('')
+  const [fbRating, setFbRating] = useState(5)
+  const [fbComment, setFbComment] = useState('')
+  const [eligibleTypeIds, setEligibleTypeIds] = useState<string[]>([])
+  const [submittedTypeIds, setSubmittedTypeIds] = useState<string[]>([])
+  const [fbLoadingEligibility, setFbLoadingEligibility] = useState(false)
+  const [fbSuccess, setFbSuccess] = useState('')
+
   useEffect(() => {
     const loadIssueTypes = async () => {
       try {
         const data = await getIssueTypes()
-          const sortedIssueTypes = sortIssueTypes(data)
-
-          setIssueTypes(sortedIssueTypes)
-
-          if (sortedIssueTypes.length > 0) {
-            setSelectedIssueTypeId(sortedIssueTypes[0].id)
-            setCategory(sortedIssueTypes[0].name)
-}
+        const sortedIssueTypes = sortIssueTypes(data)
+        setIssueTypes(sortedIssueTypes)
+        if (sortedIssueTypes.length > 0) {
+          setSelectedIssueTypeId(sortedIssueTypes[0].id)
+          setCategory(sortedIssueTypes[0].name)
+        }
       } catch (err) {
         console.error('Failed to load issue types:', err)
         setError('Unable to load support issue types. Please refresh and try again.')
@@ -63,9 +82,51 @@ export default function SupportPage() {
         setIsLoadingIssueTypes(false)
       }
     }
-
     loadIssueTypes()
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    const loadFeedbackData = async () => {
+      try {
+        const [types, bids] = await Promise.all([
+          getFeedbackTypes(),
+          getMyBids({ size: 100 }),
+        ])
+        setFeedbackTypes(types)
+        const seen = new Set<string>()
+        const listings: { id: string; title: string; seller_id: string }[] = []
+        for (const b of bids.items) {
+          if (!seen.has(b.listing_id)) {
+            seen.add(b.listing_id)
+            listings.push({ id: b.listing_id, title: b.listing_title, seller_id: '' })
+          }
+        }
+        setBiddedListings(listings)
+      } catch (err) {
+        console.error('Failed to load feedback data:', err)
+      }
+    }
+    loadFeedbackData()
+  }, [user])
+
+  useEffect(() => {
+    if (!fbListingId || !user) return
+    setFbLoadingEligibility(true)
+    setEligibleTypeIds([])
+    setSubmittedTypeIds([])
+    setFbTypeId('')
+    checkFeedbackEligibility(fbListingId)
+      .then(r => {
+        setEligibleTypeIds(r.eligible_type_ids)
+        setSubmittedTypeIds(r.already_submitted_type_ids)
+        const firstEligible = r.eligible_type_ids.find(id => !r.already_submitted_type_ids.includes(id))
+        setFbTypeId(firstEligible ?? '')
+        if (r.seller_id) setFbRevieweeId(r.seller_id)
+      })
+      .catch(console.error)
+      .finally(() => setFbLoadingEligibility(false))
+  }, [fbListingId, user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,13 +138,9 @@ export default function SupportPage() {
     }
 
     setIsSubmitting(true)
-
     try {
       if (activeTab === 'support') {
-        const selectedIssueType = issueTypes.find(
-          (type) => type.id === selectedIssueTypeId
-        )
-
+        const selectedIssueType = issueTypes.find(t => t.id === selectedIssueTypeId)
         const result = await createSupportTicket({
           listing_id: null,
           issue_type_id: selectedIssueTypeId,
@@ -91,21 +148,45 @@ export default function SupportPage() {
           category: selectedIssueType?.name || category,
           description,
         })
-
         navigate('/support/success', { state: result })
-      } else {
-        const result = await createTestimonial({
-          content: testimonial,
-          rating,
-        })
-
+      } else if (activeTab === 'story') {
+        const result = await createTestimonial({ content: testimonial, rating })
         navigate('/testimonial/success', { state: result })
       }
     } catch (err) {
       console.error(err)
-      setError(
-        'Unable to submit your request. Please check your connection or try again.'
-      )
+      setError('Unable to submit your request. Please check your connection or try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setFbSuccess('')
+    if (!fbListingId || !fbTypeId || !fbRevieweeId) {
+      setError('Please select a listing and feedback type.')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      await submitFeedback({
+        listing_id: fbListingId,
+        reviewee_id: fbRevieweeId,
+        feedback_type_id: fbTypeId,
+        rating: fbRating,
+        comment: fbComment || undefined,
+      })
+      setFbSuccess('Your feedback has been submitted successfully!')
+      setFbComment('')
+      setFbRating(5)
+      // Refresh eligibility to show this type as already submitted
+      const r = await checkFeedbackEligibility(fbListingId)
+      setEligibleTypeIds(r.eligible_type_ids)
+      setSubmittedTypeIds(r.already_submitted_type_ids)
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Unable to submit feedback. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -205,173 +286,312 @@ export default function SupportPage() {
           </aside>
 
           <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
-            <div className="mb-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1.5">
+            <div className="mb-6 grid grid-cols-3 rounded-2xl bg-slate-100 p-1.5">
               <button
                 type="button"
-                onClick={() => setActiveTab('support')}
-                className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                  activeTab === 'support'
-                    ? 'bg-white text-accent-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
+                onClick={() => { setActiveTab('support'); setError('') }}
+                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                  activeTab === 'support' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   <LifeBuoy size={16} />
-                  Submit Support Case
+                  Support Case
                 </span>
               </button>
-
               <button
                 type="button"
-                onClick={() => setActiveTab('story')}
-                className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                  activeTab === 'story'
-                    ? 'bg-white text-accent-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
+                onClick={() => { setActiveTab('story'); setError('') }}
+                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                  activeTab === 'story' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   <MessageSquareHeart size={16} />
-                  Share Your Story
+                  Share Story
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('feedback'); setError(''); setFbSuccess('') }}
+                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                  activeTab === 'feedback' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <ThumbsUp size={16} />
+                  Leave Feedback
                 </span>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {activeTab === 'support' ? (
-                <>
+            {activeTab === 'feedback' ? (
+              /* ── Feedback tab ────────────────────────────────────────────── */
+              !user ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <ThumbsUp size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">Sign in to leave feedback for buyers or sellers.</p>
+                </div>
+              ) : biddedListings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <ThumbsUp size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">You haven't participated in any auctions yet.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleFeedbackSubmit} className="space-y-6">
+                  {/* Listing selector */}
                   <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">
-                      Issue Type
-                    </label>
+                    <label className="mb-2 block text-sm font-bold text-slate-700">Select Auction</label>
                     <select
-                      value={selectedIssueTypeId}
-                      onChange={(e) => {
-                        const selectedId = e.target.value
-                        const selectedType = issueTypes.find(
-                          (type) => type.id === selectedId
-                        )
-
-                        setSelectedIssueTypeId(selectedId)
-                        setCategory(selectedType?.name || '')
-                      }}
+                      value={fbListingId}
+                      onChange={e => { setFbListingId(e.target.value); setFbSuccess('') }}
                       required
-                      disabled={isLoadingIssueTypes}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
                     >
-                      {isLoadingIssueTypes ? (
-                        <option value="">Loading issue types...</option>
-                      ) : issueTypes.length === 0 ? (
-                        <option value="">No issue types available</option>
-                      ) : (
-                        issueTypes.map((type) => (
-                          <option key={type.id} value={type.id}>
-                            {type.name}
-                          </option>
-                        ))
-                      )}
+                      <option value="">-- Choose an auction --</option>
+                      {biddedListings.map(l => (
+                        <option key={l.id} value={l.id}>{l.title}</option>
+                      ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">
-                      Subject
-                    </label>
-                    <input
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      required
-                      placeholder="Briefly describe your issue"
-                      className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                    />
-                  </div>
+                  {fbListingId && (
+                    fbLoadingEligibility ? (
+                      <p className="text-sm text-slate-400">Checking eligibility…</p>
+                    ) : eligibleTypeIds.length === 0 ? (
+                      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                        You are not eligible to leave feedback for this auction.
+                      </div>
+                    ) : (
+                      <>
+                        {/* Feedback type selector */}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold text-slate-700">Feedback Type</label>
+                          <div className="space-y-2">
+                            {feedbackTypes
+                              .filter(ft => eligibleTypeIds.includes(ft.id))
+                              .map(ft => {
+                                const alreadyDone = submittedTypeIds.includes(ft.id)
+                                return (
+                                  <label
+                                    key={ft.id}
+                                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+                                      alreadyDone
+                                        ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-50'
+                                        : fbTypeId === ft.id
+                                          ? 'border-accent-500 bg-accent-50'
+                                          : 'border-slate-200 hover:border-accent-300'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="fbType"
+                                      value={ft.id}
+                                      checked={fbTypeId === ft.id}
+                                      disabled={alreadyDone}
+                                      onChange={() => setFbTypeId(ft.id)}
+                                      className="accent-accent-600"
+                                    />
+                                    <span className="text-sm font-medium text-slate-800">{ft.name}</span>
+                                    {alreadyDone && (
+                                      <span className="ml-auto text-xs font-semibold text-emerald-600">Submitted</span>
+                                    )}
+                                  </label>
+                                )
+                              })}
+                          </div>
+                        </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">
-                      Description
-                    </label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      required
-                      rows={6}
-                      placeholder="Tell us more about the problem..."
-                      className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">
-                      Rating
-                    </label>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((value) => (
+                        {/* Star rating */}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold text-slate-700">Rating</label>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map(v => (
+                              <button
+                                key={v}
+                                type="button"
+                                onClick={() => setFbRating(v)}
+                                className={`rounded-xl p-1.5 ${v <= fbRating ? 'text-yellow-500' : 'text-slate-300'}`}
+                              >
+                                <Star size={24} fill="currentColor" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Comment */}
+                        <div>
+                          <label className="mb-2 block text-sm font-bold text-slate-700">
+                            Comment <span className="font-normal text-slate-400">(optional)</span>
+                          </label>
+                          <textarea
+                            value={fbComment}
+                            onChange={e => setFbComment(e.target.value)}
+                            rows={4}
+                            placeholder="Share details about your experience…"
+                            className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                          />
+                        </div>
+
+                        {fbSuccess && (
+                          <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                            {fbSuccess}
+                          </div>
+                        )}
+                        {error && (
+                          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                            {error}
+                          </div>
+                        )}
+
                         <button
-                          key={value}
-                          type="button"
-                          onClick={() => setRating(value)}
-                          className={`rounded-xl p-2 ${
-                            value <= rating
-                              ? 'text-yellow-500'
-                              : 'text-slate-300'
-                          }`}
+                          type="submit"
+                          disabled={isSubmitting || !fbTypeId}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          <Star size={24} fill="currentColor" />
+                          <ThumbsUp size={17} />
+                          {isSubmitting ? 'Submitting…' : 'Submit Feedback'}
                         </button>
-                      ))}
+                      </>
+                    )
+                  )}
+                </form>
+              )
+            ) : (
+              /* ── Support / Story tabs ────────────────────────────────────── */
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {activeTab === 'support' ? (
+                  <>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        Issue Type
+                      </label>
+                      <select
+                        value={selectedIssueTypeId}
+                        onChange={(e) => {
+                          const selectedId = e.target.value
+                          const selectedType = issueTypes.find(
+                            (type) => type.id === selectedId
+                          )
+                          setSelectedIssueTypeId(selectedId)
+                          setCategory(selectedType?.name || '')
+                        }}
+                        required
+                        disabled={isLoadingIssueTypes}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        {isLoadingIssueTypes ? (
+                          <option value="">Loading issue types...</option>
+                        ) : issueTypes.length === 0 ? (
+                          <option value="">No issue types available</option>
+                        ) : (
+                          issueTypes.map((type) => (
+                            <option key={type.id} value={type.id}>
+                              {type.name}
+                            </option>
+                          ))
+                        )}
+                      </select>
                     </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        Subject
+                      </label>
+                      <input
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        required
+                        placeholder="Briefly describe your issue"
+                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        Description
+                      </label>
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        required
+                        rows={6}
+                        placeholder="Tell us more about the problem..."
+                        className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        Rating
+                      </label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setRating(value)}
+                            className={`rounded-xl p-2 ${
+                              value <= rating ? 'text-yellow-500' : 'text-slate-300'
+                            }`}
+                          >
+                            <Star size={24} fill="currentColor" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        Your Story
+                      </label>
+                      <textarea
+                        value={testimonial}
+                        onChange={(e) => setTestimonial(e.target.value)}
+                        required
+                        rows={7}
+                        placeholder="Share your experience using AuctionHub..."
+                        className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {error && (
+                  <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                    {error}
                   </div>
+                )}
 
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">
-                      Your Story
-                    </label>
-                    <textarea
-                      value={testimonial}
-                      onChange={(e) => setTestimonial(e.target.value)}
-                      required
-                      rows={7}
-                      placeholder="Share your experience using AuctionHub..."
-                      className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                    />
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 text-accent-600" size={18} />
+                    <p className="text-sm leading-6 text-slate-500">
+                      Your submission will be reviewed by our team.
+                    </p>
                   </div>
-                </>
-              )}
-
-              {error && (
-                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-                  {error}
                 </div>
-              )}
 
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 text-accent-600" size={18} />
-                  <p className="text-sm leading-6 text-slate-500">
-                    Your submission will be reviewed by our team.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={
-                  isSubmitting ||
-                  (activeTab === 'support' &&
-                    (isLoadingIssueTypes || !selectedIssueTypeId))
-                }
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Send size={17} />
-                {isSubmitting
-                  ? 'Submitting...'
-                  : activeTab === 'support'
-                    ? 'Submit Support Case'
-                    : 'Submit Testimonial'}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmitting ||
+                    (activeTab === 'support' &&
+                      (isLoadingIssueTypes || !selectedIssueTypeId))
+                  }
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Send size={17} />
+                  {isSubmitting
+                    ? 'Submitting...'
+                    : activeTab === 'support'
+                      ? 'Submit Support Case'
+                      : 'Submit Testimonial'}
+                </button>
+              </form>
+            )}
           </section>
         </div>
       </div>

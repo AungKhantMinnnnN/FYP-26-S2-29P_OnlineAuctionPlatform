@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { Gavel, LogOut, Menu, X, ChevronDown, ShieldCheck, Bell, Search } from 'lucide-react'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { LogOut, Menu, X, ChevronDown, ShieldCheck } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import MarketplaceNav from '../components/MarketplaceNav'
-import AccountMenu from '../components/AccountMenu'
+import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
 
 export default function DashboardLayout() {
@@ -15,39 +14,8 @@ export default function DashboardLayout() {
   if (role !== 'admin') {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-950">
-        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex h-16 items-center justify-between gap-4">
-              <Link to="/" className="group flex items-center gap-2 text-accent-700">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-accent-600 text-white shadow-soft transition-transform group-hover:-rotate-6 group-hover:scale-105">
-                  <Gavel size={20} />
-                </span>
-                <span className="hidden font-bold tracking-tight text-slate-950 sm:inline">AuctionHub</span>
-              </Link>
-
-              <div className="hidden md:flex min-w-0 flex-1 items-center justify-center">
-                <MarketplaceNav compact />
-              </div>
-
-              {/* <div className="hidden lg:flex w-72 items-center rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500">
-                <Search size={16} className="mr-2" />
-                <input
-                  type="text"
-                  placeholder="Search rarities..."
-                  className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                />
-              </div>
-
-            <button className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-accent-700">
-              <Bell size={17} />
-            </button> */}
-
-              <AccountMenu />
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
+        <Navbar />
+        <main className="max-w-[1280px] mx-auto w-full px-4 py-6 sm:px-8">
           <Outlet />
         </main>
       </div>

@@ -1,7 +1,10 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Image, Heart, Eye, Gavel } from 'lucide-react'
 import CountdownBadge from './CountdownBadge'
 import StatusBadge from './StatusBadge'
+import { useAuth } from '../context/AuthContext'
+import { addToWatchlist, removeFromWatchlist } from '../api/usersApi'
 
 interface AuctionType {
   id: number | string
@@ -22,9 +25,35 @@ interface AuctionType {
 interface AuctionCardProps {
   auction: AuctionType
   showWatchlist?: boolean
+  isWatched?: boolean
 }
 
-export default function AuctionCard({ auction, showWatchlist = true }: AuctionCardProps) {
+export default function AuctionCard({ auction, showWatchlist = true, isWatched = false }: AuctionCardProps) {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [watched, setWatched] = useState(isWatched)
+  const [watchLoading, setWatchLoading] = useState(false)
+
+  const handleWatchToggle = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!user) { navigate('/login'); return }
+    if (watchLoading) return
+    setWatchLoading(true)
+    try {
+      if (watched) {
+        await removeFromWatchlist(String(auction.id))
+        setWatched(false)
+      } else {
+        await addToWatchlist(String(auction.id))
+        setWatched(true)
+      }
+    } catch {
+      // silent — state unchanged
+    } finally {
+      setWatchLoading(false)
+    }
+  }
+
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent-200 hover:shadow-soft">
       <div className="relative h-40 bg-gradient-to-br from-slate-100 via-slate-50 to-accent-50 flex items-center justify-center">
@@ -37,8 +66,17 @@ export default function AuctionCard({ auction, showWatchlist = true }: AuctionCa
           <StatusBadge status={auction.status} />
         </div>
         {showWatchlist && (
-          <button className="absolute top-2 right-2 p-2 rounded-full bg-white/90 border border-slate-200 text-slate-500 shadow-sm backdrop-blur transition-colors hover:text-red-500 hover:border-red-200">
-            <Heart size={16} />
+          <button
+            onClick={handleWatchToggle}
+            disabled={watchLoading}
+            className={`absolute top-2 right-2 p-2 rounded-full bg-white/90 border shadow-sm backdrop-blur transition-colors ${
+              watched
+                ? 'border-red-200 text-red-500'
+                : 'border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200'
+            }`}
+            title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+          >
+            <Heart size={16} className={watched ? 'fill-red-500' : ''} />
           </button>
         )}
       </div>
@@ -61,7 +99,7 @@ export default function AuctionCard({ auction, showWatchlist = true }: AuctionCa
           </div>
           <Link to={`/auction/${auction.id}`} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-accent-700">
             <Gavel size={15} />
-            View & Bid
+            {user ? 'View & Bid' : 'View Item'}
           </Link>
         </div>
       </div>

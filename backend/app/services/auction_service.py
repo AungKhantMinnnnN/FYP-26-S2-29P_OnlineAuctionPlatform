@@ -6,8 +6,9 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
-from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType, AuctionDuration
+from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType, AuctionDuration, User, SubscriptionTier
 from app.schemas.auction import ListingCreate
+from datetime import timedelta
 from app.core.storage import storage_service
 from fastapi import UploadFile
 import uuid
@@ -95,13 +96,29 @@ class AuctionService:
         result = await db.execute(query)
         return result.scalars().all()
 
+    FREE_LISTING_HOURLY_LIMIT = 5
+
     @staticmethod
     async def create_listing(db: AsyncSession, user_id: UUID, listing_in: ListingCreate) -> Listing:
+        user = await db.scalar(select(User).where(User.id == user_id))
+        if user and user.subscription_tier == SubscriptionTier.free:
+            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+            recent = await db.scalar(
+                select(func.count()).select_from(Listing)
+                .where(Listing.seller_id == user_id, Listing.created_at >= one_hour_ago)
+            )
+            if recent >= AuctionService.FREE_LISTING_HOURLY_LIMIT:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Free tier limit reached: you can create at most {AuctionService.FREE_LISTING_HOURLY_LIMIT} listings per hour. Upgrade to Premium for unlimited listings."
+                )
+
         listing = Listing(
             seller_id=user_id,
             title=listing_in.title,
             description=listing_in.description,
             condition=listing_in.condition,
+            brand=listing_in.brand,
             bidding_type=listing_in.bidding_type,
             starting_price=listing_in.starting_price,
             current_price=listing_in.starting_price,

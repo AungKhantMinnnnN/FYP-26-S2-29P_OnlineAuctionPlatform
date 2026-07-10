@@ -1,13 +1,14 @@
 import json
 import logging
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from fastapi import WebSocket
+from sqlalchemy import select, func
 
-from app.models.auction import Listing, User, Bid, WalletTransaction, ListingStatus, BidStatus, TransactionType, BiddingType
+from app.models.auction import Listing, User, Bid, WalletTransaction, ListingStatus, BidStatus, TransactionType, BiddingType, SubscriptionTier
 from app.core.redis import redis_client
+
+FREE_BID_HOURLY_LIMIT = 10
 
 logger = logging.getLogger("BiddingEngine")
 
@@ -102,6 +103,17 @@ class BiddingService:
         if current_user.balance < amount:
             logger.error("Insufficient wallet balance")
             return {"success": False, "error": "Insufficient wallet balance"}
+
+        # Free tier: max 10 bids per hour
+        if current_user.subscription_tier == SubscriptionTier.free:
+            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+            recent_bids = await db.scalar(
+                select(func.count()).select_from(Bid)
+                .where(Bid.bidder_id == user_uuid, Bid.placed_at >= one_hour_ago)
+            )
+            if recent_bids >= FREE_BID_HOURLY_LIMIT:
+                logger.warning(f"User [{user_id}] hit free tier bid limit")
+                return {"success": False, "error": f"Free tier limit: you can place at most {FREE_BID_HOURLY_LIMIT} bids per hour. Upgrade to Premium for unlimited bidding."}
 
         logger.info(f"Previous highest bid: {previous_highest_bid}")
 

@@ -9,6 +9,12 @@ import SecondaryButton from '../components/SecondaryButton'
 import { createListing, uploadAuctionImages, getFormMetadata } from '../api/auctionsApi'
 import type { Category, DurationOption, EnumType } from '../api/auctionsApi'
 
+const BIDDING_TYPE_LABELS: Record<string, { label: string; hint: string }> = {
+  price_up:   { label: 'Standard',   hint: 'Bids go up from starting price' },
+  low_start:  { label: 'Low Start',  hint: 'Starts low, price rises with bids' },
+  public:     { label: 'Open Bids',  hint: 'All bid amounts are visible to everyone' },
+}
+
 export default function ListingFormPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -16,13 +22,17 @@ export default function ListingFormPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [conditions, setConditions] = useState<EnumType[]>([])
   const [durations, setDurations] = useState<DurationOption[]>([])
+  const [biddingTypes, setBiddingTypes] = useState<EnumType[]>([])
   const [form, setForm] = useState({
     title: '',
     category_id: '',
     condition: '',
+    brand: '',
     description: '',
     starting_price: '',
     reserve_price: '',
+    min_increment: '1.00',
+    bidding_type: 'price_up',
     duration: '7',
   })
   const [images, setImages] = useState<File[]>([])
@@ -36,6 +46,7 @@ export default function ListingFormPage() {
         setCategories(data.categories.filter(c => c.is_active))
         setConditions(data.conditions)
         setDurations(data.durations)
+        setBiddingTypes(data.biddingTypes)
         if (data.durations.length > 0)
           setForm(f => ({ ...f, duration: String(data.durations[1]?.value ?? data.durations[0].value) }))
       })
@@ -67,11 +78,10 @@ export default function ListingFormPage() {
     if (!form.condition) e.condition = 'Condition is required'
     if (!form.starting_price || parseFloat(form.starting_price) <= 0)
       e.starting_price = 'Starting price must be greater than 0'
-    if (
-      form.reserve_price &&
-      parseFloat(form.reserve_price) < parseFloat(form.starting_price)
-    )
+    if (form.reserve_price && parseFloat(form.reserve_price) < parseFloat(form.starting_price))
       e.reserve_price = 'Reserve price must be at least the starting price'
+    if (!form.min_increment || parseFloat(form.min_increment) <= 0)
+      e.min_increment = 'Minimum increment must be greater than 0'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -88,10 +98,11 @@ export default function ListingFormPage() {
         title: form.title.trim(),
         description: form.description.trim() || null,
         condition: form.condition,
-        bidding_type: 'price_up',
+        brand: form.brand.trim() || null,
+        bidding_type: form.bidding_type,
         starting_price: parseFloat(form.starting_price),
         reserve_price: form.reserve_price ? parseFloat(form.reserve_price) : null,
-        min_increment: 1.0,
+        min_increment: parseFloat(form.min_increment),
         category_id: form.category_id || null,
         start_time: now.toISOString(),
         end_time: endTime.toISOString(),
@@ -158,6 +169,13 @@ export default function ListingFormPage() {
             )}
           </div>
         </div>
+
+        <FormInput
+          label="Brand"
+          placeholder="e.g. Apple, Rolex, Sony — leave blank if none"
+          value={form.brand}
+          onChange={set('brand')}
+        />
 
         <TextAreaField
           label="Description"
@@ -235,7 +253,38 @@ export default function ListingFormPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Bidding type */}
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Auction Type</label>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {(biddingTypes.length > 0 ? biddingTypes : [
+              { id: 'price_up', name: 'price_up' },
+              { id: 'low_start', name: 'low_start' },
+              { id: 'public', name: 'public' },
+            ]).map(({ id }) => {
+              const meta = BIDDING_TYPE_LABELS[id] ?? { label: id, hint: '' }
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, bidding_type: id }))}
+                  className={`rounded-xl border px-4 py-3 text-left transition ${
+                    form.bidding_type === id
+                      ? 'border-accent-500 bg-accent-50 ring-2 ring-accent-500/20'
+                      : 'border-slate-200 hover:border-accent-300'
+                  }`}
+                >
+                  <p className={`text-sm font-semibold ${form.bidding_type === id ? 'text-accent-700' : 'text-slate-700'}`}>
+                    {meta.label}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">{meta.hint}</p>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FormInput
             label="Starting Price ($)"
             type="number"
@@ -249,12 +298,22 @@ export default function ListingFormPage() {
           <FormInput
             label="Reserve Price ($)"
             type="number"
-            placeholder="Optional — leave blank for no reserve"
+            placeholder="No reserve"
             min="0"
             step="0.01"
             value={form.reserve_price}
             onChange={set('reserve_price')}
             error={errors.reserve_price}
+          />
+          <FormInput
+            label="Min. Bid Increment ($)"
+            type="number"
+            placeholder="1.00"
+            min="0.01"
+            step="0.01"
+            value={form.min_increment}
+            onChange={set('min_increment')}
+            error={errors.min_increment}
           />
         </div>
 
