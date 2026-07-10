@@ -255,6 +255,34 @@ CREATE TABLE auction_durations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Admin-managed feedback type catalogue
+CREATE TABLE feedback_types (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name          VARCHAR(50) NOT NULL UNIQUE,
+    reviewer_role VARCHAR(10) NOT NULL CHECK (reviewer_role IN ('buyer', 'seller')),
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO feedback_types (name, reviewer_role) VALUES
+    ('Buyer to Seller',  'buyer'),
+    ('Buyer to Listing', 'buyer'),
+    ('Seller to Buyer',  'seller');
+
+-- Item-level feedback: any bidder can review; eligibility enforced at app layer
+CREATE TABLE item_feedback (
+    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    listing_id       UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    reviewer_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reviewee_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    feedback_type_id UUID NOT NULL REFERENCES feedback_types(id) ON DELETE RESTRICT,
+    rating           SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment          TEXT,
+    is_public        BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (listing_id, reviewer_id, feedback_type_id)
+);
+
 -- Indexes
 CREATE INDEX idx_listings_seller ON listings(seller_id);
 CREATE INDEX idx_listings_category ON listings(category_id);
@@ -276,3 +304,6 @@ CREATE INDEX idx_collector_boards_user ON collector_boards(user_id);
 CREATE INDEX ix_subscription_tiers_id ON subscription_tiers(id);
 CREATE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX ix_email_verification_tokens_user_id ON email_verification_tokens(user_id);
+CREATE INDEX idx_item_feedback_listing ON item_feedback(listing_id);
+CREATE INDEX idx_item_feedback_reviewee ON item_feedback(reviewee_id);
+CREATE INDEX idx_item_feedback_public ON item_feedback(is_public, created_at DESC) WHERE is_public = TRUE;

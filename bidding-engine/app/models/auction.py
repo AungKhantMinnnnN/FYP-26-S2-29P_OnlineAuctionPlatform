@@ -11,6 +11,10 @@ class UserRole(enum.Enum):
     user = "user"
     admin = "admin"
 
+class SubscriptionTier(enum.Enum):
+    free = "free"
+    premium = "premium"
+
 class UserStatus(enum.Enum):
     active = "active"
     suspended = "suspended"
@@ -69,6 +73,7 @@ class User(Base):
     role = Column(Enum(UserRole, name="user_role"), default=UserRole.user, nullable=False)
     status = Column(Enum(UserStatus, name="user_status"), default=UserStatus.active, nullable=False)
     balance = Column(Float, default=0.0, nullable=False)
+    subscription_tier = Column(Enum(SubscriptionTier, name="subscription_tier"), default=SubscriptionTier.free, nullable=False)
     avatar_key = Column(String)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)

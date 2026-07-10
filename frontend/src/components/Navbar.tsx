@@ -26,8 +26,11 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-md shadow-sm">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-8">
         <div className="flex items-center justify-between h-16 gap-3">
-          <Link to="/" className="group flex items-center gap-2">
-            <span className="font-bold text-xl text-accent-600">AuctionHub</span>
+          <Link to="/" className="group flex items-center gap-2 text-accent-700">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-accent-600 text-white shadow-sm transition-transform group-hover:-rotate-6 group-hover:scale-105">
+              <Gavel size={20} />
+            </span>
+            <span className="font-bold text-xl text-slate-950">AuctionHub</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-6">

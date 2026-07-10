@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DollarSign, Eye, Gavel, Heart, Package, PlusCircle, Trophy } from 'lucide-react'
+import { Clock, DollarSign, Eye, Gavel, Heart, Package, PlusCircle, Trophy, TrendingUp } from 'lucide-react'
 import DashboardStatCard from '../components/DashboardStatCard'
 import DataTable from '../components/DataTable'
 import PrimaryButton from '../components/PrimaryButton'
@@ -17,6 +17,18 @@ interface SellerStats {
 }
 
 type Tab = 'listings' | 'bids' | 'purchases'
+
+const timeRemaining = (endTime: string) => {
+  const ms = new Date(endTime).getTime() - Date.now()
+  if (ms <= 0) return 'Ended'
+  const totalMins = Math.floor(ms / 60000)
+  const d = Math.floor(totalMins / 1440)
+  const h = Math.floor((totalMins % 1440) / 60)
+  const m = totalMins % 60
+  if (d > 0) return `${d}d ${h}h`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
 
 export default function UserActivityPage() {
   const { user } = useAuth()
@@ -54,6 +66,7 @@ export default function UserActivityPage() {
 
   const activeListings = listings.filter(l => l.status.toLowerCase() === 'active')
   const wonBids = bids.filter(b => b.result === 'won')
+  const currentBids = bids.filter(b => b.listing_status === 'active')
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: 'listings', label: 'My Listings', count: listings.length },
@@ -82,10 +95,11 @@ export default function UserActivityPage() {
                 <PlusCircle size={15} className="mr-1.5" /> Create Listing
               </PrimaryButton>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {[
                 { label: 'Listings', value: listings.length },
-                { label: 'Bids', value: bids.length },
+                { label: 'Active Bids', value: currentBids.length },
+                { label: 'Total Bids', value: bids.length },
                 { label: 'Wins', value: purchases.length },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-xl bg-white p-3 text-center shadow-sm ring-1 ring-slate-100">
@@ -99,14 +113,103 @@ export default function UserActivityPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <DashboardStatCard title="Active Listings" value={isLoading ? '—' : activeListings.length} icon={Package} trend="Currently live" />
-        <DashboardStatCard title="Total Bids" value={isLoading ? '—' : bids.length} icon={Gavel} trend="Bids placed" />
+        <DashboardStatCard title="Active Bids" value={isLoading ? '—' : currentBids.length} icon={TrendingUp} trend="Auctions you're in" />
         <DashboardStatCard title="Total Wins" value={isLoading ? '—' : wonBids.length} icon={Trophy} trend="Auctions won" />
+        <DashboardStatCard title="Sales Revenue" value={isLoading ? '—' : `$${(stats?.total_revenue ?? 0).toFixed(2)}`} icon={DollarSign} trend="From completed sales" />
+        <DashboardStatCard title="Total Bids" value={isLoading ? '—' : bids.length} icon={Gavel} trend="Bids placed" />
         <DashboardStatCard title="Item Views" value={isLoading ? '—' : (stats?.total_views ?? 0)} icon={Eye} trend="Across all listings" />
         <DashboardStatCard title="Watchlisted" value={isLoading ? '—' : (stats?.total_watchlists ?? 0)} icon={Heart} trend="By other users" />
-        <DashboardStatCard title="Sales Revenue" value={isLoading ? '—' : `$${(stats?.total_revenue ?? 0).toFixed(2)}`} icon={DollarSign} trend="From completed sales" />
       </div>
+
+      {/* Current Bids section */}
+      {!isLoading && currentBids.length > 0 && (
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+                <TrendingUp size={18} />
+              </span>
+              <div>
+                <h2 className="font-semibold text-slate-950">Current Bids</h2>
+                <p className="text-xs text-slate-500">Auctions you're actively participating in</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center rounded-full bg-accent-100 px-2.5 py-1 text-xs font-bold text-accent-700">
+              {currentBids.length} live
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {currentBids.map(b => {
+              const isLeading = b.result === 'leading'
+              const remaining = timeRemaining(b.listing_end_time)
+              const isEndingSoon = new Date(b.listing_end_time).getTime() - Date.now() < 3600000
+              return (
+                <div
+                  key={b.listing_id}
+                  className={`relative overflow-hidden rounded-2xl border p-4 transition ${
+                    isLeading
+                      ? 'border-emerald-200 bg-emerald-50/50'
+                      : 'border-slate-200 bg-slate-50/50'
+                  }`}
+                >
+                  {/* Status badge */}
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
+                      isLeading
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {isLeading ? '● Leading' : '● Outbid'}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${
+                      isEndingSoon ? 'text-red-600' : 'text-slate-500'
+                    }`}>
+                      <Clock size={11} />
+                      {remaining}
+                    </span>
+                  </div>
+
+                  {/* Listing title */}
+                  <button
+                    onClick={() => navigate(`/auction/${b.listing_id}`)}
+                    className="mb-3 line-clamp-2 text-left text-sm font-semibold text-slate-900 hover:text-accent-600"
+                  >
+                    {b.listing_title}
+                  </button>
+
+                  {/* Bid info */}
+                  <div className="mb-3 flex items-end justify-between">
+                    <div>
+                      <p className="text-xs text-slate-500">My bid</p>
+                      <p className="text-base font-bold text-slate-950">${b.my_highest_bid.toFixed(2)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500">Current price</p>
+                      <p className={`text-base font-bold ${isLeading ? 'text-emerald-700' : 'text-amber-600'}`}>
+                        ${b.current_price.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => navigate(`/auction/${b.listing_id}`)}
+                    className={`w-full rounded-xl py-2 text-xs font-bold transition ${
+                      isLeading
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-accent-600 text-white hover:bg-accent-700'
+                    }`}
+                  >
+                    {isLeading ? 'View Auction' : 'Bid Again'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Tabs + content */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">

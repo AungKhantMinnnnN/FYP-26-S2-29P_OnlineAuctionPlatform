@@ -848,6 +848,111 @@ Premium feature. Boards let premium users curate and publicly share a showcase o
 
 ---
 
+### Feedback (`/v1.0.0/feedback`)
+
+#### Feedback Types (Public & Admin)
+
+* **`GET /v1.0.0/feedback/types`**
+  * **Description:** Public. Returns all active feedback types.
+  * **Response (200 OK):**
+    ```json
+    [{ "id": "uuid", "name": "string", "reviewer_role": "buyer|seller", "is_active": true, "created_at": "datetime" }]
+    ```
+
+* **`GET /v1.0.0/feedback/types/all`**
+  * **Description:** Admin only. Returns all feedback types including inactive ones.
+  * **Headers:** `Authorization: Bearer <token>` (admin role required)
+  * **Response (200 OK):** Same shape as above.
+
+* **`POST /v1.0.0/feedback/types`**
+  * **Description:** Admin only. Create a new feedback type.
+  * **Headers:** `Authorization: Bearer <token>` (admin role required)
+  * **Request Body:**
+    ```json
+    { "name": "string", "reviewer_role": "buyer|seller" }
+    ```
+  * **Response (201 Created):** Created `FeedbackType` object.
+  * **Error (409):** Name already exists.
+
+* **`PATCH /v1.0.0/feedback/types/{id}`**
+  * **Description:** Admin only. Rename or toggle active status of a feedback type.
+  * **Headers:** `Authorization: Bearer <token>` (admin role required)
+  * **Request Body (all fields optional):**
+    ```json
+    { "name": "string", "is_active": true }
+    ```
+  * **Response (200 OK):** Updated `FeedbackType` object.
+  * **Error (409):** Name already taken by another type.
+
+* **`DELETE /v1.0.0/feedback/types/{id}`**
+  * **Description:** Admin only. Delete a feedback type. Fails if any feedback records reference it — deactivate instead.
+  * **Headers:** `Authorization: Bearer <token>` (admin role required)
+  * **Response (204 No Content)**
+  * **Error (409):** Feedback records reference this type.
+
+#### Feedback Reads (Public)
+
+* **`GET /v1.0.0/feedback/public?limit=10`**
+  * **Description:** Public. Returns recent public feedback items for the landing page carousel. `limit` max 50.
+  * **Response (200 OK):**
+    ```json
+    [{
+      "id": "uuid", "listing_id": "uuid", "reviewer_id": "uuid", "reviewee_id": "uuid",
+      "feedback_type_id": "uuid", "rating": 5, "comment": "string|null",
+      "is_public": true, "created_at": "datetime",
+      "reviewer": { "id": "uuid", "username": "string" },
+      "reviewee": { "id": "uuid", "username": "string" },
+      "feedback_type": { "id": "uuid", "name": "string", "reviewer_role": "buyer|seller", "is_active": true, "created_at": "datetime" },
+      "listing": { "id": "uuid", "title": "string" }
+    }]
+    ```
+
+* **`GET /v1.0.0/feedback/listing/{listing_id}`**
+  * **Description:** Public. All public feedback for a specific listing.
+  * **Response (200 OK):** Same shape as above.
+
+* **`GET /v1.0.0/feedback/user/{user_id}`**
+  * **Description:** Public. All public feedback received by a user.
+  * **Response (200 OK):** Same shape as above.
+
+#### Feedback Submit (Authenticated)
+
+* **`GET /v1.0.0/feedback/me/eligibility/{listing_id}`**
+  * **Description:** Authenticated. Check which feedback types the current user can submit for a listing. A buyer is eligible if they have placed at least one bid; a seller is eligible if they own the listing.
+  * **Headers:** `Authorization: Bearer <token>`
+  * **Response (200 OK):**
+    ```json
+    {
+      "eligible_type_ids": ["uuid"],
+      "already_submitted_type_ids": ["uuid"],
+      "seller_id": "uuid"
+    }
+    ```
+    * `seller_id` — the listing's seller user ID; used by the frontend to populate `reviewee_id` on submission.
+
+* **`POST /v1.0.0/feedback/`**
+  * **Description:** Authenticated. Submit feedback for a listing participant. One submission per `(listing_id, reviewer_id, feedback_type_id)` triple.
+  * **Headers:** `Authorization: Bearer <token>`
+  * **Request Body:**
+    ```json
+    {
+      "listing_id": "uuid",
+      "reviewee_id": "uuid",
+      "feedback_type_id": "uuid",
+      "rating": 5,
+      "comment": "string (optional)"
+    }
+    ```
+  * **Validation:**
+    * `rating` — integer 1–5.
+    * For `buyer` feedback types: `reviewee_id` must be the listing's seller. Reviewer must have bid on the listing.
+    * For `seller` feedback types: reviewer must be the listing's seller.
+  * **Response (201 Created):** Full `FeedbackItem` object (same shape as public reads).
+  * **Error (403):** Not eligible (no bids / not seller).
+  * **Error (409):** Already submitted this feedback type for this listing.
+
+---
+
 ### Marketing (`/v1.0.0`)
 
 * **`GET /v1.0.0/marketing-video`**
