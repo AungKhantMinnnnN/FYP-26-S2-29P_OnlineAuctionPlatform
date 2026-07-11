@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ImagePlus, Package, Settings2, X } from 'lucide-react'
 import FormInput from '../components/FormInput'
 import SelectField from '../components/SelectField'
 import TextAreaField from '../components/TextAreaField'
 import PrimaryButton from '../components/PrimaryButton'
 import SecondaryButton from '../components/SecondaryButton'
-import { createListing, uploadAuctionImages, getFormMetadata } from '../api/auctionsApi'
-import type { Category, DurationOption, EnumType } from '../api/auctionsApi'
+import { createListing, updateListing, getAuction, uploadAuctionImages, getFormMetadata } from '../api/auctionsApi'
+import type { Category, DurationOption, EnumType, ListingImage } from '../api/auctionsApi'
 
 const BIDDING_TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   price_up:   { label: 'Standard',   hint: 'Bids go up from starting price' },
@@ -17,6 +17,8 @@ const BIDDING_TYPE_LABELS: Record<string, { label: string; hint: string }> = {
 
 export default function ListingFormPage() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const isEditMode = !!id
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [categories, setCategories] = useState<Category[]>([])
@@ -37,8 +39,12 @@ export default function ListingFormPage() {
   })
   const [images, setImages] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
+  const [existingImages, setExistingImages] = useState<ListingImage[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingListing, setIsLoadingListing] = useState(isEditMode)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
     getFormMetadata()
@@ -53,14 +59,42 @@ export default function ListingFormPage() {
       .catch(console.error)
   }, [])
 
+  useEffect(() => {
+    if (!id) return
+    setIsLoadingListing(true)
+    getAuction(id)
+      .then(listing => {
+        setForm(f => ({
+          ...f,
+          title: listing.title || '',
+          category_id: listing.category_id || '',
+          condition: listing.condition || '',
+          brand: listing.brand || '',
+          description: listing.description || '',
+          starting_price: listing.starting_price != null ? String(listing.starting_price) : '',
+          reserve_price: listing.reserve_price != null ? String(listing.reserve_price) : '',
+          min_increment: listing.min_increment != null ? String(listing.min_increment) : '1.00',
+          bidding_type: listing.bidding_type || 'price_up',
+        }))
+        setExistingImages(listing.images || [])
+      })
+      .catch(err => {
+        console.error('Failed to load listing', err)
+        setLoadError(err.response?.data?.detail || 'Could not load this listing.')
+      })
+      .finally(() => setIsLoadingListing(false))
+  }, [id])
+
   const set =
     (key: string) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [key]: e.target.value }))
 
+  const totalImages = existingImages.length + images.length
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
-    const toAdd = files.slice(0, 4 - images.length)
+    const toAdd = files.slice(0, 4 - totalImages)
     setImages(prev => [...prev, ...toAdd])
     setPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
     e.target.value = ''
@@ -88,13 +122,14 @@ export default function ListingFormPage() {
 
   const submit = async (status: 'draft' | 'active') => {
     if (!validate()) return
+    setSubmitError(null)
     setIsSubmitting(true)
     try {
       const now = new Date()
       const endTime = new Date(
         now.getTime() + parseInt(form.duration) * 24 * 60 * 60 * 1000,
       )
-      const listing = await createListing({
+      const payload = {
         title: form.title.trim(),
         description: form.description.trim() || null,
         condition: form.condition,
@@ -107,24 +142,54 @@ export default function ListingFormPage() {
         start_time: now.toISOString(),
         end_time: endTime.toISOString(),
         status,
-      })
-      if (images.length > 0) {
-        await uploadAuctionImages(listing.id, images)
+      }
+
+      let listingId = id
+      if (isEditMode && id) {
+        await updateListing(id, payload)
+      } else {
+        const listing = await createListing(payload)
+        listingId = listing.id
+      }
+
+      if (images.length > 0 && listingId) {
+        await uploadAuctionImages(listingId, images)
       }
       navigate('/activity')
     } catch (err) {
-      console.error('Failed to create listing', err)
+      console.error('Failed to save listing', err)
+      setSubmitError(err.response?.data?.detail || 'Failed to save listing. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  if (isLoadingListing) {
+    return (
+      <div className="mx-auto max-w-3xl py-16 text-center text-sm text-slate-500">
+        Loading listing details...
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-3xl py-16 text-center text-sm text-red-600">
+        {loadError}
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Create New Listing</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">
+          {isEditMode ? 'Edit Draft Listing' : 'Create New Listing'}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Fill in the details below to list your item for auction.
+          {isEditMode
+            ? 'Update the details below and save your changes.'
+            : 'Fill in the details below to list your item for auction.'}
         </p>
       </div>
 
@@ -189,7 +254,7 @@ export default function ListingFormPage() {
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700">
             Photos{' '}
-            <span className="font-normal text-slate-400">({images.length} / 4)</span>
+            <span className="font-normal text-slate-400">({totalImages} / 4)</span>
           </label>
 
           <input
@@ -199,10 +264,10 @@ export default function ListingFormPage() {
             multiple
             className="hidden"
             onChange={handleFileChange}
-            disabled={images.length >= 4}
+            disabled={totalImages >= 4}
           />
 
-          {images.length < 4 && (
+          {totalImages < 4 && (
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -214,8 +279,21 @@ export default function ListingFormPage() {
             </button>
           )}
 
-          {previews.length > 0 && (
+          {(existingImages.length > 0 || previews.length > 0) && (
             <div className="mt-3 grid grid-cols-4 gap-3">
+              {existingImages.map((img, i) => (
+                <div
+                  key={img.id}
+                  className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200"
+                >
+                  <img src={img.image_url} alt={`Uploaded ${i + 1}`} className="h-full w-full object-cover" />
+                  {img.is_primary && (
+                    <span className="absolute bottom-1.5 left-1.5 rounded-full bg-accent-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      Cover
+                    </span>
+                  )}
+                </div>
+              ))}
               {previews.map((src, i) => (
                 <div
                   key={i}
@@ -229,7 +307,7 @@ export default function ListingFormPage() {
                   >
                     <X size={12} />
                   </button>
-                  {i === 0 && (
+                  {existingImages.length === 0 && i === 0 && (
                     <span className="absolute bottom-1.5 left-1.5 rounded-full bg-accent-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       Cover
                     </span>
@@ -340,10 +418,16 @@ export default function ListingFormPage() {
         </div>
       </div>
 
+      {submitError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {submitError}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end">
         <SecondaryButton onClick={() => submit('draft')} disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Save as Draft'}
+          {isSubmitting ? 'Saving…' : isEditMode ? 'Save Changes' : 'Save as Draft'}
         </SecondaryButton>
         <PrimaryButton onClick={() => submit('active')} disabled={isSubmitting}>
           {isSubmitting ? 'Publishing…' : 'Publish Auction'}

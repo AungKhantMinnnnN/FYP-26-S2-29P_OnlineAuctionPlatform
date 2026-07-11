@@ -15,7 +15,8 @@ function createClient(baseURL: string): AxiosInstance {
   client.interceptors.response.use(
     (response) => response,
     (error) => {
-      if (error.response?.status === 401) {
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      if (error.response?.status === 401 && !isLoginRequest) {
         sessionStorage.removeItem('token');
         window.location.href = '/login';
       }

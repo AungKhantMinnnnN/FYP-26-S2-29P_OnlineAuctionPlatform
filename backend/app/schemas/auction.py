@@ -61,6 +61,26 @@ class ListingCreate(BaseModel):
             raise ValueError('reserve_price must be greater than or equal to starting_price')
         return v
 
+class ListingUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    brand: Optional[str] = None
+    condition: Optional[ItemConditions] = None
+    bidding_type: Optional[BiddingType] = None
+    starting_price: Optional[float] = None
+    reserve_price: Optional[float] = None
+    min_increment: Optional[float] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    category_id: Optional[UUID] = None
+    status: Optional[ListingStatus] = None
+
+    @field_validator('starting_price')
+    def starting_price_must_be_positive(cls, v):
+        if v is not None and v < 0:
+            raise ValueError('Starting price cannot be negative')
+        return v
+
 class UserSellerResponse(BaseModel):
     id: UUID
     username: str

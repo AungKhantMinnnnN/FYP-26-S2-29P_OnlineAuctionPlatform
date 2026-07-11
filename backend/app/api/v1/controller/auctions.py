@@ -5,7 +5,7 @@ from uuid import UUID
 from app.db.session import get_db
 from app.models.auction import ListingStatus, User
 from app.api.deps import get_current_user
-from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingImageResponse, MetadataResponse, ListingStatusUpdate
+from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingUpdate, ListingImageResponse, MetadataResponse, ListingStatusUpdate
 from app.services.auction_service import AuctionService
 
 router = APIRouter()
@@ -45,6 +45,15 @@ async def create_listing(
     current_user: User = Depends(get_current_user)
 ):
     return await AuctionService.create_listing(db=db, user_id=current_user.id, listing_in=listing_in)
+
+@router.patch("/{id}", response_model=AuctionListingResponse)
+async def update_listing(
+    id: UUID,
+    listing_in: ListingUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await AuctionService.update_listing(db=db, auction_id=id, user_id=current_user.id, listing_in=listing_in)
 
 @router.post("/upload_auction_images/{id}", response_model=List[ListingImageResponse])
 async def upload_auction_images(

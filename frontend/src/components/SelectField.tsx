@@ -22,7 +22,7 @@ export default function SelectField({ label, value, onChange, options, placehold
         onChange={onChange}
         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15"
       >
-        {placeholder && <option value="">{placeholder}</option>}
+        {placeholder && <option value="" disabled>{placeholder}</option>}
         {options.map((o, index) => {
           const val = typeof o === 'object' ? o.value ?? '' : o
           const lab = typeof o === 'object' ? o.label ?? '' : o

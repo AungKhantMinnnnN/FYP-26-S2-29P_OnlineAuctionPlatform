@@ -70,6 +70,7 @@ export default function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
               <Route path="/create-listing" element={<ListingFormPage />} />
+              <Route path="/edit-listing/:id" element={<ListingFormPage />} />
               <Route path="/watchlist" element={<WatchlistPage />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/wallet/top-up" element={<WalletPage mode="top-up" />} />
