@@ -93,7 +93,7 @@ export default function AuctionDetailPage() {
           setCurrentBid(data.current_price)
           setBidsPlaced((count) => count + 1)
           setBidHistory((history) => [
-            { bidder: data.bidder_id, amount: data.amount, time: 'just now' },
+            { bidder: data.bidder_username ?? data.bidder_id, amount: data.amount, time: 'just now' },
             ...history
           ])
           setBidError('')

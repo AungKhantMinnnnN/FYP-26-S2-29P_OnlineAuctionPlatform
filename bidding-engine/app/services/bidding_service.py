@@ -172,6 +172,7 @@ class BiddingService:
             "listing_id": str(listing.id),
             "current_price": listing.current_price,
             "bidder_id": str(current_user.id),
+            "bidder_username": current_user.username,
             "amount": amount,
             "timestamp": new_bid.placed_at.isoformat()
         }

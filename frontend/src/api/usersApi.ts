@@ -174,6 +174,11 @@ export const getMyWallet = async (params?: { page?: number; size?: number }): Pr
   return response.data
 }
 
+export const topUpWallet = async (amount: number): Promise<{ balance: number; transaction: WalletTransactionItem }> => {
+  const response = await apiClient.post('/users/me/wallet/topup', { amount })
+  return response.data
+}
+
 // ── Interests ────────────────────────────────────────────────────────────────
 
 export interface InterestCategory {

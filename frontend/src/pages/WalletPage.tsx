@@ -1,73 +1,73 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowDownLeft, ArrowUpRight, CreditCard, Plus, ShieldCheck, Wallet } from 'lucide-react'
 import DashboardStatCard from '../components/DashboardStatCard'
 import DataTable from '../components/DataTable'
 import PrimaryButton from '../components/PrimaryButton'
 import SectionHeader from '../components/SectionHeader'
-import StatusBadge from '../components/StatusBadge'
-export interface WalletTransactionItem {
-  id: string;
-  user_id: string;
-  transaction_type: 'top-up' | 'bid-hold' | 'refund' | 'withdrawal' | string;
-  amount: number;
-  status: 'pending' | 'completed' | 'failed' | string;
-  method: string;
-  created_at: string;
-}
+import { getMyWallet, topUpWallet, type WalletTransactionItem } from '../api/usersApi'
 import { useAuth } from '../context/AuthContext'
 
 interface WalletPageProps {
   mode?: 'top-up'
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  topup: 'Top Up',
+  bid_hold: 'Bid Hold',
+  bid_release: 'Bid Release',
+  settlement: 'Settlement',
+}
+
 export default function WalletPage({ mode }: WalletPageProps) {
-  const { user, adjustBalance } = useAuth()
+  const { refreshUser } = useAuth()
+  const [balance, setBalance] = useState(0)
+  const [transactions, setTransactions] = useState<WalletTransactionItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [amount, setAmount] = useState(mode === 'top-up' ? '100' : '')
   const [message, setMessage] = useState('')
-  const [localTransactions, setLocalTransactions] = useState<WalletTransactionItem[]>([])
-  
-  const userId = user?.id ?? '1'
-  const balance = user?.balance ?? 0
-  
-  const transactions = useMemo(() => {
-    return [...localTransactions]
-  }, [localTransactions, userId])
+  const [submitting, setSubmitting] = useState(false)
 
-  const totalTopUps = useMemo(() => {
-    return transactions
-      .filter((transaction) => transaction.transaction_type === 'top-up' && transaction.status === 'completed')
-      .reduce((sum, transaction) => sum + transaction.amount, 0)
-  }, [transactions])
+  const fetchWallet = async () => {
+    try {
+      const data = await getMyWallet()
+      setBalance(data.balance)
+      setTransactions(data.transactions.items)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const pendingAmount = useMemo(() => {
-    return transactions
-      .filter((transaction) => transaction.status === 'pending')
-      .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0)
-  }, [transactions])
+  useEffect(() => { fetchWallet() }, [])
 
-  const handleTopUp = (e: React.FormEvent) => {
+  const totalTopUps = transactions
+    .filter((t) => t.type === 'topup')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const pendingHolds = transactions
+    .filter((t) => t.type === 'bid_hold')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const handleTopUp = async (e: React.FormEvent) => {
     e.preventDefault()
     const value = Number(amount)
     if (!value || value <= 0) {
       setMessage('Enter a valid amount to top up.')
       return
     }
-
-    adjustBalance(value)
-    setLocalTransactions((items) => [
-      {
-        id: `local-${Date.now()}`,
-        user_id: userId,
-        transaction_type: 'top-up',
-        amount: value,
-        status: 'completed',
-        method: 'Wireframe Card',
-        created_at: 'just now',
-      },
-      ...items,
-    ])
-    setAmount('')
-    setMessage(`Successfully topped up $${value.toFixed(2)}.`)
+    setSubmitting(true)
+    setMessage('')
+    try {
+      const result = await topUpWallet(value)
+      setBalance(result.balance)
+      setTransactions((prev) => [result.transaction, ...prev])
+      setAmount('')
+      setMessage(`Successfully topped up $${value.toFixed(2)}.`)
+      await refreshUser()
+    } catch {
+      setMessage('Top up failed. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -77,7 +77,7 @@ export default function WalletPage({ mode }: WalletPageProps) {
           <div>
             <p className="mb-3 inline-flex rounded-full bg-accent-50 px-3 py-1 text-xs font-semibold text-accent-700">Wallet Balance</p>
             <h1 className="text-3xl font-bold tracking-tight text-slate-950">${balance.toFixed(2)}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Your Balance is used when placing bids. Successful bids immediately reserve the bid amount in this wireframe.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Your balance is used when placing bids. Successful bids immediately reserve the bid amount until the auction ends.</p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <PrimaryButton to="/wallet/top-up"><Plus size={16} className="mr-2" /> Top Up Balance</PrimaryButton>
             </div>
@@ -87,34 +87,51 @@ export default function WalletPage({ mode }: WalletPageProps) {
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-50 text-accent-700"><CreditCard size={20} /></span>
               <div>
                 <p className="font-semibold text-slate-950">Quick Top Up</p>
-                <p className="text-xs text-slate-500">Mock payment for prototype demo</p>
+                <p className="text-xs text-slate-500">Simulated payment for prototype demo</p>
               </div>
             </div>
-            <input type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Enter amount" className="mb-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15" />
-            {message && <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{message}</p>}
-            <PrimaryButton fullWidth type="submit">Add Funds</PrimaryButton>
+            <input
+              type="number" min="1" step="1" value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Enter amount"
+              className="mb-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15"
+            />
+            {message && (
+              <p className={`mb-3 rounded-xl px-3 py-2 text-xs font-medium ${message.includes('failed') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                {message}
+              </p>
+            )}
+            <PrimaryButton fullWidth type="submit" disabled={submitting}>
+              {submitting ? 'Processing…' : 'Add Funds'}
+            </PrimaryButton>
           </form>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <DashboardStatCard title="Available Balance" value={`$${balance.toFixed(2)}`} icon={Wallet} trend="Ready for bidding" />
-        <DashboardStatCard title="Completed Top Ups" value={`$${totalTopUps.toFixed(2)}`} icon={ArrowDownLeft} trend="Wallet funding" />
-        <DashboardStatCard title="Pending" value={`$${pendingAmount.toFixed(2)}`} icon={ArrowUpRight} trend="In processing" />
+        <DashboardStatCard title="Available Balance" value={loading ? '…' : `$${balance.toFixed(2)}`} icon={Wallet} trend="Ready for bidding" />
+        <DashboardStatCard title="Total Topped Up" value={loading ? '…' : `$${totalTopUps.toFixed(2)}`} icon={ArrowDownLeft} trend="Wallet funding" />
+        <DashboardStatCard title="Active Bid Holds" value={loading ? '…' : `$${pendingHolds.toFixed(2)}`} icon={ArrowUpRight} trend="Reserved for bids" />
       </div>
 
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        <SectionHeader title="Wallet Transactions" subtitle="Top-ups, bid holds, refunds, and withdrawals" />
+        <SectionHeader title="Wallet Transactions" subtitle="Top-ups, bid holds, releases, and settlements" />
         <DataTable
-          headers={['Type', 'Amount', 'Method', 'Status', 'Date']}
-          rows={transactions.map((transaction) => [
-            <span key={`${transaction.id}-type`} className="inline-flex items-center gap-2 font-medium capitalize"><ShieldCheck size={15} className="text-accent-600" /> {transaction.transaction_type.replace('-', ' ')}</span>,
-            <span key={`${transaction.id}-amount`} className={transaction.amount >= 0 ? 'font-semibold text-emerald-600' : 'font-semibold text-red-600'}>{transaction.amount >= 0 ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}</span>,
-            transaction.method,
-            <StatusBadge key={`${transaction.id}-status`} status={transaction.status} />,
-            transaction.created_at,
+          headers={['Type', 'Amount', 'Reference', 'Date']}
+          rows={transactions.map((t) => [
+            <span key={`${t.id}-type`} className="inline-flex items-center gap-2 font-medium capitalize">
+              <ShieldCheck size={15} className="text-accent-600" /> {TYPE_LABEL[t.type] ?? t.type}
+            </span>,
+            <span key={`${t.id}-amount`} className={t.amount >= 0 ? 'font-semibold text-emerald-600' : 'font-semibold text-red-600'}>
+              {t.amount >= 0 ? '+' : ''}${Math.abs(t.amount).toFixed(2)}
+            </span>,
+            t.reference ?? '—',
+            new Date(t.created_at).toLocaleDateString(),
           ])}
         />
+        {!loading && transactions.length === 0 && (
+          <p className="py-8 text-center text-sm text-slate-400">No transactions yet. Top up your wallet to get started.</p>
+        )}
       </div>
     </div>
   )
