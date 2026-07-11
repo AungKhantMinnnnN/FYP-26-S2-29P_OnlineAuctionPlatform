@@ -15,6 +15,8 @@ const BIDDING_TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   public:     { label: 'Open Bids',  hint: 'All bid amounts are visible to everyone' },
 }
 
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+
 export default function ListingFormPage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
@@ -61,7 +63,6 @@ export default function ListingFormPage() {
 
   useEffect(() => {
     if (!id) return
-    setIsLoadingListing(true)
     getAuction(id)
       .then(listing => {
         setForm(f => ({
@@ -94,7 +95,21 @@ export default function ListingFormPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
-    const toAdd = files.slice(0, 4 - totalImages)
+    const valid = files.filter(f => ALLOWED_IMAGE_TYPES.includes(f.type))
+    const rejected = files.length - valid.length
+
+    if (rejected > 0) {
+      setErrors(prev => ({ ...prev, images: 'Only PNG, JPG, and WEBP images are supported.' }))
+    } else {
+      setErrors(prev => {
+        if (!prev.images) return prev
+        const rest = { ...prev }
+        delete rest.images
+        return rest
+      })
+    }
+
+    const toAdd = valid.slice(0, 4 - totalImages)
     setImages(prev => [...prev, ...toAdd])
     setPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
     e.target.value = ''
@@ -116,6 +131,8 @@ export default function ListingFormPage() {
       e.reserve_price = 'Reserve price must be at least the starting price'
     if (!form.min_increment || parseFloat(form.min_increment) <= 0)
       e.min_increment = 'Minimum increment must be greater than 0'
+    if (images.some(f => !ALLOWED_IMAGE_TYPES.includes(f.type)))
+      e.images = 'Only PNG, JPG, and WEBP images are supported.'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -260,7 +277,7 @@ export default function ListingFormPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp"
             multiple
             className="hidden"
             onChange={handleFileChange}
@@ -277,6 +294,10 @@ export default function ListingFormPage() {
               <span className="text-sm font-medium text-slate-600">Click to upload images</span>
               <span className="text-xs text-slate-400">PNG, JPG, WEBP — up to 4 photos</span>
             </button>
+          )}
+
+          {errors.images && (
+            <p className="mt-1.5 text-xs font-medium text-red-600">{errors.images}</p>
           )}
 
           {(existingImages.length > 0 || previews.length > 0) && (

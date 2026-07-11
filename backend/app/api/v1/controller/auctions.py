@@ -62,9 +62,10 @@ async def upload_auction_images(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    allowed_content_types = {"image/png", "image/jpeg", "image/webp"}
     for file in files:
-        if not file.content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="Only image files are allowed")
+        if file.content_type not in allowed_content_types:
+            raise HTTPException(status_code=400, detail="Only PNG, JPG, and WEBP images are supported")
             
     return await AuctionService.upload_listing_images(
         db=db,
