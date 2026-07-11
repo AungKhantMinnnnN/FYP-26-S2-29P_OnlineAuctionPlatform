@@ -4,6 +4,7 @@ import { Crown } from 'lucide-react'
 const marketplaceLinks = [
   { to: '/browse',           label: 'Auctions',       badge: null },
   { to: '/activity',         label: 'User History',         badge: null },
+  { to: '/watchlist',         label: 'Watchlist',         badge: null },
   { to: '/collector-board',  label: 'Collector Board',  badge: 'PRO' },
   { to: '/support',          label: 'Support',          badge: null },
 ]
