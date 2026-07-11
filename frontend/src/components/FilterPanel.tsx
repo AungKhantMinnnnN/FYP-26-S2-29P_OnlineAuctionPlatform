@@ -13,6 +13,7 @@ interface FilterPanelProps {
   minPrice: string
   maxPrice: string
   onPriceChange: (min: string, max: string) => void
+  onClearAll: () => void
 }
 
 interface SectionProps {
@@ -45,9 +46,12 @@ export default function FilterPanel({
   onConditionChange,
   minPrice,
   maxPrice,
-  onPriceChange
+  onPriceChange,
+  onClearAll
 }: FilterPanelProps) {
   const [open, setOpen] = useState<Record<string, boolean>>({ category: true, condition: true, price: true })
+
+  const hasActiveFilters = selectedCategory !== null || selectedCondition !== null || minPrice !== '' || maxPrice !== ''
 
   // Local input state for the price fields; committed to the URL only on Apply.
   const [minInput, setMinInput] = useState(minPrice)
@@ -87,11 +91,21 @@ export default function FilterPanel({
 
   return (
     <div className={`rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm ${className}`}>
-      <div className="flex items-center gap-2 mb-4">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
-          <SlidersHorizontal size={18} />
-        </span>
-        <h3 className="font-semibold text-slate-950">Filters</h3>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+            <SlidersHorizontal size={18} />
+          </span>
+          <h3 className="font-semibold text-slate-950">Filters</h3>
+        </div>
+        {hasActiveFilters && (
+          <button
+            onClick={onClearAll}
+            className="text-xs font-semibold text-accent-600 transition-colors hover:text-accent-700"
+          >
+            Clear all
+          </button>
+        )}
       </div>
 
       <Section title="Category" isOpen={open['category']} onToggle={() => setOpen(o => ({ ...o, category: !o.category }))}>

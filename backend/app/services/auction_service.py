@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
 from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType, AuctionDuration, User, SubscriptionTier
-from app.schemas.auction import ListingCreate
+from app.schemas.auction import ListingCreate, ListingUpdate
 from datetime import timedelta
 from app.core.storage import storage_service
 from fastapi import UploadFile
@@ -130,6 +130,45 @@ class AuctionService:
             status=listing_in.status or ListingStatus.active
         )
         db.add(listing)
+        await db.commit()
+        await db.refresh(listing)
+        return listing
+
+    EDITABLE_STATUSES = (ListingStatus.draft, ListingStatus.pending_review)
+
+    @staticmethod
+    async def update_listing(db: AsyncSession, auction_id: UUID, user_id: UUID, listing_in: ListingUpdate) -> Listing:
+        result = await db.execute(
+            select(Listing)
+            .options(selectinload(Listing.images), selectinload(Listing.seller))
+            .where(Listing.id == auction_id)
+        )
+        listing = result.scalars().first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Auction listing not found")
+        if listing.seller_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorised to edit this listing")
+        if listing.status not in AuctionService.EDITABLE_STATUSES:
+            raise HTTPException(status_code=400, detail="Only draft listings can be edited")
+
+        data = listing_in.model_dump(exclude_unset=True, exclude={"status"})
+        for field, value in data.items():
+            setattr(listing, field, value)
+        if "starting_price" in data:
+            listing.current_price = data["starting_price"]
+
+        if listing.reserve_price is not None and listing.reserve_price < listing.starting_price:
+            raise HTTPException(status_code=400, detail="reserve_price must be greater than or equal to starting_price")
+        if listing.start_time and listing.end_time and listing.end_time <= listing.start_time:
+            raise HTTPException(status_code=400, detail="end_time must be after start_time")
+
+        if listing_in.status is not None and listing_in.status != listing.status:
+            if listing_in.status == ListingStatus.ended:
+                raise HTTPException(status_code=400, detail="Status 'ended' is set by the system only")
+            listing.status = listing_in.status
+            listing.is_draft = listing_in.status == ListingStatus.draft
+
+        listing.updated_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(listing)
         return listing

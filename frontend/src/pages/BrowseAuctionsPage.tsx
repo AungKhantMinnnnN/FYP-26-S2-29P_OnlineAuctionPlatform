@@ -134,6 +134,16 @@ export default function BrowseAuctionsPage() {
     setSearchParams(newParams);
   }
 
+  const handleClearFilters = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('category');
+    newParams.delete('condition');
+    newParams.delete('min_price');
+    newParams.delete('max_price');
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  }
+
   return (
     <div className="max-w-7xl mx-auto py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -171,6 +181,7 @@ export default function BrowseAuctionsPage() {
                 minPrice={minPriceParam ?? ''}
                 maxPrice={maxPriceParam ?? ''}
                 onPriceChange={handlePriceChange}
+                onClearAll={handleClearFilters}
               />
             </div>
           </aside>

@@ -14,6 +14,7 @@ export interface AuctionListing {
   category_id?: string;
   title: string;
   description?: string;
+  brand?: string;
   condition: string;
   bidding_type: string;
   starting_price?: number;
@@ -51,6 +52,16 @@ export const getMyListings = async (params?: { page?: number; size?: number }): 
 // NEW: Create Listing
 export const createListing = async (data: Record<string, unknown>): Promise<AuctionListing> => {
   const response = await apiClient.post<AuctionListing>('/auctions/create_listing', data);
+  return response.data;
+};
+
+export const getAuction = async (id: string): Promise<AuctionListing> => {
+  const response = await apiClient.get<AuctionListing>(`/auctions/get_auction/${id}`);
+  return response.data;
+};
+
+export const updateListing = async (id: string, data: Record<string, unknown>): Promise<AuctionListing> => {
+  const response = await apiClient.patch<AuctionListing>(`/auctions/${id}`, data);
   return response.data;
 };
 
