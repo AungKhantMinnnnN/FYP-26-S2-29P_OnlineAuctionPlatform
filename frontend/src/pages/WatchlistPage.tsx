@@ -1,27 +1,50 @@
-import { useMemo, useState } from 'react'
-import { Heart, Search, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Heart, Search } from 'lucide-react'
 import SectionHeader from '../components/SectionHeader'
 import AuctionCard from '../components/AuctionCard'
 import EmptyState from '../components/EmptyState'
 import SecondaryButton from '../components/SecondaryButton'
-import { useAuth } from '../context/AuthContext'
+import { getMyWatchlist, removeFromWatchlist, type WatchlistItem } from '../api/usersApi'
 
-// TODO: Replace with actual data from backend
-const auctions = []
-const WatchList = []
+function toAuctionShape(item: WatchlistItem) {
+  const l = item.listing
+  return {
+    id: l.id,
+    title: l.title,
+    description: l.description ?? '',
+    category: '',
+    condition: l.condition,
+    currentBid: l.current_price,
+    startingPrice: l.starting_price,
+    endTime: new Date(l.end_time),
+    status: l.status,
+    image: l.image_url ?? undefined,
+    seller: { name: '', rating: 0 },
+    bids: 0,
+    watchers: 0,
+  }
+}
 
 export default function WatchlistPage() {
-  const { user } = useAuth()
-  const userId = user?.id ?? '1'
-  
-  const initialIds = useMemo(() => {
-    return WatchList.filter((item) => String(item.UserID) === String(userId)).map((item) => item.ListingID)
-  }, [userId])
-  
-  const [watchIds, setWatchIds] = useState<number[]>(initialIds)
-  const watchedAuctions = useMemo(() => {
-    return auctions.filter((auction) => watchIds.includes(auction.id))
-  }, [watchIds])
+  const [items, setItems] = useState<WatchlistItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [removing, setRemoving] = useState<string | null>(null)
+
+  useEffect(() => {
+    getMyWatchlist()
+      .then((data) => setItems(data.items))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleRemove = async (listingId: string) => {
+    setRemoving(listingId)
+    try {
+      await removeFromWatchlist(listingId)
+      setItems((prev) => prev.filter((i) => i.listing_id !== listingId))
+    } finally {
+      setRemoving(null)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -40,29 +63,33 @@ export default function WatchlistPage() {
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-600"><Heart size={22} /></span>
               <div>
                 <p className="text-sm font-semibold text-slate-950">Watching</p>
-                <p className="text-3xl font-bold text-slate-950">{watchedAuctions.length}</p>
+                <p className="text-3xl font-bold text-slate-950">{loading ? '…' : items.length}</p>
               </div>
             </div>
-            <p className="mt-3 text-sm text-slate-500">Items remain local to this wireframe session and can be removed instantly.</p>
+            <p className="mt-3 text-sm text-slate-500">Remove any item instantly by clicking the button below its card.</p>
           </div>
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
         <SectionHeader title="Saved Auctions" subtitle="Products you marked for quick access" actionText="Browse all" actionTo="/browse" />
-        {watchedAuctions.length > 0 ? (
+        {!loading && items.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {watchedAuctions.map((auction) => (
-              <div key={auction.id} className="space-y-3">
-                <AuctionCard auction={auction} />
-                <button onClick={() => setWatchIds((ids) => ids.filter((id) => id !== auction.id))} className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition-all hover:-translate-y-0.5 hover:bg-red-100">
-                  <Trash2 size={15} /> Remove from watchlist
+            {items.map((item) => (
+              <div key={item.listing_id} className="space-y-3">
+                <AuctionCard auction={toAuctionShape(item)} showWatchlist={false} isWatched />
+                <button
+                  onClick={() => handleRemove(item.listing_id)}
+                  disabled={removing === item.listing_id}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition-all hover:-translate-y-0.5 hover:bg-red-100 disabled:opacity-50"
+                >
+                  {removing === item.listing_id ? 'Removing…' : 'Remove from watchlist'}
                 </button>
               </div>
             ))}
           </div>
         ) : (
-          <EmptyState message="Your watchlist is empty." actionText="Find auctions to watch" actionTo="/browse" />
+          !loading && <EmptyState message="Your watchlist is empty." actionText="Find auctions to watch" actionTo="/browse" />
         )}
       </div>
     </div>
