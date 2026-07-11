@@ -259,6 +259,32 @@ class UserService:
                 "pages": pages,
             },
         }
+
+    @staticmethod
+    async def topup_wallet(db: AsyncSession, user: User, amount: float) -> dict:
+        if amount <= 0:
+            raise HTTPException(status_code=400, detail="Amount must be positive.")
+        user.balance = round(user.balance + amount, 2)
+        tx = WalletTransaction(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            amount=amount,
+            type=TransactionType.topup,
+            reference="Manual top-up",
+        )
+        db.add(tx)
+        await db.commit()
+        await db.refresh(user)
+        return {
+            "balance": user.balance,
+            "transaction": {
+                "id": tx.id,
+                "amount": tx.amount,
+                "type": tx.type.value,
+                "reference": tx.reference,
+                "created_at": tx.created_at,
+            },
+        }
     # endregion
 
     # region Profile

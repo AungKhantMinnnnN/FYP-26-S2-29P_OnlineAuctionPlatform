@@ -97,6 +97,15 @@ class WalletTransactionsPage(PaginationMeta):
 class WalletResponse(BaseModel):
     balance: float
     transactions: WalletTransactionsPage
+
+
+class TopUpRequest(BaseModel):
+    amount: float
+
+
+class TopUpResponse(BaseModel):
+    balance: float
+    transaction: WalletTransactionItem
 # endregion
 
 

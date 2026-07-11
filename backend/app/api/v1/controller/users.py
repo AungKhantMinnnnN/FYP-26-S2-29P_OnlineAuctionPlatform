@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models.auction import User
 from app.schemas.user import (
     BidHistoryResponse, PurchasesResponse, WatchlistResponse,
-    WatchlistAddRequest, WatchlistAddResponse, WalletResponse,
+    WatchlistAddRequest, WatchlistAddResponse, WalletResponse, TopUpRequest, TopUpResponse,
     SubscriptionActionRequest, SubscriptionResponse,
     ProfileUpdateRequest, ProfileResponse, InterestsResponse, InterestsUpdateRequest,
     SellerStatsResponse,
@@ -108,6 +108,15 @@ async def get_my_wallet(
     current_user: User = Depends(get_current_user),
 ):
     return await UserService.get_my_wallet(db=db, user=current_user, page=page, size=size)
+
+
+@router.post("/me/wallet/topup", response_model=TopUpResponse)
+async def topup_wallet(
+    request: TopUpRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await UserService.topup_wallet(db=db, user=current_user, amount=request.amount)
 
 
 @router.post("/me/subscription", response_model=SubscriptionResponse)
