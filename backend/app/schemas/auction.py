@@ -32,10 +32,11 @@ class MetadataResponse(BaseModel):
 class ListingCreate(BaseModel):
     title: str
     description: Optional[str] = None
+    brand: Optional[str] = None
     condition: ItemConditions
     bidding_type: BiddingType
     starting_price: float
-    reserve_price: float
+    reserve_price: Optional[float] = None
     min_increment: float = 1.0
     start_time: datetime
     end_time: datetime
@@ -56,7 +57,7 @@ class ListingCreate(BaseModel):
 
     @field_validator('reserve_price')
     def reserve_price_must_be_gte_starting_price(cls, v, info):
-        if 'starting_price' in info.data and v < info.data['starting_price']:
+        if v is not None and 'starting_price' in info.data and v < info.data['starting_price']:
             raise ValueError('reserve_price must be greater than or equal to starting_price')
         return v
 

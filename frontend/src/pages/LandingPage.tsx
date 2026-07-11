@@ -80,24 +80,22 @@ export default function LandingPage() {
 
   return (
     <>
-      {/* Guest sticky section nav */}
-      {!isAuthenticated && (
-        <nav className="sticky top-16 z-40 w-full border-b border-slate-200/60 bg-white/90 backdrop-blur-md shadow-sm">
-          <div className="max-w-[1280px] mx-auto px-4 sm:px-8">
-            <div className="flex items-center justify-center gap-1 overflow-x-auto py-2" style={{ scrollbarWidth: 'none' }}>
-              {NAV_SECTIONS.map(({ label, href }) => (
-                <a
-                  key={href}
-                  href={href}
-                  className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-accent-50 hover:text-accent-700"
-                >
-                  {label}
-                </a>
-              ))}
-            </div>
+      {/* Section nav — guests only; logged-in users have MarketplaceNav */}
+      {!isAuthenticated && <nav className="sticky top-16 z-40 w-full border-b border-slate-200/60 bg-white/90 backdrop-blur-md shadow-sm">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-8">
+          <div className="flex items-center justify-center gap-8 overflow-x-auto py-2" style={{ scrollbarWidth: 'none' }}>
+            {NAV_SECTIONS.map(({ label, href }) => (
+              <a
+                key={href}
+                href={href}
+                className="shrink-0 pb-2 text-sm font-medium text-slate-600 transition-colors hover:text-accent-700"
+              >
+                {label}
+              </a>
+            ))}
           </div>
-        </nav>
-      )}
+        </div>
+      </nav>}
 
     <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-8 py-12 space-y-20">
       {/* ── 1. Hero ── */}
