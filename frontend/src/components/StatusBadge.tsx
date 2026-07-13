@@ -11,16 +11,24 @@ const map: Record<string, string> = {
   open: 'bg-amber-50 text-amber-700 ring-amber-200',
   resolved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   suspended: 'bg-red-50 text-red-700 ring-red-200',
+  deleted: 'bg-slate-100 text-slate-600 ring-slate-300',
 }
 
 interface StatusBadgeProps {
   status: string
 }
 
-export default function StatusBadge({ status }: StatusBadgeProps) {
-  const normStatus = status.toLowerCase()
+export default function StatusBadge({
+  status,
+}: StatusBadgeProps) {
+  const normalisedStatus = status.toLowerCase()
+
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ring-1 ${map[normStatus] || map.pending}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ${
+        map[normalisedStatus] || map.pending
+      }`}
+    >
       {status}
     </span>
   )

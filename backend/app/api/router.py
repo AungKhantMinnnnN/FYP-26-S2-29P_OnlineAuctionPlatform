@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.controller import health, auth, auctions, testimonials, disputes, users, subscriptions, issue_types, boards, marketing, feedback
+from app.api.v1.controller import health, auth, auctions, testimonials, disputes, users, subscriptions, issue_types, boards, marketing, feedback, admin_users
 
 api_router = APIRouter()
 
