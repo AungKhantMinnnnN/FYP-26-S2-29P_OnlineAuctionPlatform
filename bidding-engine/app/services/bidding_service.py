@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from app.models.auction import Listing, User, Bid, WalletTransaction, ListingStatus, BidStatus, TransactionType, BiddingType, SubscriptionTier
+from app.models.auction import Listing, User, Bid, WalletTransaction, UserInteraction, ListingStatus, BidStatus, TransactionType, BiddingType, SubscriptionTier, InteractionAction
 from app.core.redis import redis_client
 
 FREE_BID_HOURLY_LIMIT = 10
@@ -163,7 +163,8 @@ class BiddingService:
         listing.current_price = amount
         listing.updated_at = datetime.now(timezone.utc)
         
-        # 9. Commit all changes
+        # 9. Log interaction and commit all changes atomically
+        db.add(UserInteraction(user_id=user_uuid, listing_id=listing_uuid, action=InteractionAction.bid))
         await db.commit()
 
         # Build success broadcast payload

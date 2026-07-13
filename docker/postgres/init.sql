@@ -264,11 +264,6 @@ CREATE TABLE feedback_types (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO feedback_types (name, reviewer_role) VALUES
-    ('Buyer to Seller',  'buyer'),
-    ('Buyer to Listing', 'buyer'),
-    ('Seller to Buyer',  'seller');
-
 -- Item-level feedback: any bidder can review; eligibility enforced at app layer
 CREATE TABLE item_feedback (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, Query, status, HTTPException, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
 from app.db.session import get_db
-from app.models.auction import ListingStatus, User
-from app.api.deps import get_current_user
+from app.models.auction import ListingStatus, User, InteractionAction
+from app.api.deps import get_current_user, get_optional_user
 from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingUpdate, ListingImageResponse, MetadataResponse, ListingStatusUpdate
 from app.services.auction_service import AuctionService
+from app.services.interaction_service import log_interaction, log_search_interactions
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ async def get_form_metadata(db: AsyncSession = Depends(get_db)):
 
 @router.get("/", response_model=PaginatedAuctionResponse)
 async def get_auctions(
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
@@ -25,8 +27,9 @@ async def get_auctions(
     condition: Optional[str] = Query(None),
     min_price: Optional[float] = Query(None, ge=0),
     max_price: Optional[float] = Query(None, ge=0),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
-    return await AuctionService.get_auctions(
+    result = await AuctionService.get_auctions(
         db=db,
         page=page,
         size=size,
@@ -37,6 +40,10 @@ async def get_auctions(
         min_price=min_price,
         max_price=max_price,
     )
+    if current_user and search and result.get("items"):
+        listing_ids = [item.id for item in result["items"]]
+        background_tasks.add_task(log_search_interactions, current_user.id, listing_ids)
+    return result
 
 @router.post("/create_listing", response_model=AuctionListingResponse, status_code=status.HTTP_201_CREATED)
 async def create_listing(
@@ -91,8 +98,16 @@ async def get_user_listings(
     )
 
 @router.get("/get_auction/{id}", response_model=AuctionListingResponse)
-async def get_auction(id: UUID, db: AsyncSession = Depends(get_db)):
-    return await AuctionService.get_auction(db=db, auction_id=id)
+async def get_auction(
+    id: UUID,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    listing = await AuctionService.get_auction(db=db, auction_id=id)
+    if current_user:
+        background_tasks.add_task(log_interaction, current_user.id, id, InteractionAction.view)
+    return listing
 
 @router.get("/get_auction_bids/{id}/bids", response_model=List[BidResponse])
 async def get_auction_bids(id: UUID, db: AsyncSession = Depends(get_db)):
