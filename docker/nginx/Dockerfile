@@ -7,6 +7,8 @@ COPY frontend/ ./
 
 ARG VITE_API_URL=/v1.0.0
 ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_RECS_URL=/v1.0.0
+ENV VITE_RECS_URL=${VITE_RECS_URL}
 RUN npm run build
 
 FROM nginx:alpine

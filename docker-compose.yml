@@ -93,6 +93,7 @@ services:
       dockerfile: docker/nginx/Dockerfile
       args:
         VITE_API_URL: /v1.0.0
+        VITE_RECS_URL: /v1.0.0
     image: auction-nginx:local
     container_name: AuctionHub_Nginx
     ports:
