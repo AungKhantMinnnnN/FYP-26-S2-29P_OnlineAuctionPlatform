@@ -295,7 +295,7 @@ class UserService:
             profile = UserProfiles(user_id=user.id)
             db.add(profile)
 
-        for field in ("full_name", "phone", "address", "bio"):
+        for field in ("full_name", "phone", "address", "city", "country", "bio"):
             if data.get(field) is not None:
                 setattr(profile, field, data[field])
 
@@ -313,6 +313,8 @@ class UserService:
             "full_name": profile.full_name,
             "phone": profile.phone,
             "address": profile.address,
+            "city": profile.city,
+            "country": profile.country,
             "dob": profile.dob.isoformat() if profile.dob else None,
             "bio": profile.bio,
         }

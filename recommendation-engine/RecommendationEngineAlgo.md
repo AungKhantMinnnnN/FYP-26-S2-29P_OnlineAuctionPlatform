@@ -194,7 +194,7 @@ Zero until 72 hours before `end_time`, then ramps linearly to 1.0 at the deadlin
 Finds all interactions in the current window from users who share the requesting user's **age group** (bucketed from `dob`) OR **city** (parsed from freeform `address`). Re-runs popularity within that peer subset only, normalizes 0..1 against the subset's top listing → `segment_boost`.
 
 Age buckets: `under_18`, `18_24`, `25_34`, `35_44`, `45_54`, `55_plus`  
-City extraction: `location.parse_location()` — comma-split heuristic, last non-state-zip part is taken as city, lowercased and whitespace-normalised. Known limitation: non-US addresses may parse incorrectly (see Phase 6 roadmap).
+City extraction: structured `city` column (Phase 6). Falls back to `location.parse_location()` comma-split heuristic for users without structured city data. `parse_location` limitation: `_STATE_ZIP_RE` matches only 2-letter US state codes; non-US addresses may parse incorrectly — structured `city` is preferred.
 
 Requires `dob` or `address` on `user_profiles`. If neither is present, returns `None` (no segment boost applied).
 
@@ -331,8 +331,7 @@ All cache operations are in `app/services/cache_service.py`. Controlled by `RECS
 
 ## Roadmap (Planned Phases)
 
-### Phase 6 — Location quality fix
-Replace the freeform-`address` heuristic (`location.parse_location`) with structured city/country fields. Current issues: `_STATE_ZIP_RE` only matches 2-letter US state codes (non-US addresses parse incorrectly), spelling/format variants of the same city never cluster, and a comma-less address is silently taken at face value. Fix requires onboarding form changes + schema changes synced across all 3 services' model files.
+No planned phases remaining.
 
 ---
 
@@ -367,3 +366,6 @@ Added `cf_scores()` to `trending.py`: builds a user × listing weight matrix fro
 
 ### Phase 5 — Request-driven caching
 Added `app/core/redis.py` (client singleton) and `app/services/cache_service.py` (set/get helpers for DataFrames and JSON, all exceptions swallowed). `get_trending()` refactored with cache-first loading for `listings_df` (5-min TTL), `interactions_df` (5-min TTL), anonymous pre-scored result (5-min TTL), and per-user brand + price signals bundled at `recs:user:{id}:signals` (24h TTL). Segment and category derivations stay live (fast pandas ops on cached DataFrames, no extra DB queries). All TTLs configurable via `.env`. `RECS_CACHE_ENABLED=false` bypasses all cache operations for debugging. DataFrame serialization uses `orient="split"` + explicit UUID/date casting on deserialization.
+
+### Phase 6 — Location quality fix
+Added structured `city VARCHAR(100)` and `country VARCHAR(100)` columns to `user_profiles` (migration: `scripts/migrations/2026_07_13_user_profiles_location.sql`). Synced across all 3 service model files (`backend`, `bidding-engine`, `recommendation-engine`). Frontend: `RegisterPage` and `ProfilePage` now collect and persist `city`/`country` via new fields in `ProfileUpdateRequest`, `ProfileResponse`, `RegisterRequest`, and `AuthContext.register()`. Recommendation engine: `_segment_interactions()` prefers the structured `city` column and falls back to `parse_location(address)` via `df["resolved_city"]` for users who haven't filled in structured data yet. Cache deserialization handles pre-Phase-6 cached DataFrames gracefully via `if "city" in df.columns` guard.

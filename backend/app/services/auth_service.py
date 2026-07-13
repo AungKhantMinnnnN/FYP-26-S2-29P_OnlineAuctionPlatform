@@ -45,6 +45,8 @@ class AuthService:
             full_name=request.full_name,
             phone=request.phone,
             address=request.address,
+            city=request.city,
+            country=request.country,
             bio=request.bio,
             updated_at=datetime.datetime.now(datetime.timezone.utc)
         )

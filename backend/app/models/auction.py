@@ -102,6 +102,8 @@ class UserProfiles(Base):
     full_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     address = Column(String)
+    city = Column(String(100))
+    country = Column(String(100))
     dob = Column(Date)
     bio = Column(String)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)

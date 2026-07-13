@@ -114,6 +114,8 @@ class ProfileUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     dob: Optional[str] = None  # ISO date string: YYYY-MM-DD
     bio: Optional[str] = None
 
@@ -122,6 +124,8 @@ class ProfileResponse(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     dob: Optional[str] = None
     bio: Optional[str] = None
 # endregion

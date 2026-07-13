@@ -16,6 +16,8 @@ export interface User {
     full_name: string;
     phone?: string;
     address?: string;
+    city?: string;
+    country?: string;
     bio?: string;
   };
 }
@@ -35,7 +37,9 @@ interface AuthContextType {
     password: string,
     phone?: string,
     address?: string,
-    bio?: string
+    bio?: string,
+    city?: string,
+    country?: string,
   ) => Promise<void>;
   refreshUser: () => Promise<void>;
   adjustBalance: (amount: number) => void;
@@ -119,7 +123,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string,
     phone?: string,
     address?: string,
-    bio?: string
+    bio?: string,
+    city?: string,
+    country?: string,
   ) => {
     setLoading(true);
     try {
@@ -131,6 +137,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone: phone || '',
         address: address || '',
         bio: bio || '',
+        city: city || '',
+        country: country || '',
       });
       setLoading(false);
     } catch (error) {

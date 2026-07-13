@@ -52,6 +52,15 @@ def setup_logging(service_name: str = "recommendation-engine") -> logging.Logger
         logger.addHandler(general_handler)
         logger.addHandler(error_handler)
 
+    # Wire all app.* module loggers (getLogger(__name__) in service files)
+    # so their output flows through the same console + file handlers.
+    app_logger = logging.getLogger("app")
+    app_logger.setLevel(logging.INFO)
+    if not app_logger.handlers:
+        app_logger.addHandler(console_handler)
+        app_logger.addHandler(general_handler)
+        app_logger.addHandler(error_handler)
+
     # Separate logger for ML pipeline events
     ml_logger = logging.getLogger(f"{service_name}.ml")
     ml_logger.setLevel(logging.INFO)

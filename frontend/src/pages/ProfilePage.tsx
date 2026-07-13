@@ -82,6 +82,8 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState(user?.profile?.full_name || '')
   const [phone, setPhone] = useState(user?.profile?.phone || '')
   const [address, setAddress] = useState(user?.profile?.address || '')
+  const [city, setCity] = useState(user?.profile?.city || '')
+  const [country, setCountry] = useState(user?.profile?.country || '')
   const [bio, setBio] = useState(user?.profile?.bio || '')
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
 
@@ -89,11 +91,13 @@ export default function ProfilePage() {
     setFullName(user?.profile?.full_name || '')
     setPhone(user?.profile?.phone || '')
     setAddress(user?.profile?.address || '')
+    setCity(user?.profile?.city || '')
+    setCountry(user?.profile?.country || '')
     setBio(user?.profile?.bio || '')
   }, [user])
 
   const runSaveProfile = async () => {
-    await updateProfile({ full_name: fullName, phone, address, bio })
+    await updateProfile({ full_name: fullName, phone, address, city, country, bio })
     await refreshUser()
     setProfileMessage('Profile updated successfully.')
   }
@@ -323,6 +327,10 @@ export default function ProfilePage() {
                     <FormInput label="Email" type="email" value={user?.email || ''} disabled />
                     <FormInput label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
                     <FormInput label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <FormInput label="City" placeholder="e.g. Singapore" value={city} onChange={(e) => setCity(e.target.value)} />
+                      <FormInput label="Country" placeholder="e.g. Singapore" value={country} onChange={(e) => setCountry(e.target.value)} />
+                    </div>
                     <TextAreaField label="Bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
 
                     {profileMessage && <p className="text-sm font-medium text-accent-700">{profileMessage}</p>}
