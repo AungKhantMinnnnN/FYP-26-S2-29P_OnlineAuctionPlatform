@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Check, X } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Check, X, Users, Gavel, Package, TrendingUp, CheckCircle2, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import DataTable from '../components/DataTable'
 import SectionHeader from '../components/SectionHeader'
 import StatusBadge from '../components/StatusBadge'
+import DashboardStatCard from '../components/DashboardStatCard'
 import {
   getAllFeedbackTypes,
   createFeedbackType,
@@ -11,6 +14,7 @@ import {
   deleteFeedbackType,
 } from '../api/feedbackApi'
 import type { FeedbackType } from '../api/feedbackApi'
+import { getPlatformStats, getSystemLogs, getAuditLogs } from '../api/adminApi'
 
 // TODO: Replace with actual data from backend
 const auctions: any[] = []
@@ -18,7 +22,6 @@ const categories: any[] = []
 const users: any[] = []
 const bids: any[] = []
 const adminCases: any[] = []
-const auditLogs: any[] = []
 
 const titleMap: Record<string, string> = {
   users: 'User Management',
@@ -26,7 +29,6 @@ const titleMap: Record<string, string> = {
   categories: 'Category Management',
   'feedback-types': 'Feedback Types',
   cases: 'Case Queue',
-  'audit-logs': 'Audit Logs',
   bids: 'Bid Oversight',
 }
 
@@ -232,6 +234,133 @@ function FeedbackTypesSection() {
   )
 }
 
+// Shared pagination footer — hidden until there is more than one page of results.
+function Pagination({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
+  if (pages <= 1) return null
+  return (
+    <div className="flex items-center justify-center gap-2 mt-4">
+      <button
+        onClick={() => onPage(page - 1)}
+        disabled={page <= 1}
+        className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+      >
+        <ChevronLeft size={18} />
+      </button>
+      <span className="text-sm font-medium text-slate-700">Page {page} of {pages}</span>
+      <button
+        onClick={() => onPage(page + 1)}
+        disabled={page >= pages}
+        className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+      >
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  )
+}
+
+// System Monitoring — Platform Activity Stats. Aggregate platform metrics as stat cards.
+function ActivityStatsSection() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin', 'platform-stats'],
+    queryFn: getPlatformStats,
+  })
+
+  if (isError) {
+    return (
+      <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+        Couldn't load platform stats. The endpoint may not be available yet.
+      </div>
+    )
+  }
+
+  // Never render a hardcoded 0 — show a placeholder until real numbers load.
+  const fmt = (v: number | undefined) => (isLoading || v === undefined ? '—' : v.toLocaleString())
+  const volume =
+    isLoading || data?.total_bid_volume === undefined ? '—' : `$${data.total_bid_volume.toLocaleString()}`
+
+  const cards: { title: string; value: string; icon: LucideIcon }[] = [
+    { title: 'Total Users', value: fmt(data?.total_users), icon: Users },
+    { title: 'Active Auctions', value: fmt(data?.active_auctions), icon: Gavel },
+    { title: 'Total Listings', value: fmt(data?.total_listings), icon: Package },
+    { title: 'Total Bids', value: fmt(data?.total_bids), icon: TrendingUp },
+    { title: 'Completed Auctions', value: fmt(data?.completed_auctions), icon: CheckCircle2 },
+    { title: 'Total Bid Volume', value: volume, icon: DollarSign },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {cards.map(c => (
+        <DashboardStatCard key={c.title} title={c.title} value={c.value} icon={c.icon} />
+      ))}
+    </div>
+  )
+}
+
+// System Monitoring — System Logs. Paginated application/service log lines.
+function SystemLogsSection() {
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin', 'system-logs', page],
+    queryFn: () => getSystemLogs({ page, size: 20 }),
+  })
+
+  if (isLoading) return <p className="text-sm text-slate-400">Loading logs…</p>
+  if (isError) {
+    return (
+      <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+        Couldn't load system logs. The endpoint may not be available yet.
+      </div>
+    )
+  }
+
+  const rows = (data?.items ?? []).map(log => [
+    new Date(log.timestamp).toLocaleString(),
+    <StatusBadge key={log.id} status={log.level} />,
+    log.service,
+    log.message,
+  ])
+
+  return (
+    <>
+      <DataTable headers={['Timestamp', 'Level', 'Service', 'Message']} rows={rows} emptyMessage="No system logs yet." />
+      <Pagination page={data?.page ?? 1} pages={data?.pages ?? 1} onPage={setPage} />
+    </>
+  )
+}
+
+// System Monitoring — Audit Logs. Paginated record of admin actions (admin_logs table).
+function AuditLogsSection() {
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin', 'audit-logs', page],
+    queryFn: () => getAuditLogs({ page, size: 20 }),
+  })
+
+  if (isLoading) return <p className="text-sm text-slate-400">Loading audit logs…</p>
+  if (isError) {
+    return (
+      <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+        Couldn't load audit logs. The endpoint may not be available yet.
+      </div>
+    )
+  }
+
+  const rows = (data?.items ?? []).map(entry => [
+    new Date(entry.created_at).toLocaleString(),
+    entry.admin?.username ?? '—',
+    entry.action,
+    entry.target_id ?? '—',
+    entry.details ?? '—',
+  ])
+
+  return (
+    <>
+      <DataTable headers={['Timestamp', 'Admin', 'Action', 'Target', 'Details']} rows={rows} emptyMessage="No audit log entries yet." />
+      <Pagination page={data?.page ?? 1} pages={data?.pages ?? 1} onPage={setPage} />
+    </>
+  )
+}
+
 export default function AdminManagementPage() {
   const { section = 'users' } = useParams<{ section?: string }>()
 
@@ -243,6 +372,42 @@ export default function AdminManagementPage() {
           subtitle="Create and manage the feedback types users can submit for auctions."
         />
         <FeedbackTypesSection />
+      </div>
+    )
+  }
+
+  if (section === 'activity-stats') {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Platform Activity Stats"
+          subtitle="Live platform-wide activity and volume metrics."
+        />
+        <ActivityStatsSection />
+      </div>
+    )
+  }
+
+  if (section === 'system-logs') {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="System Logs"
+          subtitle="Application and service logs across the platform."
+        />
+        <SystemLogsSection />
+      </div>
+    )
+  }
+
+  if (section === 'audit-logs') {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Audit Logs"
+          subtitle="Record of administrative actions taken on the platform."
+        />
+        <AuditLogsSection />
       </div>
     )
   }
@@ -264,10 +429,6 @@ export default function AdminManagementPage() {
       headers: ['Case ID', 'Type', 'Subject', 'Status', 'Created'],
       rows: adminCases.map((c) => [c.case_id, c.case_type, c.subject, <StatusBadge key={c.case_id} status={c.status} />, c.created_at]),
     },
-    'audit-logs': {
-      headers: ['Log ID', 'Admin', 'Action', 'Timestamp'],
-      rows: auditLogs.map((l) => [l.id, l.admin, l.action, l.timestamp]),
-    },
     bids: {
       headers: ['Bid ID', 'Listing', 'Bidder', 'Amount', 'Status'],
       rows: bids.map((b) => [b.bid_id, b.listing_title, b.bidder_id, `$${b.bid_amount.toFixed(2)}`, <StatusBadge key={b.bid_id} status={b.status} />]),
@@ -280,7 +441,7 @@ export default function AdminManagementPage() {
     <div className="space-y-6">
       <SectionHeader
         title={titleMap[section] || 'Admin Management'}
-        subtitle="Mock API-ready table shaped around users, listings, bids, categories, cases, and audit logs."
+        subtitle="Mock API-ready table shaped around users, listings, bids, categories, and cases."
       />
       <DataTable headers={config.headers} rows={config.rows} />
     </div>
