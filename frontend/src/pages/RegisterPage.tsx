@@ -10,6 +10,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [city, setCity] = useState('')
+  const [country, setCountry] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -35,7 +37,7 @@ export default function RegisterPage() {
 
     setLocalLoading(true)
     try {
-      await register(fullName, username, email, password)
+      await register(fullName, username, email, password, undefined, undefined, undefined, city, country)
       // Log the new user in, then route them into the interests onboarding step.
       // login() navigates to /dashboard internally; the replace-navigate below supersedes it.
       await login(username, password)
@@ -100,6 +102,21 @@ export default function RegisterPage() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormInput
+              label="City"
+              placeholder="e.g. Singapore"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            />
+            <FormInput
+              label="Country"
+              placeholder="e.g. Singapore"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+            />
+          </div>
 
           <label className="flex items-start gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
             <input
