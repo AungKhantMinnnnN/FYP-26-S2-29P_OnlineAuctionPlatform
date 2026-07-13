@@ -7,7 +7,7 @@ from app.db.session import get_db
 from app.models.auction import User, UserStatus, ListingStatus
 from app.api.deps import get_admin_user
 from app.schemas.admin import (
-    AdminUsersResponse, AdminUserItem, CategoryCreate, CategoryUpdate,
+    AdminUsersResponse, AdminUserDetails, SuspendUserRequest, CategoryCreate, CategoryUpdate,
     CategoryDeleteResponse, BidCancelResponse, AuctionRestartRequest,
     AdminLogsResponse, AdminStatsResponse,
 )
@@ -30,16 +30,26 @@ async def list_users(
     return await AdminService.get_users(db=db, search=search, status_filter=user_status, page=page, size=size)
 
 
-@router.patch("/users/{id}/suspend", response_model=AdminUserItem)
+@router.get("/users/{id}", response_model=AdminUserDetails)
+async def get_user(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return await AdminService.get_user_by_id(db=db, user_id=id)
+
+
+@router.patch("/users/{id}/suspend", response_model=AdminUserDetails)
 async def suspend_user(
     id: UUID,
+    data: SuspendUserRequest,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_admin_user),
 ):
-    return await AdminService.suspend_user(db=db, admin=admin, user_id=id)
+    return await AdminService.suspend_user(db=db, admin=admin, user_id=id, reason=data.reason)
 
 
-@router.patch("/users/{id}/unsuspend", response_model=AdminUserItem)
+@router.patch("/users/{id}/unsuspend", response_model=AdminUserDetails)
 async def unsuspend_user(
     id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -48,13 +58,13 @@ async def unsuspend_user(
     return await AdminService.unsuspend_user(db=db, admin=admin, user_id=id)
 
 
-@router.delete("/users/{id}", response_model=AdminUserItem)
+@router.delete("/users/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     id: UUID,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_admin_user),
 ):
-    return await AdminService.delete_user(db=db, admin=admin, user_id=id)
+    await AdminService.delete_user(db=db, admin=admin, user_id=id)
 # endregion
 
 

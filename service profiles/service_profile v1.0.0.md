@@ -978,8 +978,10 @@ All routes require `Authorization: Bearer <token>` for a user with `role = admin
 
 #### User management
 
+Reconciled with the `feature/admin-user-management` PR that merged separately: that PR's `admin_users` router was never actually registered (imported but no `include_router()` call — none of its endpoints were reachable) and it never implemented `unsuspend` despite the spec requiring it, so this `admin.py` implementation stays canonical. Its good ideas — admin-account protection, suspension notifications, a required reason, and a single-user detail endpoint — are folded in below.
+
 * **`GET /v1.0.0/admin/users`**
-  * **Description:** Paginated list of all users. Search matches username or email (case-insensitive, partial). Filter by status.
+  * **Description:** Paginated list of all users. Search matches username, email, or full name (case-insensitive, partial). Filter by status.
   * **Request Parameters:** `search` (string, optional), `status` (`active | suspended | deleted`, optional), `page` (int, default 1), `size` (int, default 20, max 100)
   * **Response (200 OK):** `AdminUsersResponse`
     ```json
@@ -995,33 +997,62 @@ All routes require `Authorization: Bearer <token>` for a user with `role = admin
           "email": "string",
           "role": "user | admin",
           "status": "active | suspended | deleted",
-          "balance": "float",
-          "subscription_tier": "free | premium",
-          "email_verified": "boolean",
-          "full_name": "string | null",
           "created_at": "datetime"
         }
       ]
     }
     ```
 
-* **`PATCH /v1.0.0/admin/users/{id}/suspend`**
-  * **Description:** Sets `user.status = suspended`.
+* **`GET /v1.0.0/admin/users/{id}`**
+  * **Description:** Full detail view of a single user, including profile and (if currently suspended) the suspension reason and timestamp, derived from the latest `suspend_user` row in `admin_logs` for this user — no separate suspension columns needed.
   * **Request Parameters:** `id` (UUID) in path
-  * **Response (200 OK):** `AdminUserItem` *(the updated user, same shape as one item above)*
-  * **Errors:** `404` if not found. `400` if the admin targets their own account, if the account is already deleted, or if it's already suspended.
+  * **Response (200 OK):** `AdminUserDetails`
+    ```json
+    {
+      "id": "uuid",
+      "username": "string",
+      "email": "string",
+      "role": "user | admin",
+      "status": "active | suspended | deleted",
+      "created_at": "datetime",
+      "subscription_tier": "free | premium",
+      "balance": "float",
+      "email_verified": "boolean",
+      "updated_at": "datetime",
+      "suspended_at": "datetime | null",
+      "suspension_reason": "string | null",
+      "profile": {
+        "full_name": "string | null",
+        "phone": "string | null",
+        "address": "string | null",
+        "dob": "string | null (YYYY-MM-DD)",
+        "bio": "string | null"
+      } | null
+    }
+    ```
+  * **Errors:** `404` if not found.
+
+* **`PATCH /v1.0.0/admin/users/{id}/suspend`**
+  * **Description:** Sets `user.status = suspended`. Sends the user a `Notification` explaining why (via `reason`).
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`SuspendUserRequest`)
+    ```json
+    { "reason": "string (3-1000 chars)" }
+    ```
+  * **Response (200 OK):** `AdminUserDetails`
+  * **Errors:** `404` if not found. `400` if the admin targets their own account, the reason is blank/whitespace-only, the account is already deleted, or it's already suspended. `403` if the target is an administrator account — admins cannot be suspended.
 
 * **`PATCH /v1.0.0/admin/users/{id}/unsuspend`**
-  * **Description:** Sets `user.status = active`.
+  * **Description:** Sets `user.status = active`. Sends the user a `Notification` confirming reinstatement.
   * **Request Parameters:** `id` (UUID) in path
-  * **Response (200 OK):** `AdminUserItem`
+  * **Response (200 OK):** `AdminUserDetails`
   * **Errors:** `404` if not found. `400` if the user is not currently suspended.
 
 * **`DELETE /v1.0.0/admin/users/{id}`**
-  * **Description:** Soft delete — sets `user.status = deleted`. The row is never physically removed.
+  * **Description:** Soft delete — sets `user.status = deleted`. The row is never physically removed. Sends the user a `Notification`.
   * **Request Parameters:** `id` (UUID) in path
-  * **Response (200 OK):** `AdminUserItem` *(reflects the now-deleted status)*
-  * **Errors:** `404` if not found. `400` if the admin targets their own account or the account is already deleted.
+  * **Response (204 No Content)**
+  * **Errors:** `404` if not found. `400` if the admin targets their own account or the account is already deleted. `403` if the target is an administrator account — admins cannot be deleted.
 
 #### Listing moderation
 

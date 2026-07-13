@@ -8,24 +8,54 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.auction import (
-    User, UserStatus, Listing, ListingStatus, Bid, BidStatus, AuctionResult,
-    Categories, UserInterest, WalletTransaction, TransactionType, AdminLog, BoardItem,
+    User, UserRole, UserStatus, UserProfiles, Listing, ListingStatus, Bid, BidStatus,
+    AuctionResult, Categories, UserInterest, WalletTransaction, TransactionType,
+    AdminLog, BoardItem, Notification,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
 
 
-def _to_admin_user_item(user: User) -> dict:
+def _to_summary(user: User) -> dict:
     return {
         "id": user.id,
         "username": user.username,
         "email": user.email,
         "role": user.role.value,
         "status": user.status.value,
-        "balance": user.balance,
-        "subscription_tier": user.subscription_tier.value,
-        "email_verified": user.email_verified,
-        "full_name": user.profile.full_name if user.profile else None,
         "created_at": user.created_at,
+    }
+
+
+def _to_profile(user: User) -> Optional[dict]:
+    if not user.profile:
+        return None
+    return {
+        "full_name": user.profile.full_name,
+        "phone": user.profile.phone,
+        "address": user.profile.address,
+        "dob": user.profile.dob.isoformat() if user.profile.dob else None,
+        "bio": user.profile.bio,
+    }
+
+
+async def _to_details(db: AsyncSession, user: User) -> dict:
+    suspension_log = None
+    if user.status == UserStatus.suspended:
+        suspension_log = await db.scalar(
+            select(AdminLog)
+            .where(AdminLog.target_id == user.id, AdminLog.action == "suspend_user")
+            .order_by(AdminLog.created_at.desc())
+            .limit(1)
+        )
+    return {
+        **_to_summary(user),
+        "subscription_tier": user.subscription_tier.value,
+        "balance": user.balance,
+        "email_verified": user.email_verified,
+        "updated_at": user.updated_at,
+        "suspended_at": suspension_log.created_at if suspension_log else None,
+        "suspension_reason": suspension_log.details if suspension_log else None,
+        "profile": _to_profile(user),
     }
 
 
@@ -40,13 +70,17 @@ class AdminService:
         page: int,
         size: int,
     ) -> Dict[str, Any]:
-        query = select(User)
+        query = select(User).outerjoin(UserProfiles, UserProfiles.user_id == User.id)
         if status_filter:
             query = query.where(User.status == status_filter)
         if search:
             like = f"%{search}%"
-            query = query.where(or_(User.username.ilike(like), User.email.ilike(like)))
+            query = query.where(or_(
+                User.username.ilike(like), User.email.ilike(like), UserProfiles.full_name.ilike(like),
+            ))
 
+        # user_profiles.user_id is unique, so this outer join can never duplicate a User row —
+        # a plain row count is safe (matches the pattern used everywhere else in this file).
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
 
@@ -56,7 +90,7 @@ class AdminService:
 
         pages = (total + size - 1) // size if total else 0
         return {
-            "items": [_to_admin_user_item(u) for u in users],
+            "items": [_to_summary(u) for u in users],
             "total": total,
             "page": page,
             "size": size,
@@ -64,64 +98,97 @@ class AdminService:
         }
 
     @staticmethod
-    async def suspend_user(db: AsyncSession, admin: User, user_id: UUID) -> dict:
-        user = await db.scalar(select(User).where(User.id == user_id))
+    async def get_user_by_id(db: AsyncSession, user_id: UUID) -> dict:
+        user = await db.scalar(
+            select(User).options(selectinload(User.profile)).where(User.id == user_id)
+        )
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return await _to_details(db, user)
+
+    @staticmethod
+    async def suspend_user(db: AsyncSession, admin: User, user_id: UUID, reason: str) -> dict:
+        user = await db.scalar(
+            select(User).options(selectinload(User.profile)).where(User.id == user_id)
+        )
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         if user.id == admin.id:
             raise HTTPException(status_code=400, detail="You cannot suspend your own account")
+        if user.role == UserRole.admin:
+            raise HTTPException(status_code=403, detail="Administrator accounts cannot be suspended")
         if user.status == UserStatus.deleted:
             raise HTTPException(status_code=400, detail="Cannot suspend a deleted account")
         if user.status == UserStatus.suspended:
             raise HTTPException(status_code=400, detail="User is already suspended")
 
+        cleaned_reason = reason.strip()
+        if not cleaned_reason:
+            raise HTTPException(status_code=400, detail="Suspension reason is required")
+
+        now = datetime.now(timezone.utc)
         user.status = UserStatus.suspended
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = now
+        db.add(Notification(
+            user_id=user.id, title="Account Suspended",
+            message=f"Your account has been suspended by an administrator. Reason: {cleaned_reason}",
+        ))
         db.add(AdminLog(
-            admin_id=admin.id, action="suspend_user", target_id=user.id,
-            details=f"Suspended user '{user.username}'",
+            admin_id=admin.id, action="suspend_user", target_id=user.id, details=cleaned_reason,
         ))
         await db.commit()
         await db.refresh(user)
-        return _to_admin_user_item(user)
+        return await _to_details(db, user)
 
     @staticmethod
     async def unsuspend_user(db: AsyncSession, admin: User, user_id: UUID) -> dict:
-        user = await db.scalar(select(User).where(User.id == user_id))
+        user = await db.scalar(
+            select(User).options(selectinload(User.profile)).where(User.id == user_id)
+        )
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         if user.status != UserStatus.suspended:
             raise HTTPException(status_code=400, detail="User is not currently suspended")
 
+        now = datetime.now(timezone.utc)
         user.status = UserStatus.active
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = now
+        db.add(Notification(
+            user_id=user.id, title="Account Reinstated",
+            message="Your account has been reinstated by an administrator. You can now log in as normal.",
+        ))
         db.add(AdminLog(
             admin_id=admin.id, action="unsuspend_user", target_id=user.id,
             details=f"Unsuspended user '{user.username}'",
         ))
         await db.commit()
         await db.refresh(user)
-        return _to_admin_user_item(user)
+        return await _to_details(db, user)
 
     @staticmethod
-    async def delete_user(db: AsyncSession, admin: User, user_id: UUID) -> dict:
+    async def delete_user(db: AsyncSession, admin: User, user_id: UUID) -> None:
         user = await db.scalar(select(User).where(User.id == user_id))
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         if user.id == admin.id:
             raise HTTPException(status_code=400, detail="You cannot delete your own account")
+        if user.role == UserRole.admin:
+            raise HTTPException(status_code=403, detail="Administrator accounts cannot be deleted")
         if user.status == UserStatus.deleted:
             raise HTTPException(status_code=400, detail="User is already deleted")
 
+        now = datetime.now(timezone.utc)
         user.status = UserStatus.deleted
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = now
+        db.add(Notification(
+            user_id=user.id, title="Account Deleted",
+            message="Your account has been deleted by an administrator. You will no longer be able to access the platform.",
+        ))
         db.add(AdminLog(
             admin_id=admin.id, action="delete_user", target_id=user.id,
             details=f"Deleted (soft) user '{user.username}'",
         ))
         await db.commit()
-        await db.refresh(user)
-        return _to_admin_user_item(user)
     # endregion
 
     # region Listings

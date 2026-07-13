@@ -146,7 +146,7 @@ function UsersSection() {
     useState<AdminUserDetails | null>(null)
 
   const [modalType, setModalType] = useState<
-    'details' | 'suspend' | 'delete' | null
+    'details' | 'suspend' | 'unsuspend' | 'delete' | null
   >(null)
 
   const [suspensionReason, setSuspensionReason] =
@@ -265,6 +265,14 @@ function UsersSection() {
     setModalType('suspend')
   }
 
+  const openUnsuspendModal = (
+    user: AdminUserSummary,
+  ) => {
+    clearMessages()
+    setSelectedUser(user)
+    setModalType('unsuspend')
+  }
+
   const openDeleteModal = (
     user: AdminUserSummary,
   ) => {
@@ -312,6 +320,39 @@ function UsersSection() {
         getErrorMessage(
           error,
           'Failed to suspend the user account.',
+        ),
+      )
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleUnsuspendUser = async () => {
+    if (!selectedUser) {
+      return
+    }
+
+    setActionLoading(true)
+    clearMessages()
+
+    try {
+      await adminUsersApi.unsuspendUser(selectedUser.id)
+
+      const username = selectedUser.username
+
+      setModalType(null)
+      setSelectedUser(null)
+
+      setSuccess(
+        `${username}'s account was reinstated successfully.`,
+      )
+
+      await loadUsers()
+    } catch (error: any) {
+      setError(
+        getErrorMessage(
+          error,
+          'Failed to unsuspend the user account.',
         ),
       )
     } finally {
@@ -421,6 +462,16 @@ function UsersSection() {
           className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ShieldBan size={16} />
+        </button>
+
+        <button
+          type="button"
+          title="Unsuspend account"
+          onClick={() => openUnsuspendModal(user)}
+          disabled={user.status !== 'suspended'}
+          className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <UserCheck size={16} />
         </button>
 
         <button
@@ -851,6 +902,47 @@ function UsersSection() {
                     {actionLoading
                       ? 'Suspending…'
                       : 'Suspend Account'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {modalType === 'unsuspend' && (
+              <>
+                <h2 className="text-xl font-bold text-slate-950">
+                  Unsuspend User Account
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Reinstate{' '}
+                  <strong className="text-slate-800">
+                    {selectedUser.username}
+                  </strong>
+                  ? The user will regain full access and be
+                  notified that their account is active again.
+                </p>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    disabled={actionLoading}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleUnsuspendUser()
+                    }
+                    disabled={actionLoading}
+                    className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {actionLoading
+                      ? 'Unsuspending…'
+                      : 'Unsuspend Account'}
                   </button>
                 </div>
               </>

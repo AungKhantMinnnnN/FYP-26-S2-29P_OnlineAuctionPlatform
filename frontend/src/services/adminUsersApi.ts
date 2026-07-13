@@ -84,6 +84,16 @@ export const adminUsersApi = {
     return response.data
   },
 
+  async unsuspendUser(
+    userId: string,
+  ): Promise<AdminUserDetails> {
+    const response = await apiClient.patch<AdminUserDetails>(
+      `/admin/users/${userId}/unsuspend`,
+    )
+
+    return response.data
+  },
+
   async deleteUser(userId: string): Promise<void> {
     await apiClient.delete(`/admin/users/${userId}`)
   },

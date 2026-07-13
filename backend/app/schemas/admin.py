@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Optional, List, Literal
 from uuid import UUID
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 SLUG_PATTERN = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
 
@@ -15,21 +15,39 @@ class PaginationMeta(BaseModel):
 
 
 # region Users
-class AdminUserItem(BaseModel):
+class AdminUserSummary(BaseModel):
     id: UUID
     username: str
     email: str
     role: str
     status: str
-    balance: float
-    subscription_tier: str
-    email_verified: bool
-    full_name: Optional[str] = None
     created_at: datetime
 
 
 class AdminUsersResponse(PaginationMeta):
-    items: List[AdminUserItem]
+    items: List[AdminUserSummary]
+
+
+class AdminUserProfile(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[str] = None
+    bio: Optional[str] = None
+
+
+class AdminUserDetails(AdminUserSummary):
+    subscription_tier: str
+    balance: float
+    email_verified: bool
+    updated_at: datetime
+    suspended_at: Optional[datetime] = None
+    suspension_reason: Optional[str] = None
+    profile: Optional[AdminUserProfile] = None
+
+
+class SuspendUserRequest(BaseModel):
+    reason: str = Field(..., min_length=3, max_length=1000)
 # endregion
 
 
