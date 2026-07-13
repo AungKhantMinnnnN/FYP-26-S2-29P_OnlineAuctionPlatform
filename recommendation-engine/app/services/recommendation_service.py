@@ -1,9 +1,9 @@
 import datetime
+import logging
 import uuid
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
@@ -11,24 +11,47 @@ from app.models.auction import (
     Listing, ListingStatus, Bid, AuctionResult, Watchlist, CollectorBoard, BoardItem,
     UserInteraction, UserInterest, UserProfiles,
 )
-from app.services import trending
+from app.services import trending, cache_service
 from app.services.location import parse_location
 
-
-def _primary_image_url(listing: Listing) -> str | None:
-    if not listing.images:
-        return None
-    primary = next((img for img in listing.images if img.is_primary), None) or listing.images[0]
-    return f"{settings.S3_PUBLIC_URL}/{primary.s3_key}"
+logger = logging.getLogger(__name__)
 
 
-async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit: int = 20) -> tuple[list[dict], bool]:
-    """Returns (items, personalized)."""
-    now = datetime.datetime.now(datetime.timezone.utc)
-    window_start = now - datetime.timedelta(days=trending.TRENDING_WINDOW_DAYS)
+# ---------------------------------------------------------------------------
+# DataFrame cast helpers — undo JSON serialisation side-effects
+# ---------------------------------------------------------------------------
 
-    # --- Candidate listings (include brand + condition_confidence) ---
-    listings_result = await db.execute(
+def _cast_listings_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Restore UUID types lost during JSON round-trip."""
+    df["id"] = df["id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
+    df["category_id"] = df["category_id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
+    return df
+
+
+def _cast_interactions_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Restore UUID and date types lost during JSON round-trip."""
+    df["listing_id"] = df["listing_id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
+    df["user_id"] = df["user_id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
+
+    def _parse_dob(val):
+        if not val or (isinstance(val, float) and pd.isna(val)):
+            return None
+        try:
+            return datetime.date.fromisoformat(str(val)[:10])
+        except (ValueError, TypeError):
+            return None
+
+    df["dob"] = df["dob"].apply(_parse_dob)
+    return df
+
+
+# ---------------------------------------------------------------------------
+# DB fetch helpers — called on cache miss only
+# ---------------------------------------------------------------------------
+
+async def _fetch_listings(db: AsyncSession, now: datetime.datetime) -> pd.DataFrame:
+    logger.info("_fetch_listings: querying DB")
+    result = await db.execute(
         select(
             Listing.id, Listing.title, Listing.current_price, Listing.end_time,
             Listing.category_id, Listing.brand, Listing.condition_confidence,
@@ -37,13 +60,16 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
         .where(Listing.is_draft.is_(False))
         .where(Listing.end_time > now)
     )
-    listings_df = pd.DataFrame(listings_result.mappings().all())
-    if listings_df.empty:
-        return [], False
+    df = pd.DataFrame(result.mappings().all())
+    logger.info("_fetch_listings: %d active listings fetched", len(df))
+    return df
 
-    active_ids = listings_df["id"].tolist()
 
-    # --- user_interactions (existing signal) ---
+async def _fetch_interactions(
+    db: AsyncSession, active_ids: list, window_start: datetime.datetime
+) -> pd.DataFrame:
+    logger.info("_fetch_interactions: querying DB")
+
     interactions_result = await db.execute(
         select(
             UserInteraction.listing_id,
@@ -56,16 +82,14 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
         .where(UserInteraction.occurred_at >= window_start)
         .where(UserInteraction.listing_id.in_(active_ids))
     )
-    interactions_df = pd.DataFrame(
+    df = pd.DataFrame(
         interactions_result.mappings().all(),
         columns=["listing_id", "action", "user_id", "dob", "address"],
     )
-    if not interactions_df.empty:
-        interactions_df["action"] = interactions_df["action"].apply(
-            lambda a: a.value if hasattr(a, "value") else a
-        )
+    if not df.empty:
+        df["action"] = df["action"].apply(lambda a: a.value if hasattr(a, "value") else a)
+    logger.info("_fetch_interactions: %d user_interaction rows", len(df))
 
-    # --- bids on active listings (stronger explicit bid signal) ---
     bids_result = await db.execute(
         select(Bid.listing_id, Bid.bidder_id, UserProfiles.dob, UserProfiles.address)
         .outerjoin(UserProfiles, UserProfiles.user_id == Bid.bidder_id)
@@ -76,9 +100,9 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
     if bids_rows:
         bids_df = pd.DataFrame(bids_rows, columns=["listing_id", "user_id", "dob", "address"])
         bids_df["action"] = "bid_placed"
-        interactions_df = pd.concat([interactions_df, bids_df], ignore_index=True)
+        df = pd.concat([df, bids_df], ignore_index=True)
+        logger.info("_fetch_interactions: +%d bid_placed rows (total=%d)", len(bids_df), len(df))
 
-    # --- watchlist entries on active listings ---
     watchlist_result = await db.execute(
         select(Watchlist.listing_id, Watchlist.user_id, UserProfiles.dob, UserProfiles.address)
         .outerjoin(UserProfiles, UserProfiles.user_id == Watchlist.user_id)
@@ -88,14 +112,86 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
     if watchlist_rows:
         wl_df = pd.DataFrame(watchlist_rows, columns=["listing_id", "user_id", "dob", "address"])
         wl_df["action"] = "watchlist_active"
-        interactions_df = pd.concat([interactions_df, wl_df], ignore_index=True)
+        df = pd.concat([df, wl_df], ignore_index=True)
+        logger.info("_fetch_interactions: +%d watchlist_active rows (total=%d)", len(wl_df), len(df))
 
-    # --- per-user enrichment: segment, category, and RCBF content signals ---
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+async def get_trending(
+    db: AsyncSession, user_id: uuid.UUID | None = None, limit: int = 20
+) -> tuple[list[dict], bool]:
+    """Returns (items, personalized)."""
+    logger.info("get_trending: start — user_id=%s limit=%d", user_id, limit)
+
+    # Anonymous short-circuit — serve pre-scored result directly from cache
+    if user_id is None:
+        cached = await cache_service.get_json(f"recs:anonymous:{limit}")
+        if cached is not None:
+            logger.info("get_trending: anonymous cache HIT — returning %d items", len(cached))
+            return cached, False
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    window_start = now - datetime.timedelta(days=trending.TRENDING_WINDOW_DAYS)
+
+    # --- listings_df (cache-first) ---
+    listings_df = await cache_service.get_df("recs:global:listings")
+    if listings_df is not None:
+        listings_df = _cast_listings_df(listings_df)
+    else:
+        listings_df = await _fetch_listings(db, now)
+        await cache_service.set_df("recs:global:listings", listings_df, settings.RECS_LISTINGS_CACHE_TTL)
+
+    if listings_df.empty:
+        logger.info("get_trending: no active listings — returning empty")
+        return [], False
+
+    active_ids = listings_df["id"].tolist()
+    logger.info("get_trending: %d candidate listings", len(active_ids))
+
+    # --- interactions_df (cache-first) ---
+    interactions_df = await cache_service.get_df("recs:global:interactions")
+    if interactions_df is not None:
+        interactions_df = _cast_interactions_df(interactions_df)
+    else:
+        interactions_df = await _fetch_interactions(db, active_ids, window_start)
+        await cache_service.set_df("recs:global:interactions", interactions_df, settings.RECS_INTERACTIONS_CACHE_TTL)
+
+    logger.info(
+        "get_trending: interactions_df=%d rows, %d distinct listings",
+        len(interactions_df),
+        interactions_df["listing_id"].nunique() if not interactions_df.empty else 0,
+    )
+
+    # --- per-user enrichment ---
+    # segment + category: fast pandas ops on the already-loaded interactions_df — not cached
     segment_df = await _segment_interactions(db, user_id, interactions_df)
     category_df = await _category_interactions(db, user_id, interactions_df, listings_df)
-    user_brands = await _user_brands(db, user_id, interactions_df, listings_df)
-    user_price = await _user_price_profile(db, user_id, interactions_df, listings_df)
 
+    # brands + price: multiple DB queries each — cached for 24h per user
+    if user_id is not None:
+        signals = await cache_service.get_json(f"recs:user:{user_id}:signals")
+        if signals is not None:
+            user_brands = set(signals["brands"])
+            user_price = signals["median_price"]
+            logger.info("get_trending: user signals cache HIT — %d brands, price=%.2f", len(user_brands), user_price or 0)
+        else:
+            user_brands = await _user_brands(db, user_id, interactions_df, listings_df)
+            user_price = await _user_price_profile(db, user_id, interactions_df, listings_df)
+            await cache_service.set_json(
+                f"recs:user:{user_id}:signals",
+                {"brands": list(user_brands), "median_price": user_price},
+                settings.RECS_USER_SIGNALS_CACHE_TTL,
+            )
+    else:
+        user_brands = set()
+        user_price = None
+
+    # --- rank ---
     ranked = trending.rank_listings(
         listings_df, interactions_df, now,
         segment_df, category_df,
@@ -105,7 +201,9 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
     )
     top = ranked.head(limit)[["id", "score"]]
     score_map = dict(zip(top["id"], top["score"]))
+    logger.info("get_trending: top %d listings selected", len(score_map))
 
+    # --- full listing fetch ---
     full_result = await db.execute(
         select(Listing)
         .options(selectinload(Listing.images), selectinload(Listing.seller))
@@ -117,6 +215,7 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
     for listing_id, score in score_map.items():
         listing = full_listings.get(listing_id)
         if not listing:
+            logger.warning("get_trending: listing_id=%s missing from full fetch", listing_id)
             continue
         items.append({
             "id": listing.id,
@@ -153,17 +252,35 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
                 "username": listing.seller.username,
                 "email": listing.seller.email,
             } if listing.seller else None,
-            "score": score,
+            "score": float(score),
         })
 
-    has_cf = user_id is not None and not interactions_df.empty and user_id in interactions_df["user_id"].values
-    return items, (segment_df is not None or category_df is not None or bool(user_brands) or user_price is not None or has_cf)
+    # Cache anonymous result after first computation
+    if user_id is None:
+        await cache_service.set_json(f"recs:anonymous:{limit}", items, settings.RECS_ANONYMOUS_CACHE_TTL)
 
+    has_cf = user_id is not None and not interactions_df.empty and user_id in interactions_df["user_id"].values
+    personalized = (
+        segment_df is not None or category_df is not None
+        or bool(user_brands) or user_price is not None or has_cf
+    )
+    logger.info(
+        "get_trending: done — %d items, personalized=%s (segment=%s, category=%s, brands=%d, price=%s, cf=%s)",
+        len(items), personalized,
+        segment_df is not None, category_df is not None, len(user_brands), user_price, has_cf,
+    )
+    return items, personalized
+
+
+# ---------------------------------------------------------------------------
+# Per-user enrichment helpers
+# ---------------------------------------------------------------------------
 
 async def _segment_interactions(
     db: AsyncSession, user_id: uuid.UUID | None, interactions_df: pd.DataFrame
 ) -> pd.DataFrame | None:
     if user_id is None or interactions_df.empty:
+        logger.debug("_segment_interactions: user_id=%s or empty interactions → skipping", user_id)
         return None
 
     profile_result = await db.execute(
@@ -171,10 +288,12 @@ async def _segment_interactions(
     )
     profile = profile_result.mappings().first()
     if not profile or (profile["dob"] is None and not profile["address"]):
+        logger.debug("_segment_interactions: user=%s has no dob/address → skipping", user_id)
         return None
 
     user_age_group = trending.age_group(profile["dob"])
     user_city = parse_location(profile["address"])["city"] if profile["address"] else None
+    logger.debug("_segment_interactions: user=%s age_group=%s city=%s", user_id, user_age_group, user_city)
 
     df = interactions_df.copy()
     df["age_group"] = df["dob"].apply(trending.age_group)
@@ -185,7 +304,10 @@ async def _segment_interactions(
         mask |= df["age_group"] == user_age_group
     if user_city:
         mask |= df["city"] == user_city
-    return df[mask] if mask.any() else None
+
+    result = df[mask] if mask.any() else None
+    logger.debug("_segment_interactions: user=%s → %d matching rows", user_id, len(result) if result is not None else 0)
+    return result
 
 
 async def _category_interactions(
@@ -194,9 +316,7 @@ async def _category_interactions(
     if user_id is None:
         return None
 
-    # Behavioral history: categories from all signals (interactions + bids + watchlist)
     user_history = interactions_df[interactions_df["user_id"] == user_id] if not interactions_df.empty else pd.DataFrame()
-
     user_categories: set = set()
 
     if not user_history.empty:
@@ -204,8 +324,8 @@ async def _category_interactions(
             listings_df[["id", "category_id"]], left_on="listing_id", right_on="id", how="left"
         )
         user_categories = set(merged["category_id"].dropna().unique())
+        logger.debug("_category_interactions: user=%s — %d categories from interaction history", user_id, len(user_categories))
 
-    # Wins: categories from auction results
     if not user_categories:
         wins_result = await db.execute(
             select(Listing.category_id)
@@ -215,8 +335,8 @@ async def _category_interactions(
             .distinct()
         )
         user_categories = {row[0] for row in wins_result.all()}
+        logger.debug("_category_interactions: user=%s — %d categories from wins", user_id, len(user_categories))
 
-    # Board items: categories from curated items
     if not user_categories:
         board_result = await db.execute(
             select(Listing.category_id)
@@ -228,34 +348,35 @@ async def _category_interactions(
             .distinct()
         )
         user_categories = {row[0] for row in board_result.all()}
+        logger.debug("_category_interactions: user=%s — %d categories from board items", user_id, len(user_categories))
 
-    # Cold-start fallback: onboarding interests
     if not user_categories:
         interests_result = await db.execute(
             select(UserInterest.category_id).where(UserInterest.user_id == user_id).distinct()
         )
         user_categories = {row[0] for row in interests_result.all()}
+        logger.debug("_category_interactions: user=%s — %d categories from onboarding interests (cold-start)", user_id, len(user_categories))
 
     if not user_categories:
+        logger.debug("_category_interactions: user=%s — no categories found → no boost", user_id)
         return None
 
     merged = interactions_df.merge(
         listings_df[["id", "category_id"]], left_on="listing_id", right_on="id", how="left"
     )
     category_df = merged[merged["category_id"].isin(user_categories)]
+    logger.debug("_category_interactions: user=%s — %d matching rows", user_id, len(category_df))
     return category_df if not category_df.empty else None
 
 
 async def _user_brands(
     db: AsyncSession, user_id: uuid.UUID | None, interactions_df: pd.DataFrame, listings_df: pd.DataFrame
 ) -> set:
-    """Collect all brands from the user's interaction history, wins, and board items."""
     if user_id is None:
         return set()
 
     brands: set = set()
 
-    # From current window interactions (active listings only — has brand column)
     if not interactions_df.empty:
         user_rows = interactions_df[interactions_df["user_id"] == user_id]
         if not user_rows.empty:
@@ -263,8 +384,8 @@ async def _user_brands(
                 listings_df[["id", "brand"]], left_on="listing_id", right_on="id", how="left"
             )
             brands.update(merged["brand"].dropna().unique())
+            logger.debug("_user_brands: user=%s — %d brands from window interactions", user_id, len(brands))
 
-    # From all-time bid history (ended listings too)
     bids_brand_result = await db.execute(
         select(Listing.brand)
         .join(Bid, Bid.listing_id == Listing.id)
@@ -272,9 +393,10 @@ async def _user_brands(
         .where(Listing.brand.isnot(None))
         .distinct()
     )
-    brands.update(row[0] for row in bids_brand_result.all())
+    bid_brands = {row[0] for row in bids_brand_result.all()}
+    brands.update(bid_brands)
+    logger.debug("_user_brands: user=%s — +%d from bid history (total=%d)", user_id, len(bid_brands), len(brands))
 
-    # From auction wins
     wins_brand_result = await db.execute(
         select(Listing.brand)
         .join(AuctionResult, AuctionResult.listing_id == Listing.id)
@@ -284,7 +406,6 @@ async def _user_brands(
     )
     brands.update(row[0] for row in wins_brand_result.all())
 
-    # From board-curated items
     board_brand_result = await db.execute(
         select(Listing.brand)
         .join(AuctionResult, AuctionResult.listing_id == Listing.id)
@@ -296,6 +417,7 @@ async def _user_brands(
     )
     brands.update(row[0] for row in board_brand_result.all())
 
+    logger.info("_user_brands: user=%s — final set: %d brands", user_id, len(brands))
     return brands
 
 
@@ -305,18 +427,15 @@ async def _user_price_profile(
     interactions_df: pd.DataFrame,
     listings_df: pd.DataFrame,
 ) -> float | None:
-    """Median price the user has engaged with. Bid amounts are the primary signal (strongest
-    commitment); falls back to current_price of listings in the interaction window."""
     if user_id is None:
         return None
 
-    # Primary: all-time bid amounts (what user actually committed to paying)
     bid_result = await db.execute(
         select(Bid.amount).where(Bid.bidder_id == user_id).limit(200)
     )
     amounts = [row[0] for row in bid_result.all()]
+    logger.debug("_user_price_profile: user=%s — %d bid amounts", user_id, len(amounts))
 
-    # Fallback: current prices of listings the user interacted with this window
     if not amounts and not interactions_df.empty:
         user_rows = interactions_df[interactions_df["user_id"] == user_id]
         if not user_rows.empty:
@@ -324,8 +443,12 @@ async def _user_price_profile(
                 listings_df[["id", "current_price"]], left_on="listing_id", right_on="id", how="left"
             )
             amounts = merged["current_price"].dropna().tolist()
+            logger.debug("_user_price_profile: user=%s — falling back to %d interaction prices", user_id, len(amounts))
 
     if not amounts:
+        logger.debug("_user_price_profile: user=%s — no price signal", user_id)
         return None
 
-    return float(pd.Series(amounts).median())
+    median = float(pd.Series(amounts).median())
+    logger.info("_user_price_profile: user=%s — median=%.2f (%d points)", user_id, median, len(amounts))
+    return median

@@ -15,6 +15,13 @@ class Settings(BaseSettings):
 
     ALLOWED_ORIGINS: str
     S3_PUBLIC_URL: str
+
+    # Caching — set RECS_CACHE_ENABLED=false to always compute from DB
+    RECS_CACHE_ENABLED: bool = True
+    RECS_LISTINGS_CACHE_TTL: int = 300       # 5 min  — active listings snapshot
+    RECS_INTERACTIONS_CACHE_TTL: int = 300   # 5 min  — unified interactions signal
+    RECS_ANONYMOUS_CACHE_TTL: int = 300      # 5 min  — pre-scored anonymous result
+    RECS_USER_SIGNALS_CACHE_TTL: int = 86400 # 24 h   — per-user brands + price profile
     
     @property
     def cors_origins(self) -> list[str]:
