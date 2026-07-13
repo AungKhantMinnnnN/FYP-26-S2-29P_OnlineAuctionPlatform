@@ -26,7 +26,7 @@ No `user_id`, or a `user_id` with no `dob`/`address`, no interaction history, an
 
 This is a rule-based hybrid ranker, not a trained model — every factor below is a deterministic formula over the last 7 days of interaction data. No `scikit-surprise`/CF model is trained yet (see Roadmap Phase 4); "Hybrid CF/RCBF" today means *popularity + recency + rule-based segment/category similarity*.
 
-For each candidate listing, four factors combine into one `score`, computed top-to-bottom (each line multiplies the running score from the line above):
+For each candidate listing, six factors combine into one `score`, computed top-to-bottom (each line multiplies the running score from the line above):
 
 | # | Factor | Formula | Needs a profile/history? |
 |---|--------|---------|---------------------------|
@@ -34,8 +34,10 @@ For each candidate listing, four factors combine into one `score`, computed top-
 | 2 | **Urgency** | `urgency = clip((72 - hours_remaining) / 72, 0, 1)`, i.e. 0 until 72h before `end_time`, ramping linearly to 1 at the deadline, 0 again once ended. `score *= 1 + 0.5 * urgency` (max +50%). | No |
 | 3 | **Segment boost** | Take every interaction in the window from users sharing the requesting user's `age_group` (bucketed from `dob` — see table below) OR parsed `city` (from `address`, see `location.parse_location`). Re-run popularity *within that subset only*, normalize 0..1 against the subset's top listing → `segment_boost`. `score *= 1 + 0.5 * segment_boost` (max +50%). | Yes — `dob` or `address` on `user_profiles` |
 | 4 | **Category boost** | Take every interaction in the window on listings whose `category_id` matches a category the requesting user has *ever* interacted with (any action, any time — not just this window). If the user has no behavioral history at all, fall back to their onboarding `user_interests` categories instead. Same normalize-against-subset-max pattern → `category_boost`. `score *= 1 + 0.5 * category_boost` (max +50%). | Yes — `user_interactions` history *or* `user_interests` rows for that user (profile not required) |
+| 5 | **Brand affinity** | Binary: 1.0 if `listing.brand` is in the user's all-time brand history (from bids, watchlist, board items), 0.0 otherwise. `score *= 1 + 0.4 * brand_score` (max +40%). | Yes — bid or interaction history with branded listings |
+| 6 | **Price affinity** | Linear decay: 1.0 when `listing.current_price` exactly matches the user's median historical bid amount, falling to 0.0 at 2× deviation. Listings with no price or users with no bid history default to 0.5 (neutral — no penalty). `score *= 1 + 0.3 * price_score` (max +30%). | Yes — `bids.amount` history; falls back to current-window interaction prices |
 
-Net effect: `score = popularity × (1 + 0.5·urgency) × (1 + 0.5·segment_boost) × (1 + 0.5·category_boost)`. Boosts are multiplicative, so they compound — a listing that's both ending soon *and* trending in the user's segment *and* category can reach ~3.4× its raw popularity, but popularity is always the floor: a boost can't surface a listing nobody has touched (`0 × anything = 0`).
+Net effect: `score = popularity × (1 + 0.5·urgency) × (1 + 0.5·segment) × (1 + 0.5·category) × (1 + 0.4·brand) × (1 + 0.3·price)`. Condition confidence (`condition_quality_scores`) applies a final ×(1 + 0.2·confidence) quality tie-breaker using the listing's own AI score, not a user preference. Boosts are multiplicative, so they compound — a listing that hits every factor can reach ~5× its raw popularity, but popularity is always the floor: a boost can't surface a listing nobody has touched (`0 × anything = 0`).
 
 Age buckets (`trending.age_group()`): `under_18`, `18_24`, `25_34`, `35_44`, `45_54`, `55_plus`.
 
@@ -57,11 +59,10 @@ How this service fits into the rest of the platform — see root `CLAUDE.md` for
 
 Open-ended — append/reorder phases here as new requirements come up during implementation. This is the forward-looking list; **Phase Log** below only records what's actually been built and verified.
 
-### Phase 3 — Content-based filtering (the "RCBF" half)
-Recommend listings similar to ones a user engaged with, using listing attributes (`category`, `brand`, price range, `condition_confidence`) — actual similarity, not just "same category." First real content-based step beyond the current rule-based category boost.
+### Phase 4 — Collaborative filtering (the "CF" half)
 
 ### Phase 4 — Collaborative filtering (the "CF" half)
-User-item interaction matrix, `scikit-surprise` or simple matrix factorization — recommend based on what similar users liked. The piece "Hybrid CF/RCBF" in the business mandate doesn't have at all yet.
+User-item interaction matrix, `scikit-surprise` or simple matrix factorization — recommend based on what similar users liked. The "Hybrid CF/RCBF" in the business mandate doesn't have this half yet.
 
 ### Phase 5 — Caching
 APScheduler precomputes + Redis cache (`REDIS_URL` is already wired into config but unused). Every request recomputes from scratch today; becomes worth doing once Phase 3/4 make scoring heavier.
@@ -89,3 +90,12 @@ Verified against live seeded data for: global trending, segment-personalized (bo
 
 ### Phase 2 — Cold-start via onboarding interests
 `_category_interactions` in `recommendation_service.py` now falls back to `user_interests` (onboarding category picks) when the user has no `user_interactions` history at all — previously such a user got zero category boost even with onboarding picks on file. Behavioral history still wins when present; `user_interests` is only consulted when it's empty. No schema change (`UserInterest` model already existed, just wasn't queried from this service). `__main__` self-checks intentionally omitted — pytest suite to follow once more phases land.
+
+### Phase 3 — Content-based filtering (RCBF)
+Added two new factors to `rank_listings()` in `trending.py`, both driven by user attribute history computed in `recommendation_service.py`:
+
+1. **Brand affinity** (`brand_affinity_scores`, weight 0.4): binary match — 1.0 if the listing's `brand` appears anywhere in the user's all-time bid history, interaction history, wins, or board-curated items (`_user_brands`). Already had a helper and weight constant from Phase 1 groundwork; was not wired into the `rank_listings()` call until now.
+
+2. **Price affinity** (`price_affinity_scores`, weight 0.3): linear decay centered on the user's median historical bid amount (`_user_price_profile`). Primary signal: `bids.amount` (all-time). Fallback: `current_price` of listings the user interacted with in the current window. Listings priced within 2× of the user's median score > 0; exact match scores 1.0. No bid history → 0.5 neutral (no boost, no penalty).
+
+Also fixed a latent `NameError`: `Bid`, `AuctionResult`, `Watchlist`, `CollectorBoard`, `BoardItem` were used in `recommendation_service.py` but missing from the import line — added all five. `personalized` flag updated to include `user_brands` and `user_price` as personalization signals alongside segment and category.

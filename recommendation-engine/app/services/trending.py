@@ -19,6 +19,7 @@ URGENCY_WEIGHT = 0.5    # ending-soon listings get up to +50% score
 SEGMENT_WEIGHT = 0.5    # listings trending in the user's age group/location get up to +50% more
 CATEGORY_WEIGHT = 0.5   # listings trending in a category the user has interacted with get up to +50% more
 BRAND_WEIGHT = 0.4      # listings matching user's brand history get up to +40% more
+PRICE_WEIGHT = 0.3      # listings near user's median bid price get up to +30% more
 CONDITION_WEIGHT = 0.2  # higher condition_confidence gets up to +20% more (tie-breaker)
 
 
@@ -67,6 +68,15 @@ def brand_affinity_scores(listing_ids: pd.Index, listings: pd.DataFrame, user_br
     return brands.isin(user_brands).astype(float)
 
 
+def price_affinity_scores(listing_ids: pd.Index, listings: pd.DataFrame, user_median_price: float | None) -> pd.Series:
+    """Linear decay: 1.0 at exact median match, 0.0 at 2× deviation. Null price → 0.5 neutral."""
+    if user_median_price is None or user_median_price <= 0 or "current_price" not in listings.columns:
+        return pd.Series(0.5, index=listing_ids)
+    prices = listings.set_index("id")["current_price"].reindex(listing_ids)
+    score = (1.0 - (prices - user_median_price).abs() / (2 * user_median_price)).clip(0.0, 1.0)
+    return score.fillna(0.5)
+
+
 def condition_quality_scores(listing_ids: pd.Index, listings: pd.DataFrame) -> pd.Series:
     """Normalised condition_confidence 0..1. Null confidence treated as 0.5 (neutral)."""
     if "condition_confidence" not in listings.columns:
@@ -91,6 +101,7 @@ def rank_listings(
     segment_interactions: pd.DataFrame | None = None,
     category_interactions: pd.DataFrame | None = None,
     user_brands: set | None = None,
+    user_median_price: float | None = None,
 ) -> pd.DataFrame:
     scores = pd.DataFrame({"id": listings["id"]}).set_index("id")
     scores["popularity"] = popularity_scores(interactions).reindex(scores.index).fillna(0)
@@ -105,6 +116,9 @@ def rank_listings(
 
     scores["brand"] = brand_affinity_scores(scores.index, listings, user_brands or set())
     scores["score"] = scores["score"] * (1 + BRAND_WEIGHT * scores["brand"])
+
+    scores["price"] = price_affinity_scores(scores.index, listings, user_median_price)
+    scores["score"] = scores["score"] * (1 + PRICE_WEIGHT * scores["price"])
 
     scores["condition"] = condition_quality_scores(scores.index, listings)
     scores["score"] = scores["score"] * (1 + CONDITION_WEIGHT * scores["condition"])

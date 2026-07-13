@@ -7,7 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.models.auction import Listing, ListingStatus, UserInteraction, UserInterest, UserProfiles
+from app.models.auction import (
+    Listing, ListingStatus, Bid, AuctionResult, Watchlist, CollectorBoard, BoardItem,
+    UserInteraction, UserInterest, UserProfiles,
+)
 from app.services import trending
 from app.services.location import parse_location
 
@@ -87,12 +90,18 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
         wl_df["action"] = "watchlist_active"
         interactions_df = pd.concat([interactions_df, wl_df], ignore_index=True)
 
-    # --- per-user enrichment: brand affinity, richer category signals ---
+    # --- per-user enrichment: segment, category, and RCBF content signals ---
     segment_df = await _segment_interactions(db, user_id, interactions_df)
     category_df = await _category_interactions(db, user_id, interactions_df, listings_df)
     user_brands = await _user_brands(db, user_id, interactions_df, listings_df)
+    user_price = await _user_price_profile(db, user_id, interactions_df, listings_df)
 
-    ranked = trending.rank_listings(listings_df, interactions_df, now, segment_df, category_df)
+    ranked = trending.rank_listings(
+        listings_df, interactions_df, now,
+        segment_df, category_df,
+        user_brands=user_brands,
+        user_median_price=user_price,
+    )
     top = ranked.head(limit)[["id", "score"]]
     score_map = dict(zip(top["id"], top["score"]))
 
@@ -146,7 +155,7 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
             "score": score,
         })
 
-    return items, (segment_df is not None or category_df is not None)
+    return items, (segment_df is not None or category_df is not None or bool(user_brands) or user_price is not None)
 
 
 async def _segment_interactions(
@@ -286,3 +295,35 @@ async def _user_brands(
     brands.update(row[0] for row in board_brand_result.all())
 
     return brands
+
+
+async def _user_price_profile(
+    db: AsyncSession,
+    user_id: uuid.UUID | None,
+    interactions_df: pd.DataFrame,
+    listings_df: pd.DataFrame,
+) -> float | None:
+    """Median price the user has engaged with. Bid amounts are the primary signal (strongest
+    commitment); falls back to current_price of listings in the interaction window."""
+    if user_id is None:
+        return None
+
+    # Primary: all-time bid amounts (what user actually committed to paying)
+    bid_result = await db.execute(
+        select(Bid.amount).where(Bid.bidder_id == user_id).limit(200)
+    )
+    amounts = [row[0] for row in bid_result.all()]
+
+    # Fallback: current prices of listings the user interacted with this window
+    if not amounts and not interactions_df.empty:
+        user_rows = interactions_df[interactions_df["user_id"] == user_id]
+        if not user_rows.empty:
+            merged = user_rows.merge(
+                listings_df[["id", "current_price"]], left_on="listing_id", right_on="id", how="left"
+            )
+            amounts = merged["current_price"].dropna().tolist()
+
+    if not amounts:
+        return None
+
+    return float(pd.Series(amounts).median())
