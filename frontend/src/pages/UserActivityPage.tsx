@@ -244,21 +244,24 @@ export default function UserActivityPage() {
         ) : activeTab === 'listings' ? (
           <DataTable
             headers={['Title', 'Status', 'Current Price', 'End Date', 'Actions']}
-            rows={listings.map(l => [
-              <span key={`t-${l.id}`} className="font-medium text-slate-900">
-                {l.title}
-              </span>,
-              <StatusBadge key={`s-${l.id}`} status={l.status} />,
-              `$${(l.current_price ?? l.starting_price ?? 0).toFixed(2)}`,
-              l.end_time ? new Date(l.end_time).toLocaleDateString() : '—',
-              <button
-                key={`v-${l.id}`}
-                onClick={() => navigate(`/auction/${l.id}`)}
-                className="text-xs font-semibold text-accent-600 hover:underline"
-              >
-                View
-              </button>,
-            ])}
+            rows={listings.map(l => {
+              const isDraft = l.status.toLowerCase() === 'draft'
+              return [
+                <span key={`t-${l.id}`} className="font-medium text-slate-900">
+                  {l.title}
+                </span>,
+                <StatusBadge key={`s-${l.id}`} status={l.status} />,
+                `$${(l.current_price ?? l.starting_price ?? 0).toFixed(2)}`,
+                l.end_time ? new Date(l.end_time).toLocaleDateString() : '—',
+                <button
+                  key={`v-${l.id}`}
+                  onClick={() => navigate(isDraft ? `/edit-listing/${l.id}` : `/auction/${l.id}`)}
+                  className="text-xs font-semibold text-accent-600 hover:underline"
+                >
+                  {isDraft ? 'Edit' : 'View'}
+                </button>,
+              ]
+            })}
             emptyMessage="You haven't created any listings yet."
           />
         ) : activeTab === 'bids' ? (
