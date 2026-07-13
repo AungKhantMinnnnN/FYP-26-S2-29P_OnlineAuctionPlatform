@@ -101,6 +101,7 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
         segment_df, category_df,
         user_brands=user_brands,
         user_median_price=user_price,
+        user_id=user_id,
     )
     top = ranked.head(limit)[["id", "score"]]
     score_map = dict(zip(top["id"], top["score"]))
@@ -155,7 +156,8 @@ async def get_trending(db: AsyncSession, user_id: uuid.UUID | None = None, limit
             "score": score,
         })
 
-    return items, (segment_df is not None or category_df is not None or bool(user_brands) or user_price is not None)
+    has_cf = user_id is not None and not interactions_df.empty and user_id in interactions_df["user_id"].values
+    return items, (segment_df is not None or category_df is not None or bool(user_brands) or user_price is not None or has_cf)
 
 
 async def _segment_interactions(
