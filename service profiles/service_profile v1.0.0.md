@@ -1068,7 +1068,7 @@ Reconciled with the `feature/admin-user-management` PR that merged separately: t
   * **Errors:** `404` if not found. `400` if the listing isn't in `draft` or `pending_review`.
 
 * **`PATCH /v1.0.0/admin/listings/{id}/remove`**
-  * **Description:** Sets `status = removed` regardless of bid count or ownership (the owner-only, no-active-bids guard on `DELETE /auctions/{id}` does not apply here).
+  * **Description:** Sets `status = removed` regardless of bid count or ownership (the owner-only, no-active-bids guard on `DELETE /auctions/{id}` does not apply here). If the listing has a live current-highest bid and hasn't already been finalized (no `AuctionResult`), that bid's held funds are released back to the bidder and the bid is cancelled — otherwise removing a listing with an active bid would trap that bidder's money with no automatic way back.
   * **Request Parameters:** `id` (UUID) in path
   * **Response (200 OK):** `AuctionListingResponse`
   * **Errors:** `404` if not found. `400` if already removed.

@@ -249,11 +249,35 @@ class AdminService:
         if listing.status == ListingStatus.removed:
             raise HTTPException(status_code=400, detail="Listing is already removed")
 
+        # Forcing a listing to `removed` while it still has a live bid would otherwise trap that
+        # bidder's held funds with no automatic way back. Release the current highest bid's hold —
+        # the only bid actually holding funds at any time (see cancel_bid) — same as an explicit
+        # cancel, but skip this if the auction is already finalized (settlement already accounted
+        # for that money via a different path).
+        refunded_bid = False
+        finalized = await db.scalar(select(AuctionResult.id).where(AuctionResult.listing_id == listing.id))
+        if not finalized:
+            current_highest_bid = await db.scalar(
+                select(Bid).where(Bid.listing_id == listing.id, Bid.status == BidStatus.accepted)
+                .order_by(Bid.amount.desc()).limit(1)
+            )
+            if current_highest_bid:
+                bidder = await db.scalar(select(User).where(User.id == current_highest_bid.bidder_id))
+                if bidder:
+                    bidder.balance += current_highest_bid.amount
+                    db.add(WalletTransaction(
+                        user_id=bidder.id, amount=current_highest_bid.amount, type=TransactionType.bid_release,
+                        reference=f"Admin override: listing {listing.id} removed",
+                    ))
+                    refunded_bid = True
+                current_highest_bid.status = BidStatus.cancelled
+
         listing.status = ListingStatus.removed
         listing.updated_at = datetime.now(timezone.utc)
         db.add(AdminLog(
             admin_id=admin.id, action="remove_listing", target_id=listing.id,
-            details=f"Removed listing '{listing.title}' (bid count and ownership bypassed)",
+            details=f"Removed listing '{listing.title}' (bid count and ownership bypassed); "
+                    f"refunded_bid={refunded_bid}",
         ))
         await db.commit()
         await db.refresh(listing)
