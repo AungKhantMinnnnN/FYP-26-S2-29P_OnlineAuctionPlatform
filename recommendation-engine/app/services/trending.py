@@ -1,5 +1,8 @@
 import datetime
+import uuid
+import numpy as np
 import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 
 ACTION_WEIGHTS = {
     # From user_interactions table (logged events)
@@ -21,6 +24,7 @@ CATEGORY_WEIGHT = 0.5   # listings trending in a category the user has interacte
 BRAND_WEIGHT = 0.4      # listings matching user's brand history get up to +40% more
 PRICE_WEIGHT = 0.3      # listings near user's median bid price get up to +30% more
 CONDITION_WEIGHT = 0.2  # higher condition_confidence gets up to +20% more (tie-breaker)
+CF_WEIGHT = 0.5         # listings popular among similar users get up to +50% more
 
 
 def age_group(dob: datetime.date | None, today: datetime.date | None = None) -> str | None:
@@ -85,6 +89,37 @@ def condition_quality_scores(listing_ids: pd.Index, listings: pd.DataFrame) -> p
     return (conf / 100.0).clip(0.0, 1.0)
 
 
+def cf_scores(user_id: uuid.UUID | None, interactions: pd.DataFrame, listing_ids: pd.Index) -> pd.Series:
+    """User-based CF: cosine similarity against peer users → weighted listing scores, normalized 0..1.
+    # ponytail: recomputed per request; Phase 5 precomputes + caches the similarity matrix."""
+    zero = pd.Series(0.0, index=listing_ids)
+    if user_id is None or interactions.empty:
+        return zero
+
+    df = interactions.dropna(subset=["user_id"]).copy()
+    if user_id not in df["user_id"].values:
+        return zero
+
+    df["weight"] = df["action"].map(ACTION_WEIGHTS).fillna(0)
+    matrix = df.groupby(["user_id", "listing_id"])["weight"].sum().unstack(fill_value=0.0)
+
+    if user_id not in matrix.index or len(matrix) < 2:
+        return zero
+
+    user_vec = matrix.loc[[user_id]].values          # shape (1, n_listings)
+    other = matrix.drop(index=user_id)               # shape (n_peers, n_listings)
+
+    sims = cosine_similarity(user_vec, other.values)[0]  # shape (n_peers,)
+    sims = np.clip(sims, 0, None)                    # drop negative similarity
+    if sims.sum() == 0:
+        return zero
+
+    raw = pd.Series(sims @ other.values, index=matrix.columns)
+    max_raw = raw.max()
+    normalized = (raw / max_raw) if max_raw > 0 else raw
+    return normalized.reindex(listing_ids).fillna(0.0)
+
+
 def _relative_boost(index: pd.Index, subset: pd.DataFrame | None) -> pd.Series:
     """Each listing's popularity within `subset`, normalized 0..1 against the subset's top listing."""
     if subset is None or subset.empty:
@@ -102,6 +137,7 @@ def rank_listings(
     category_interactions: pd.DataFrame | None = None,
     user_brands: set | None = None,
     user_median_price: float | None = None,
+    user_id: uuid.UUID | None = None,
 ) -> pd.DataFrame:
     scores = pd.DataFrame({"id": listings["id"]}).set_index("id")
     scores["popularity"] = popularity_scores(interactions).reindex(scores.index).fillna(0)
@@ -113,6 +149,9 @@ def rank_listings(
 
     scores["category"] = _relative_boost(scores.index, category_interactions)
     scores["score"] = scores["score"] * (1 + CATEGORY_WEIGHT * scores["category"])
+
+    scores["cf"] = cf_scores(user_id, interactions, scores.index)
+    scores["score"] = scores["score"] * (1 + CF_WEIGHT * scores["cf"])
 
     scores["brand"] = brand_affinity_scores(scores.index, listings, user_brands or set())
     scores["score"] = scores["score"] * (1 + BRAND_WEIGHT * scores["brand"])
