@@ -1052,7 +1052,7 @@ All routes require `Authorization: Bearer <token>` for a user with `role = admin
     { "end_time": "datetime" }
     ```
   * **Response (200 OK):** `AuctionListingResponse`
-  * **Errors:** `404` if not found. `400` if the listing is not `ended`, or if `end_time` is not in the future.
+  * **Errors:** `404` if not found. `400` if the listing is not `ended`, or if `end_time` is not in the future. `409` if the existing `AuctionResult` is pinned to a user's collector board (`board_items.auction_result_id` is a non-cascading `NOT NULL` FK) — remove it from the board first.
 
 #### Category management
 

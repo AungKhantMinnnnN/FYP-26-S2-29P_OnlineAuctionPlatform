@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.auction import (
     User, UserStatus, Listing, ListingStatus, Bid, BidStatus, AuctionResult,
-    Categories, UserInterest, WalletTransaction, TransactionType, AdminLog,
+    Categories, UserInterest, WalletTransaction, TransactionType, AdminLog, BoardItem,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
 
@@ -211,6 +211,18 @@ class AdminService:
         refunded = False
         result = await db.scalar(select(AuctionResult).where(AuctionResult.listing_id == listing_id))
         if result:
+            # board_items.auction_result_id is a NOT NULL FK with no cascade — deleting a result
+            # still pinned to someone's collector board would violate it. Fail clearly instead of
+            # crashing the transaction or silently deleting the user's saved board item.
+            pinned_to_board = await db.scalar(
+                select(BoardItem.id).where(BoardItem.auction_result_id == result.id)
+            )
+            if pinned_to_board:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot restart: this auction's result has been saved to a user's "
+                           "collector board. Remove it from the board first.",
+                )
             if result.winner_id:
                 winner = await db.scalar(select(User).where(User.id == result.winner_id))
                 if winner:
@@ -348,7 +360,14 @@ class AdminService:
 
         # Only the current highest bid actually holds funds — every earlier bid on this listing
         # already had its hold released back to the bidder when it was outbid (see bidding-engine).
-        is_current_highest = bid.amount == listing.current_price
+        # Identify it by row id, not by amount: after a prior cancel resets current_price to
+        # starting_price, an unrelated older (already-released) bid could coincidentally match that
+        # value in a low_start auction, where the first bid is allowed to equal starting_price.
+        current_highest_bid = await db.scalar(
+            select(Bid).where(Bid.listing_id == listing.id, Bid.status == BidStatus.accepted)
+            .order_by(Bid.amount.desc()).limit(1)
+        )
+        is_current_highest = current_highest_bid is not None and current_highest_bid.id == bid.id
 
         bid.status = BidStatus.cancelled
         funds_released = False
