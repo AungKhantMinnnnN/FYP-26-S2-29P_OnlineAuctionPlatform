@@ -27,6 +27,7 @@ import DataTable from '../components/DataTable'
 import DashboardStatCard from '../components/DashboardStatCard'
 import SectionHeader from '../components/SectionHeader'
 import StatusBadge from '../components/StatusBadge'
+import AdminListingsPage from './AdminListingsPage'
 
 import {
   createFeedbackType,
@@ -1394,6 +1395,10 @@ export default function AdminManagementPage() {
         <FeedbackTypesSection />
       </div>
     )
+  }
+
+  if (section === 'listings') {
+    return <AdminListingsPage />
   }
 
   const configs: Record<
