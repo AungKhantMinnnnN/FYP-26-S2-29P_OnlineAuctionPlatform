@@ -13,6 +13,7 @@ from app.models.auction import (
     AdminLog, BoardItem, Notification,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
+from app.services.email_service import EmailService
 
 
 def _to_summary(user: User) -> dict:
@@ -138,6 +139,12 @@ class AdminService:
         ))
         await db.commit()
         await db.refresh(user)
+
+        full_name = user.profile.full_name if user.profile else None
+        await EmailService.send_account_suspended(
+            recipient=user.email, reason=cleaned_reason, full_name=full_name,
+        )
+
         return await _to_details(db, user)
 
     @staticmethod
@@ -189,6 +196,9 @@ class AdminService:
             details=f"Deleted (soft) user '{user.username}'",
         ))
         await db.commit()
+
+        full_name = user.profile.full_name if user.profile else None
+        await EmailService.send_account_deleted(recipient=user.email, full_name=full_name)
     # endregion
 
     # region Listings
