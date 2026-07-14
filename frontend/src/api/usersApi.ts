@@ -36,6 +36,8 @@ export interface ProfileUpdatePayload {
   full_name?: string
   phone?: string
   address?: string
+  city?: string
+  country?: string
   bio?: string
 }
 
@@ -43,6 +45,8 @@ export interface ProfileResponse {
   full_name: string | null
   phone: string | null
   address: string | null
+  city: string | null
+  country: string | null
   dob: string | null
   bio: string | null
 }

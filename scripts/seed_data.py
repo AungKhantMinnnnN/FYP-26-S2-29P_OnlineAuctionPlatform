@@ -92,6 +92,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 100000.0,
                 "full_name": "Aung Khant Minn",
+                "city": "Yangon",
+                "country": "Myanmar",
             },
             {
                 "username": "zixin",
@@ -100,6 +102,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 100000.0,
                 "full_name": "Mah Zi Xin",
+                "city": "Singapore",
+                "country": "Singapore",
             },
             {
                 "username": "ethan",
@@ -108,6 +112,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 100000.0,
                 "full_name": "Xu Huitong",
+                "city": "Singapore",
+                "country": "Singapore",
             },
             {
                 "username": "jn",
@@ -116,6 +122,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 100000.0,
                 "full_name": "Tiew Jie Nee",
+                "city": "Kuala Lumpur",
+                "country": "Malaysia",
             },
             {
                 "username": "wesley",
@@ -124,6 +132,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 100000.0,
                 "full_name": "Wesley Tan",
+                "city": "Singapore",
+                "country": "Singapore",
             },
             {
                 "username": "gavrel",
@@ -132,6 +142,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 100000.0,
                 "full_name": "Gavrel saw",
+                "city": "Kuala Lumpur",
+                "country": "Malaysia",
             },
             {
                 "username": "admin_user",
@@ -140,6 +152,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 500.0,
                 "full_name": "System Admin",
+                "city": None,
+                "country": None,
             },
             {
                 "username": "normal_user_1",
@@ -148,6 +162,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 5000.0,
                 "full_name": "Alex Chen",
+                "city": "Singapore",
+                "country": "Singapore",
             },
             {
                 "username": "normal_user_2",
@@ -156,6 +172,8 @@ async def seed_data():
                 "tier": SubscriptionTier.premium,
                 "balance": 5000.0,
                 "full_name": "Jordan Williams",
+                "city": "Sydney",
+                "country": "Australia",
             },
             {
                 "username": "normal_user_3",
@@ -164,6 +182,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 3000.0,
                 "full_name": "Sam Mitchell",
+                "city": "Sydney",
+                "country": "Australia",
             },
             {
                 "username": "normal_user_4",
@@ -172,6 +192,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 3000.0,
                 "full_name": "Riley Thompson",
+                "city": "Bangkok",
+                "country": "Thailand",
             },
             {
                 "username": "normal_user_5",
@@ -180,6 +202,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 2500.0,
                 "full_name": "Morgan Davis",
+                "city": "Kuala Lumpur",
+                "country": "Malaysia",
             },
             {
                 "username": "normal_user_6",
@@ -188,6 +212,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 2000.0,
                 "full_name": "Casey Johnson",
+                "city": "Singapore",
+                "country": "Singapore",
             },
             {
                 "username": "normal_user_7",
@@ -196,6 +222,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 2000.0,
                 "full_name": "Drew Anderson",
+                "city": "Bangkok",
+                "country": "Thailand",
             },
             {
                 "username": "normal_user_8",
@@ -204,6 +232,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 2000.0,
                 "full_name": "Taylor Brown",
+                "city": "Yangon",
+                "country": "Myanmar",
             },
             {
                 "username": "normal_user_9",
@@ -212,6 +242,8 @@ async def seed_data():
                 "tier": SubscriptionTier.free,
                 "balance": 2000.0,
                 "full_name": "Blake Wilson",
+                "city": "Jakarta",
+                "country": "Indonesia",
             },
         ]
 
@@ -232,7 +264,7 @@ async def seed_data():
                 )
                 db.add(user)
                 await db.flush()
-                db.add(UserProfiles(user_id=user.id, full_name=spec["full_name"]))
+                db.add(UserProfiles(user_id=user.id, full_name=spec["full_name"], city=spec.get("city"), country=spec.get("country")))
                 created_count += 1
             all_users.append(user)
 
