@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 
 from app.models.auction import Listing, User, Bid, WalletTransaction, UserInteraction, ListingStatus, BidStatus, TransactionType, BiddingType, SubscriptionTier, InteractionAction
 from app.core.redis import redis_client
+from app.services import notification_client
 
 FREE_BID_HOURLY_LIMIT = 10
 
@@ -123,9 +124,11 @@ class BiddingService:
 
         logger.info(f"Previous highest bid: {previous_highest_bid}")
 
+        outbid_user_id = None  # captured here so notify_outbid can fire after commit
         if previous_highest_bid:
             # release the old bid hold.
             prev_user_id = previous_highest_bid.bidder_id
+            outbid_user_id = str(prev_user_id)
             
             # Fetch the previous user
             result = await db.execute(select(User).where(User.id == prev_user_id))
@@ -188,6 +191,10 @@ class BiddingService:
         # The extension is committed in the same transaction as the bid — no partial state.
         db.add(UserInteraction(user_id=user_uuid, listing_id=listing_uuid, action=InteractionAction.bid))
         await db.commit()
+
+        # Fire-and-forget outbid notification — must be after commit so the DB write is durable first
+        if outbid_user_id:
+            await notification_client.notify_outbid(outbid_user_id, str(listing.id), listing.title, amount)
 
         # Build success broadcast payload — include extension info so the frontend
         # can update its countdown timer immediately without polling.

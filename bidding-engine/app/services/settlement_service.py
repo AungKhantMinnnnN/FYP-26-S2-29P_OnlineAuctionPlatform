@@ -31,6 +31,7 @@ from app.models.auction import (
 )
 from app.core.redis import redis_client
 from app.core.connection_manager import manager
+from app.services import notification_client
 
 logger = logging.getLogger("BiddingEngine")
 
@@ -216,6 +217,17 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
     await manager.broadcast(json.dumps(broadcast_payload), listing_id_str)
     logger.info("settlement: listing %s broadcast sent to %d subscriber(s)",
                 listing_id_str, len(manager.active_connections.get(listing_id_str, [])))
+
+    # 8. Fire-and-forget email + in-app notifications via backend internal API.
+    # Runs after commit and broadcast — a notification failure must not roll back a completed settlement.
+    await notification_client.notify_auction_ended(
+        listing_id=listing_id_str,
+        listing_title=listing.title,
+        seller_id=str(listing.seller_id),
+        winner_id=str(winning_bid.bidder_id) if winning_bid else None,
+        final_price=broadcast_payload["final_price"],
+        outcome=broadcast_payload["outcome"],
+    )
 
 
 def _build_broadcast(listing: Listing, winner_id, final_price: float, outcome: str) -> dict:

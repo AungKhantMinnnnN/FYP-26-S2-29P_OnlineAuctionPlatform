@@ -134,6 +134,106 @@ class EmailService:
             return False
 
     @classmethod
+    async def send_outbid(cls, recipient: str, full_name: str | None, listing_title: str, new_amount: float, listing_url: str) -> bool:
+        client = cls._get_client()
+        if client is None:
+            logger.warning(f"Skipping outbid email to {recipient} — mail not configured.")
+            return False
+        message = MessageSchema(
+            subject=f"You've been outbid on {listing_title}",
+            recipients=[recipient],
+            template_body={"full_name": full_name or "there", "listing_title": listing_title, "new_amount": new_amount, "listing_url": listing_url},
+            subtype=MessageType.html,
+        )
+        try:
+            await client.send_message(message, template_name="outbid.html")
+            logger.info(f"Outbid email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send outbid email to {recipient}: {e}")
+            return False
+
+    @classmethod
+    async def send_auction_won(cls, recipient: str, full_name: str | None, listing_title: str, final_price: float, listing_url: str) -> bool:
+        client = cls._get_client()
+        if client is None:
+            logger.warning(f"Skipping auction-won email to {recipient} — mail not configured.")
+            return False
+        message = MessageSchema(
+            subject=f"You won the auction for {listing_title}!",
+            recipients=[recipient],
+            template_body={"full_name": full_name or "there", "listing_title": listing_title, "final_price": final_price, "listing_url": listing_url},
+            subtype=MessageType.html,
+        )
+        try:
+            await client.send_message(message, template_name="auction_won.html")
+            logger.info(f"Auction-won email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send auction-won email to {recipient}: {e}")
+            return False
+
+    @classmethod
+    async def send_auction_sold_seller(cls, recipient: str, full_name: str | None, listing_title: str, final_price: float, listing_url: str) -> bool:
+        client = cls._get_client()
+        if client is None:
+            logger.warning(f"Skipping auction-sold-seller email to {recipient} — mail not configured.")
+            return False
+        message = MessageSchema(
+            subject=f"Your auction for {listing_title} has sold!",
+            recipients=[recipient],
+            template_body={"full_name": full_name or "there", "listing_title": listing_title, "final_price": final_price, "listing_url": listing_url},
+            subtype=MessageType.html,
+        )
+        try:
+            await client.send_message(message, template_name="auction_sold_seller.html")
+            logger.info(f"Auction-sold-seller email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send auction-sold-seller email to {recipient}: {e}")
+            return False
+
+    @classmethod
+    async def send_auction_reserve_not_met_bidder(cls, recipient: str, full_name: str | None, listing_title: str, bid_amount: float, listing_url: str) -> bool:
+        client = cls._get_client()
+        if client is None:
+            logger.warning(f"Skipping reserve-not-met-bidder email to {recipient} — mail not configured.")
+            return False
+        message = MessageSchema(
+            subject=f"Your bid on {listing_title} has been refunded",
+            recipients=[recipient],
+            template_body={"full_name": full_name or "there", "listing_title": listing_title, "bid_amount": bid_amount, "listing_url": listing_url},
+            subtype=MessageType.html,
+        )
+        try:
+            await client.send_message(message, template_name="auction_reserve_not_met_bidder.html")
+            logger.info(f"Reserve-not-met-bidder email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send reserve-not-met-bidder email to {recipient}: {e}")
+            return False
+
+    @classmethod
+    async def send_auction_ended_seller(cls, recipient: str, full_name: str | None, listing_title: str, outcome: str, final_price: float, listing_url: str) -> bool:
+        client = cls._get_client()
+        if client is None:
+            logger.warning(f"Skipping auction-ended-seller email to {recipient} — mail not configured.")
+            return False
+        message = MessageSchema(
+            subject=f"Your auction for {listing_title} has ended",
+            recipients=[recipient],
+            template_body={"full_name": full_name or "there", "listing_title": listing_title, "outcome": outcome, "final_price": final_price, "listing_url": listing_url},
+            subtype=MessageType.html,
+        )
+        try:
+            await client.send_message(message, template_name="auction_ended_seller.html")
+            logger.info(f"Auction-ended-seller email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send auction-ended-seller email to {recipient}: {e}")
+            return False
+
+    @classmethod
     async def send_account_deleted(cls, recipient: str, full_name: str | None = None) -> bool:
         client = cls._get_client()
         if client is None:
