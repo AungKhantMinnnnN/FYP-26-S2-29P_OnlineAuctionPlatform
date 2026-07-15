@@ -68,12 +68,8 @@ async def websocket_endpoint(
                     "message": result.get("error", "Unknown error")
                 }))
     except WebSocketDisconnect:
-        print("WEB SOCKET DISCONNECT CAUGHT")
-        logger.error("Web socket has been disconnected.")
+        logger.info(f"ListingId: [{listing_id}] UserId: [{user_id}] WebSocket disconnected.")
         manager.disconnect(websocket, listing_id)
     except Exception as e:
-        import traceback
-        print(f"UNEXPECTED ERROR: {e}")
-        traceback.print_exc()
-        logger.error(f"Unexpected error in websocket loop: {e}")
+        logger.error(f"ListingId: [{listing_id}] Unexpected error in websocket loop: {e}", exc_info=True)
         manager.disconnect(websocket, listing_id)
