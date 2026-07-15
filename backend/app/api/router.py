@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.controller import health, auth, auctions, testimonials, disputes, users, subscriptions, issue_types, boards, marketing, feedback
+from app.api.v1.controller import health, auth, auctions, testimonials, disputes, users, subscriptions, issue_types, boards, marketing, feedback, admin
 
 api_router = APIRouter()
 
@@ -14,3 +14,4 @@ api_router.include_router(issue_types.router, prefix="/issue-types", tags=["issu
 api_router.include_router(boards.router, prefix="/boards", tags=["boards"])
 api_router.include_router(marketing.router, tags=["marketing"])
 api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
