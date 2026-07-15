@@ -108,3 +108,50 @@ class EmailService:
         except Exception as e:
             logger.error(f"Failed to send verification email to {recipient}: {e}")
             return False
+
+    @classmethod
+    async def send_account_suspended(cls, recipient: str, reason: str, full_name: str | None = None) -> bool:
+        client = cls._get_client()
+        if client is None:
+            logger.warning(f"Skipping account-suspended email to {recipient} — mail not configured.")
+            return False
+
+        message = MessageSchema(
+            subject="Your AuctionHub account has been suspended",
+            recipients=[recipient],
+            template_body={
+                "full_name": full_name or "there",
+                "reason": reason,
+            },
+            subtype=MessageType.html,
+        )
+        try:
+            await client.send_message(message, template_name="account_suspended.html")
+            logger.info(f"Account-suspended email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send account-suspended email to {recipient}: {e}")
+            return False
+
+    @classmethod
+    async def send_account_deleted(cls, recipient: str, full_name: str | None = None) -> bool:
+        client = cls._get_client()
+        if client is None:
+            logger.warning(f"Skipping account-deleted email to {recipient} — mail not configured.")
+            return False
+
+        message = MessageSchema(
+            subject="Your AuctionHub account has been deleted",
+            recipients=[recipient],
+            template_body={
+                "full_name": full_name or "there",
+            },
+            subtype=MessageType.html,
+        )
+        try:
+            await client.send_message(message, template_name="account_deleted.html")
+            logger.info(f"Account-deleted email sent to {recipient}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send account-deleted email to {recipient}: {e}")
+            return False

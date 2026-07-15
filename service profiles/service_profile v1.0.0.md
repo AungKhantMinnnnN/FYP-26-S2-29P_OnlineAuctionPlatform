@@ -1033,7 +1033,7 @@ Reconciled with the `feature/admin-user-management` PR that merged separately: t
   * **Errors:** `404` if not found.
 
 * **`PATCH /v1.0.0/admin/users/{id}/suspend`**
-  * **Description:** Sets `user.status = suspended`. Sends the user a `Notification` explaining why (via `reason`).
+  * **Description:** Sets `user.status = suspended`. Sends the user an in-app `Notification` and an email (`account_suspended.html`, via `EmailService`) explaining why (via `reason`). Both are sent after the DB commit — a failed/unconfigured mail send is logged but never blocks or rolls back the suspension itself.
   * **Request Parameters:** `id` (UUID) in path
   * **Request:** JSON object (`SuspendUserRequest`)
     ```json
@@ -1049,7 +1049,7 @@ Reconciled with the `feature/admin-user-management` PR that merged separately: t
   * **Errors:** `404` if not found. `400` if the user is not currently suspended.
 
 * **`DELETE /v1.0.0/admin/users/{id}`**
-  * **Description:** Soft delete — sets `user.status = deleted`. The row is never physically removed. Sends the user a `Notification`.
+  * **Description:** Soft delete — sets `user.status = deleted`. The row is never physically removed. Sends the user an in-app `Notification` and an email (`account_deleted.html`, via `EmailService`), sent after the DB commit for the same reason as suspend.
   * **Request Parameters:** `id` (UUID) in path
   * **Response (204 No Content)**
   * **Errors:** `404` if not found. `400` if the admin targets their own account or the account is already deleted. `403` if the target is an administrator account — admins cannot be deleted.
