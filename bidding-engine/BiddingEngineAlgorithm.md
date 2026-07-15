@@ -34,15 +34,18 @@ Browser / Frontend
 │    └─ BiddingService.process_bid_message()          │
 │         ├─ Redis lock (per listing)                 │
 │         └─ _execute_bid() — core business logic     │
-└─────────────┬───────────────────────┬───────────────┘
-              │                       │
-        PostgreSQL               Redis 7
-        (shared DB)              ├─ lock:bid:{listing_id}
-        ├─ listings              └─ (no caching — writes only)
-        ├─ bids
-        ├─ users
-        ├─ wallet_transactions
-        └─ user_interactions
+│  settlement_service.py — APScheduler (60s tick)     │
+│    └─ settle_ended_auctions()                       │
+└──────┬──────────────────────┬───────────┬───────────┘
+       │                      │           │
+ PostgreSQL               Redis 7    Backend (port 8000)
+ (shared DB)              ├─ lock:bid:{listing_id}
+ ├─ listings              └─ (no caching — writes only)
+ ├─ bids                       POST /v1.0.0/internal/
+ ├─ users                      notifications/outbid
+ ├─ wallet_transactions        notifications/auction-ended
+ ├─ user_interactions       → writes Notification rows
+ └─ auction_results         → sends transactional emails
 ```
 
 ---
@@ -192,7 +195,15 @@ Step 13 — Log interaction & atomic commit
         │  await db.commit()  ← single commit covers steps 9-12
         │
         ▼
-Step 14 — Broadcast result
+Step 14 — Fire outbid notification (fire-and-forget)
+        │  If a previous highest bidder was displaced:
+        │    notification_client.notify_outbid(prev_user_id, listing_id, title, amount)
+        │    → POST http://backend:8000/v1.0.0/internal/notifications/outbid
+        │    → backend writes Notification row + sends outbid email
+        │  Failure is logged but never surfaces to the caller.
+        │
+        ▼
+Step 15 — Broadcast result
          Broadcast new_bid payload to ALL subscribers on this listing.
          time_extended and new end_time included so frontend updates immediately.
 ```
@@ -254,7 +265,7 @@ All of the above (release + new hold + bid record + listing price update + anti-
 |---|---|---|
 | `bid_hold` | New highest bidder | Funds locked when bid accepted |
 | `bid_release` | Previous highest bidder | Funds returned when outbid |
-| `settlement` | Winner → Seller | **Not handled here** — Phase 2 (auction settlement) |
+| `settlement` | Winner → Seller | Funds credited to seller on auction sold (Phase 2) |
 
 ---
 
@@ -370,13 +381,7 @@ Three output destinations configured in `app/core/logger.py`:
 
 ## Roadmap (Planned Phases)
 
-### Phase 3 — Outbid Notifications
-When a previous highest bidder is outbid, write a `Notification` row referencing their user_id with type `outbid`. Frontend polls or subscribes to the notification feed. The `Notification` model already exists in `app/models/auction.py`.
-
-### Phase 4 — Reserve Price Enforcement
-At auction end (Phase 2), check `final_price >= listing.reserve_price`. If not met, refund all holds and mark listing `ended` with no winner. No schema change needed — `reserve_price` column already exists.
-
-### Phase 5 — WS Rate Limiting + User Suspension Check
+### Phase 4 — WS Rate Limiting + User Suspension Check
 Add per-connection message counter in `ConnectionManager` to throttle WebSocket message floods. Add `user.status == active` check at bid validation time to block suspended/banned users from bidding.
 
 ---
@@ -391,3 +396,26 @@ Added `ANTI_SNIPE_WINDOW_SECONDS = 60` and `ANTI_SNIPE_EXTENSION_SECONDS = 60` c
 
 ### Phase 2 — Auction Settlement
 Added `app/services/settlement_service.py` and `app/core/scheduler.py`. APScheduler (`AsyncIOScheduler`) runs `settle_ended_auctions()` every 60 seconds. For each active listing with `end_time <= now`: acquires the same Redis lock used by the bid pipeline; checks for an existing `AuctionResult` row (idempotency guard); finds the highest accepted bid; settles with one of three outcomes — **no bids** (AuctionResult with winner=None, final_price=starting_price), **reserve not met** (refund highest bidder's hold via bid_release transaction, winner=None), **sold** (credit seller via settlement transaction, AuctionResult with winner). All DB writes committed atomically, then `auction_ended` broadcast sent to all WS subscribers in the listing room. `max_instances=1` on the scheduler job prevents overlap. Scheduler started/stopped via FastAPI lifespan hooks in `main.py`. Added `apscheduler==3.10.4` to requirements.
+
+### Phase 3 — Outbid & Settlement Notifications
+Added fire-and-forget notification delivery via the backend's internal API. New files:
+
+- `app/services/notification_client.py` — thin `httpx` async client with two functions: `notify_outbid()` and `notify_auction_ended()`. Both post to `http://backend:8000/v1.0.0/internal/notifications/*` on the Docker-internal network. All exceptions are caught and logged; failures never propagate to the caller.
+
+Backend changes (coordinated):
+- `notification_service.py` — resolves user emails and full names from DB, writes `Notification` rows, dispatches the correct `EmailService` method per outcome.
+- `internal.py` controller — two unauthenticated `POST` endpoints (`/internal/notifications/outbid`, `/internal/notifications/auction-ended`) registered under `/v1.0.0/`. No auth guard — protected by Nginx blocking `/v1.0.0/internal/` at the public edge (`return 404`).
+- Five HTML email templates added to `backend/app/templates/email/`: `outbid.html`, `auction_won.html`, `auction_sold_seller.html`, `auction_reserve_not_met_bidder.html`, `auction_ended_seller.html`.
+
+Notification matrix:
+
+| Event | Recipients | Email template | In-app Notification |
+|---|---|---|---|
+| Outbid | Previous highest bidder | `outbid.html` | "You've been outbid on {title}" |
+| Auction sold | Winner | `auction_won.html` | "You won the auction!" |
+| Auction sold | Seller | `auction_sold_seller.html` | "Your auction sold" |
+| Reserve not met | Losing bidder | `auction_reserve_not_met_bidder.html` | "Auction ended — reserve not met" |
+| Reserve not met | Seller | `auction_ended_seller.html` | "Your auction ended" |
+| No bids | Seller | `auction_ended_seller.html` | "Your auction ended" |
+
+Call sites: `bidding_service.py` calls `notify_outbid` after `db.commit()` (outbid case only); `settlement_service.py` calls `notify_auction_ended` after commit and WS broadcast for all three settlement outcomes.
