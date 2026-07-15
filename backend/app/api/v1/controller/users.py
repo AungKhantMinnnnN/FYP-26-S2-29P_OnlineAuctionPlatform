@@ -1,12 +1,12 @@
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.auction import User
+from app.models.auction import User, InteractionAction
 from app.schemas.user import (
     BidHistoryResponse, PurchasesResponse, WatchlistResponse,
     WatchlistAddRequest, WatchlistAddResponse, WalletResponse, TopUpRequest, TopUpResponse,
@@ -15,6 +15,7 @@ from app.schemas.user import (
     SellerStatsResponse,
 )
 from app.services.user_service import UserService
+from app.services.interaction_service import log_interaction
 
 router = APIRouter()
 
@@ -79,10 +80,12 @@ async def get_my_watchlist(
 @router.post("/me/watchlist", response_model=WatchlistAddResponse, status_code=status.HTTP_200_OK)
 async def add_to_watchlist(
     request: WatchlistAddRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     item = await UserService.add_to_watchlist(db=db, user=current_user, listing_id=request.listing_id)
+    background_tasks.add_task(log_interaction, current_user.id, item.listing_id, InteractionAction.watchlist)
     return WatchlistAddResponse(
         watchlist_id=item.id,
         listing_id=item.listing_id,

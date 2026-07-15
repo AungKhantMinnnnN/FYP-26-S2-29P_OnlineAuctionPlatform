@@ -30,6 +30,8 @@ class RegisterRequest(BaseModel):
     password: str
     phone: Optional[str] = None
     address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     bio: Optional[str] = None
     role: Optional[str] = "user"
 

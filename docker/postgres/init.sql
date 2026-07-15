@@ -36,6 +36,8 @@ CREATE TABLE user_profiles (
     full_name VARCHAR(100),
     phone VARCHAR(20),
     address TEXT,
+    city VARCHAR(100),
+    country VARCHAR(100),
     dob DATE CHECK (dob < CURRENT_DATE),
     bio TEXT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -263,11 +265,6 @@ CREATE TABLE feedback_types (
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-INSERT INTO feedback_types (name, reviewer_role) VALUES
-    ('Buyer to Seller',  'buyer'),
-    ('Buyer to Listing', 'buyer'),
-    ('Seller to Buyer',  'seller');
 
 -- Item-level feedback: any bidder can review; eligibility enforced at app layer
 CREATE TABLE item_feedback (

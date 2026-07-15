@@ -972,6 +972,214 @@ Premium feature. Boards let premium users curate and publicly share a showcase o
 
 ---
 
+### Admin (`/v1.0.0/admin`)
+
+All routes require `Authorization: Bearer <token>` for a user with `role = admin`; otherwise `403 Forbidden`. Every mutating action writes a row to `admin_logs` (`admin_id`, `action`, `target_id`, `details`, `created_at`) in the same transaction as the change it performs, so the change and its audit trail can never diverge.
+
+#### User management
+
+Reconciled with the `feature/admin-user-management` PR that merged separately: that PR's `admin_users` router was never actually registered (imported but no `include_router()` call — none of its endpoints were reachable) and it never implemented `unsuspend` despite the spec requiring it, so this `admin.py` implementation stays canonical. Its good ideas — admin-account protection, suspension notifications, a required reason, and a single-user detail endpoint — are folded in below.
+
+* **`GET /v1.0.0/admin/users`**
+  * **Description:** Paginated list of all users. Search matches username, email, or full name (case-insensitive, partial). Filter by status.
+  * **Request Parameters:** `search` (string, optional), `status` (`active | suspended | deleted`, optional), `page` (int, default 1), `size` (int, default 20, max 100)
+  * **Response (200 OK):** `AdminUsersResponse`
+    ```json
+    {
+      "total": "int",
+      "page": "int",
+      "size": "int",
+      "pages": "int",
+      "items": [
+        {
+          "id": "uuid",
+          "username": "string",
+          "email": "string",
+          "role": "user | admin",
+          "status": "active | suspended | deleted",
+          "created_at": "datetime"
+        }
+      ]
+    }
+    ```
+
+* **`GET /v1.0.0/admin/users/{id}`**
+  * **Description:** Full detail view of a single user, including profile and (if currently suspended) the suspension reason and timestamp, derived from the latest `suspend_user` row in `admin_logs` for this user — no separate suspension columns needed.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (200 OK):** `AdminUserDetails`
+    ```json
+    {
+      "id": "uuid",
+      "username": "string",
+      "email": "string",
+      "role": "user | admin",
+      "status": "active | suspended | deleted",
+      "created_at": "datetime",
+      "subscription_tier": "free | premium",
+      "balance": "float",
+      "email_verified": "boolean",
+      "updated_at": "datetime",
+      "suspended_at": "datetime | null",
+      "suspension_reason": "string | null",
+      "profile": {
+        "full_name": "string | null",
+        "phone": "string | null",
+        "address": "string | null",
+        "dob": "string | null (YYYY-MM-DD)",
+        "bio": "string | null"
+      } | null
+    }
+    ```
+  * **Errors:** `404` if not found.
+
+* **`PATCH /v1.0.0/admin/users/{id}/suspend`**
+  * **Description:** Sets `user.status = suspended`. Sends the user an in-app `Notification` and an email (`account_suspended.html`, via `EmailService`) explaining why (via `reason`). Both are sent after the DB commit — a failed/unconfigured mail send is logged but never blocks or rolls back the suspension itself.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`SuspendUserRequest`)
+    ```json
+    { "reason": "string (3-1000 chars)" }
+    ```
+  * **Response (200 OK):** `AdminUserDetails`
+  * **Errors:** `404` if not found. `400` if the admin targets their own account, the reason is blank/whitespace-only, the account is already deleted, or it's already suspended. `403` if the target is an administrator account — admins cannot be suspended.
+
+* **`PATCH /v1.0.0/admin/users/{id}/unsuspend`**
+  * **Description:** Sets `user.status = active`. Sends the user a `Notification` confirming reinstatement.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (200 OK):** `AdminUserDetails`
+  * **Errors:** `404` if not found. `400` if the user is not currently suspended.
+
+* **`DELETE /v1.0.0/admin/users/{id}`**
+  * **Description:** Soft delete — sets `user.status = deleted`. The row is never physically removed. Sends the user an in-app `Notification` and an email (`account_deleted.html`, via `EmailService`), sent after the DB commit for the same reason as suspend.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (204 No Content)**
+  * **Errors:** `404` if not found. `400` if the admin targets their own account or the account is already deleted. `403` if the target is an administrator account — admins cannot be deleted.
+
+#### Listing moderation
+
+* **`GET /v1.0.0/admin/listings`**
+  * **Description:** Admin view of all listings across all sellers, including `draft` and `pending_review` (unlike the public `GET /auctions/`, which excludes drafts and isn't admin-gated).
+  * **Request Parameters:** `status` (`draft | pending_review | active | ended | removed`, optional), `search` (string, optional), `page` (int, default 1), `size` (int, default 20, max 100)
+  * **Response (200 OK):** `PaginatedAuctionResponse` *(same shape as `GET /auctions/`, see above)*
+
+* **`PATCH /v1.0.0/admin/listings/{id}/approve`**
+  * **Description:** Sets `status = active`, `is_draft = false`. Only valid from `draft` or `pending_review`.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (200 OK):** `AuctionListingResponse`
+  * **Errors:** `404` if not found. `400` if the listing isn't in `draft` or `pending_review`.
+
+* **`PATCH /v1.0.0/admin/listings/{id}/remove`**
+  * **Description:** Sets `status = removed` regardless of bid count or ownership (the owner-only, no-active-bids guard on `DELETE /auctions/{id}` does not apply here). If the listing has a live current-highest bid and hasn't already been finalized (no `AuctionResult`), that bid's held funds are released back to the bidder and the bid is cancelled — otherwise removing a listing with an active bid would trap that bidder's money with no automatic way back.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (200 OK):** `AuctionListingResponse`
+  * **Errors:** `404` if not found. `400` if already removed.
+
+#### Auction restart
+
+* **`POST /v1.0.0/admin/listings/{id}/restart`**
+  * **Description:** For an ended auction affected by technical issues: sets `status = active` with a new `end_time`. If an `AuctionResult` exists for the listing, it is cleared and, if it had a `winner_id`, the winner is refunded `final_price` back to their wallet balance (`WalletTransaction`, `type = settlement`) — this is skipped entirely if no result exists yet, since auction finalisation isn't automated anywhere in this codebase (only ever produced by seed data today). Existing bids and bid history are left untouched.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`AuctionRestartRequest`)
+    ```json
+    { "end_time": "datetime" }
+    ```
+  * **Response (200 OK):** `AuctionListingResponse`
+  * **Errors:** `404` if not found. `400` if the listing is not `ended`, or if `end_time` is not in the future. `409` if the existing `AuctionResult` is pinned to a user's collector board (`board_items.auction_result_id` is a non-cascading `NOT NULL` FK) — remove it from the board first.
+
+#### Category management
+
+* **`GET /v1.0.0/admin/categories`**
+  * **Description:** Lists all categories including inactive ones (the public `GET /auctions/form_metadata` only returns `is_active = true`).
+  * **Response (200 OK):** JSON array of `CategoryResponse` *(same shape as `form_metadata.categories`)*
+
+* **`POST /v1.0.0/admin/categories`**
+  * **Description:** Create a category. `slug` must be unique and lowercase-alphanumeric-with-hyphens (e.g. `vintage-watches`).
+  * **Request:** JSON object (`CategoryCreate`)
+    ```json
+    { "name": "string", "slug": "string", "parent_id": "uuid | null", "is_active": "boolean (default true)" }
+    ```
+  * **Response (201 Created):** `CategoryResponse`
+  * **Errors:** `409` if the slug is already taken. `404` if `parent_id` doesn't exist.
+
+* **`PATCH /v1.0.0/admin/categories/{id}`**
+  * **Description:** Update `name`, `slug`, `parent_id`, and/or toggle `is_active`. Only supplied fields are changed.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Request:** JSON object (`CategoryUpdate`, all fields optional)
+    ```json
+    { "name": "string", "slug": "string", "parent_id": "uuid | null", "is_active": "boolean" }
+    ```
+  * **Response (200 OK):** `CategoryResponse`
+  * **Errors:** `404` if the category (or given `parent_id`) doesn't exist. `409` if the new slug is already taken. `400` if `parent_id` is set to itself.
+
+* **`DELETE /v1.0.0/admin/categories/{id}`**
+  * **Description:** Hard-deletes the category only if nothing references it (no listings, no `user_interests` rows, no child categories) — otherwise it's deactivated (`is_active = false`) instead, to avoid breaking those foreign keys.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (200 OK):** `CategoryDeleteResponse`
+    ```json
+    { "id": "uuid", "action": "deleted | deactivated" }
+    ```
+  * **Errors:** `404` if not found.
+
+#### Bid override
+
+* **`DELETE /v1.0.0/admin/bids/{id}`**
+  * **Description:** Cancels a specific bid (`bid.status = cancelled`). Only the *current* highest bid on a listing actually holds funds at any time — every earlier bid already had its hold released back to its bidder when it was outbid (see the bidding engine's own hold/release logic), so cancelling a non-current bid is a no-op beyond the status flip (`funds_released: false`). Cancelling the current highest bid releases its hold back to the bidder, then either re-holds funds for the next-highest remaining accepted bid and restores it as `current_price` (mirroring how a normal new bid holds funds), or resets `current_price` to `starting_price` if no other bids remain.
+  * **Request Parameters:** `id` (UUID) in path
+  * **Response (200 OK):** `BidCancelResponse`
+    ```json
+    {
+      "bid_id": "uuid",
+      "listing_id": "uuid",
+      "status": "cancelled",
+      "new_current_price": "float",
+      "funds_released": "boolean"
+    }
+    ```
+  * **Errors:** `404` if the bid or its listing isn't found. `400` if the bid isn't currently `accepted`. `409` if the auction has already been finalised (has an `AuctionResult` — use restart-auction instead), or if restoring the previous bid would require re-holding funds the bidder no longer has.
+
+#### Admin logs & statistics
+
+* **`GET /v1.0.0/admin/logs`**
+  * **Description:** Reads the `admin_logs` audit trail — covers both "monitor system logs" and "view audit logs," which are the same underlying data. Every admin action above writes here.
+  * **Request Parameters:** `page` (int, default 1), `size` (int, default 20, max 100), `admin_id` (uuid, optional), `action` (string, optional — exact match, e.g. `suspend_user`, `approve_listing`, `cancel_bid`, `restart_auction`, `deleted_category`)
+  * **Response (200 OK):** `AdminLogsResponse`
+    ```json
+    {
+      "total": "int",
+      "page": "int",
+      "size": "int",
+      "pages": "int",
+      "items": [
+        {
+          "id": "uuid",
+          "admin_id": "uuid",
+          "admin_username": "string",
+          "action": "string",
+          "target_id": "uuid | null",
+          "details": "string | null",
+          "created_at": "datetime"
+        }
+      ]
+    }
+    ```
+
+* **`GET /v1.0.0/admin/stats`**
+  * **Description:** Platform-wide aggregates for the admin dashboard. `total_users` and `suspended_users` exclude soft-deleted accounts from the total. `revenue` sums only negative-signed `settlement` wallet transactions (currently: premium subscription renewals) — auction settlements are peer-to-peer value transfer, not platform revenue, and aren't implemented as an automated flow anywhere in this codebase yet, so they're intentionally excluded rather than producing a misleading number. `new_registrations` covers the trailing 30 days, grouped by day.
+  * **Response (200 OK):** `AdminStatsResponse`
+    ```json
+    {
+      "total_users": "int",
+      "active_auctions": "int",
+      "total_bids": "int",
+      "revenue": "float",
+      "suspended_users": "int",
+      "new_registrations": [
+        { "date": "string (YYYY-MM-DD)", "count": "int" }
+      ]
+    }
+    ```
+
+---
+
 ### Health Check
 
 * **`GET /v1.0.0/health`**
