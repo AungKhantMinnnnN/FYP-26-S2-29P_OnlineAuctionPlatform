@@ -370,8 +370,8 @@ Three output destinations configured in `app/core/logger.py`:
 
 ## Roadmap (Planned Phases)
 
-### Phase 2 — Auction Settlement
-When an auction ends (`now > listing.end_time`), determine the winner (highest accepted bid), create an `AuctionResult` record, release all non-winning bid holds back to bidders, and transfer the winning hold to the seller's wallet as a `settlement` transaction. Mark listing status as `ended`. Trigger mechanism TBD (APScheduler job, or on-bid check at connect time).
+### Phase 3 — Outbid Notifications
+When a previous highest bidder is outbid, write a `Notification` row referencing their user_id with type `outbid`. Frontend polls or subscribes to the notification feed. The `Notification` model already exists in `app/models/auction.py`.
 
 ### Phase 3 — Outbid Notifications
 When a previous highest bidder is outbid, write a `Notification` row referencing their user_id with type `outbid`. Frontend polls or subscribes to the notification feed. The `Notification` model already exists in `app/models/auction.py`.
@@ -388,6 +388,9 @@ Add per-connection message counter in `ConnectionManager` to throttle WebSocket 
 
 ### Phase 0 — Core bidding loop
 Implemented real-time WebSocket auction room with JWT auth on connect, Redis distributed lock per listing, fresh `AsyncSession` per message, full escrow model (bid_hold + bid_release in single atomic commit), three bidding types (`price_up`, `low_start`, `public`), free tier 10-bid/hour enforcement, broadcast to all subscribers with errors only to originator.
+
+### Phase 2 — Auction Settlement
+Added `app/services/settlement_service.py` and `app/core/scheduler.py`. APScheduler (`AsyncIOScheduler`) runs `settle_ended_auctions()` every 60 seconds. For each active listing with `end_time <= now`: acquires the same Redis lock used by the bid pipeline; checks for an existing `AuctionResult` row (idempotency guard); finds the highest accepted bid; settles with one of three outcomes — **no bids** (AuctionResult with winner=None, final_price=starting_price), **reserve not met** (refund highest bidder's hold via bid_release transaction, winner=None), **sold** (credit seller via settlement transaction, AuctionResult with winner). All DB writes committed atomically, then `auction_ended` broadcast sent to all WS subscribers in the listing room. `max_instances=1` on the scheduler job prevents overlap. Scheduler started/stopped via FastAPI lifespan hooks in `main.py`. Added `apscheduler==3.10.4` to requirements.
 
 ### Phase 1 — Anti-sniping
 Added `ANTI_SNIPE_WINDOW_SECONDS = 60` and `ANTI_SNIPE_EXTENSION_SECONDS = 60` constants to `bidding_service.py`. In `_execute_bid`, after price update and before `db.commit()`: check `seconds_remaining` against the window; if triggered, extend `listing.end_time` by 60 seconds as part of the same atomic commit. Broadcast payload extended with `end_time` (always present) and `time_extended: bool` so frontends update countdown timers immediately on every bid. Replaced `print()` debug statements in `bids.py` with structured `logger` calls.
