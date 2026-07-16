@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Gavel, User, Activity, Store, PlusCircle, Shield, Users, Tags, FileWarning, ScrollText, LayoutGrid, MessageCircle } from 'lucide-react'
+import { LayoutDashboard, Gavel, User, Activity, Store, PlusCircle, Shield, Users, Tags, FileWarning, ScrollText, LayoutGrid, MessageCircle, BarChart3, FileText } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const links = [
@@ -15,6 +15,8 @@ const links = [
   { to: '/admin/categories', label: 'Categories', icon: Tags, roles: ['admin'] },
   { to: '/admin/feedback-types', label: 'Feedback Types', icon: MessageCircle, roles: ['admin'] },
   { to: '/admin/cases', label: 'Cases', icon: FileWarning, roles: ['admin'] },
+  { to: '/admin/activity-stats', label: 'Activity Stats', icon: BarChart3, roles: ['admin'] },
+  { to: '/admin/system-logs', label: 'System Logs', icon: FileText, roles: ['admin'] },
   { to: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText, roles: ['admin'] },
 ]
 
