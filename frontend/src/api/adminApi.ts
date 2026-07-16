@@ -2,16 +2,22 @@ import apiClient from './apiClient'
 
 // ── Platform Activity Stats ─────────────────────────────────────────────────────
 
-export interface PlatformStats {
+export interface RegistrationsByDay {
+  date: string
+  count: number
+}
+
+export interface AdminStatsResponse {
   total_users: number
   active_auctions: number
-  total_listings: number
   total_bids: number
-  completed_auctions: number
-  total_bid_volume: number
+  revenue: number
+  suspended_users: number
+  new_registrations: RegistrationsByDay[]
 }
 
 // ── System Logs ─────────────────────────────────────────────────────────────────
+// No backend endpoint yet — the section renders a graceful-empty shell.
 
 export interface SystemLogEntry {
   id: string
@@ -29,21 +35,16 @@ export interface SystemLogsResponse {
   pages: number
 }
 
-// ── Audit Logs ──────────────────────────────────────────────────────────────────
-
-export interface AdminInfo {
-  id: string
-  username: string
-}
+// ── Audit Logs (admin action log) ───────────────────────────────────────────────
 
 export interface AuditLogEntry {
   id: string
   admin_id: string
+  admin_username: string | null
   action: string
   target_id: string | null
   details: string | null
   created_at: string
-  admin: AdminInfo | null
 }
 
 export interface AuditLogsResponse {
@@ -54,10 +55,10 @@ export interface AuditLogsResponse {
   pages: number
 }
 
-// ── API (admin-only; endpoints not yet implemented — callers handle errors) ──────
+// ── API (admin-only) ─────────────────────────────────────────────────────────────
 
-export const getPlatformStats = async (): Promise<PlatformStats> => {
-  const res = await apiClient.get<PlatformStats>('/admin/stats')
+export const getPlatformStats = async (): Promise<AdminStatsResponse> => {
+  const res = await apiClient.get<AdminStatsResponse>('/admin/stats')
   return res.data
 }
 
@@ -69,8 +70,8 @@ export const getSystemLogs = async (
 }
 
 export const getAuditLogs = async (
-  params?: { page?: number; size?: number; action?: string }
+  params?: { page?: number; size?: number; admin_id?: string; action?: string }
 ): Promise<AuditLogsResponse> => {
-  const res = await apiClient.get<AuditLogsResponse>('/admin/audit-logs', { params })
+  const res = await apiClient.get<AuditLogsResponse>('/admin/logs', { params })
   return res.data
 }
