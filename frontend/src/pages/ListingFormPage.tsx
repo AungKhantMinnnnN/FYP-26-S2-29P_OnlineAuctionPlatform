@@ -301,7 +301,7 @@ export default function ListingFormPage() {
           )}
 
           {(existingImages.length > 0 || previews.length > 0) && (
-            <div className="mt-3 grid grid-cols-4 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {existingImages.map((img, i) => (
                 <div
                   key={img.id}
@@ -420,7 +420,7 @@ export default function ListingFormPage() {
           <label className="mb-2 block text-sm font-medium text-slate-700">
             Auction Duration
           </label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {durations.map(({ value, label }) => (
               <button
                 key={value}

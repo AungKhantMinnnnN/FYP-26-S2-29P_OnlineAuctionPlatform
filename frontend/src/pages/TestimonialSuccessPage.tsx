@@ -10,7 +10,7 @@ export default function TestimonialSuccessPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-7rem)] items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-50 via-white to-blue-50 px-4 py-10">
-      <div className="w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/60">
+      <div className="w-full max-w-2xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
         <div className="flex justify-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
             <CheckCircle2 size={48} className="text-green-600" />

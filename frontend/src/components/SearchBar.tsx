@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Search } from 'lucide-react'
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 interface SearchBarProps {
   className?: string
@@ -9,9 +9,9 @@ interface SearchBarProps {
 export default function SearchBar({ className = '' }: SearchBarProps) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [query, setQuery] = React.useState(searchParams.get('q') || '')
+  const [query, setQuery] = useState(searchParams.get('q') || '')
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (query.trim()) {
       navigate(`/browse?q=${encodeURIComponent(query)}`)

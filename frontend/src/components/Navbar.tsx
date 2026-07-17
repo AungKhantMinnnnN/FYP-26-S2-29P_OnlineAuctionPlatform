@@ -71,7 +71,7 @@ export default function Navbar() {
 
       {/* Marketplace Nav for logged in users */}
       {role === 'user' && (
-        <div className="border-t border-slate-200/50 bg-white/80">
+        <div className="hidden border-t border-slate-200/50 bg-white/80 md:block">
           <div className="max-w-[1280px] mx-auto px-4 py-2 sm:px-8 flex justify-center">
             <MarketplaceNav compact />
           </div>
@@ -83,9 +83,15 @@ export default function Navbar() {
         <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-1.5 shadow-xl">
           <SearchBar />
           <Link to="/browse" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Browse Auctions</Link>
-          <Link to="/activity" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Activity</Link>
-          <Link to="/collector-board" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Collector Board</Link>
-          
+          {role === 'user' && (
+            <>
+              <Link to="/activity" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>User History</Link>
+              <Link to="/watchlist" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Watchlist</Link>
+              <Link to="/collector-board" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Collector Board</Link>
+              <Link to="/support" className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>Support</Link>
+            </>
+          )}
+
           {user ? (
             <>
               <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-900">
