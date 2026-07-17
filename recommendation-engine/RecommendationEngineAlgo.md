@@ -1,6 +1,6 @@
 # Recommendation Engine — Algorithm & Implementation Documentation
 
-Living design doc for this service's recommendation/ML logic. **Update this file at the end of every phase** — add a new entry under "Phase Log", update "Current Algorithm" if the live formula changed, and update any section that drifts from what the code actually does. If this doc and the code disagree, trust the code and fix this file.
+Living design doc for this service's recommendation/ML logic. 
 
 Business mandate: solve cold-start via onboarding interests, blend collaborative + content-based filtering ("Hybrid CF/RCBF") for the activity hub feed.
 

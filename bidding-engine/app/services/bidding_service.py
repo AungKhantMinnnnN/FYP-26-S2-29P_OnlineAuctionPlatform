@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from app.models.auction import Listing, User, Bid, WalletTransaction, UserInteraction, ListingStatus, BidStatus, TransactionType, BiddingType, SubscriptionTier, InteractionAction
+from app.models.auction import Listing, User, Bid, WalletTransaction, UserInteraction, ListingStatus, BidStatus, TransactionType, BiddingType, SubscriptionTier, InteractionAction, UserStatus
 from app.core.redis import redis_client
 from app.services import notification_client
 
@@ -106,7 +106,13 @@ class BiddingService:
         if not current_user:
             logger.error("User not found")
             return {"success": False, "error": "User not found"}
-            
+
+        # Block suspended/deleted accounts from bidding (status may change mid-session,
+        # so this is re-checked per bid rather than only at WS connect time).
+        if current_user.status != UserStatus.active:
+            logger.warning(f"User [{user_id}] with status [{current_user.status.value}] attempted to bid")
+            return {"success": False, "error": "Your account is not active. Bidding is disabled."}
+
         if current_user.balance < amount:
             logger.error("Insufficient wallet balance")
             return {"success": False, "error": "Insufficient wallet balance"}
