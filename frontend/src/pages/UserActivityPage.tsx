@@ -95,7 +95,7 @@ export default function UserActivityPage() {
                 <PlusCircle size={15} className="mr-1.5" /> Create Listing
               </PrimaryButton>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
                 { label: 'Listings', value: listings.length },
                 { label: 'Active Bids', value: currentBids.length },
@@ -113,7 +113,7 @@ export default function UserActivityPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         <DashboardStatCard title="Active Listings" value={isLoading ? '—' : activeListings.length} icon={Package} trend="Currently live" />
         <DashboardStatCard title="Active Bids" value={isLoading ? '—' : currentBids.length} icon={TrendingUp} trend="Auctions you're in" />
         <DashboardStatCard title="Total Wins" value={isLoading ? '—' : wonBids.length} icon={Trophy} trend="Auctions won" />

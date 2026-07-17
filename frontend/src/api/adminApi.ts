@@ -55,6 +55,35 @@ export interface AuditLogsResponse {
   pages: number
 }
 
+// ── Categories ───────────────────────────────────────────────────────────────────
+
+export interface AdminCategory {
+  id: string
+  name: string
+  slug: string
+  parent_id: string | null
+  is_active: boolean
+}
+
+export interface CategoryCreatePayload {
+  name: string
+  slug: string
+  parent_id?: string | null
+  is_active?: boolean
+}
+
+export interface CategoryUpdatePayload {
+  name?: string
+  slug?: string
+  parent_id?: string | null
+  is_active?: boolean
+}
+
+export interface CategoryDeleteResponse {
+  id: string
+  action: 'deleted' | 'deactivated'
+}
+
 // ── API (admin-only) ─────────────────────────────────────────────────────────────
 
 export const getPlatformStats = async (): Promise<AdminStatsResponse> => {
@@ -73,5 +102,25 @@ export const getAuditLogs = async (
   params?: { page?: number; size?: number; admin_id?: string; action?: string }
 ): Promise<AuditLogsResponse> => {
   const res = await apiClient.get<AuditLogsResponse>('/admin/logs', { params })
+  return res.data
+}
+
+export const getAdminCategories = async (): Promise<AdminCategory[]> => {
+  const res = await apiClient.get<AdminCategory[]>('/admin/categories')
+  return res.data
+}
+
+export const createAdminCategory = async (data: CategoryCreatePayload): Promise<AdminCategory> => {
+  const res = await apiClient.post<AdminCategory>('/admin/categories', data)
+  return res.data
+}
+
+export const updateAdminCategory = async (id: string, data: CategoryUpdatePayload): Promise<AdminCategory> => {
+  const res = await apiClient.patch<AdminCategory>(`/admin/categories/${id}`, data)
+  return res.data
+}
+
+export const deleteAdminCategory = async (id: string): Promise<CategoryDeleteResponse> => {
+  const res = await apiClient.delete<CategoryDeleteResponse>(`/admin/categories/${id}`)
   return res.data
 }
