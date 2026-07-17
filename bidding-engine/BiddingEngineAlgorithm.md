@@ -1,6 +1,6 @@
 # Bidding Engine — Algorithm & Implementation Reference
 
-Living design doc for this service's real-time bidding logic. **Update this file at the end of every phase** — add a new entry under "Phase Log", update any section that drifts from what the code actually does. If this doc and the code disagree, trust the code and fix this file.
+Living design doc for this service's real-time bidding logic. 
 
 ---
 
@@ -381,8 +381,7 @@ Three output destinations configured in `app/core/logger.py`:
 
 ## Roadmap (Planned Phases)
 
-### Phase 4 — WS Rate Limiting + User Suspension Check
-Add per-connection message counter in `ConnectionManager` to throttle WebSocket message floods. Add `user.status == active` check at bid validation time to block suspended/banned users from bidding.
+_No phases currently queued. Candidate future work: max-extensions cap on anti-sniping (needs schema column), Redis pub/sub broadcast for horizontal scaling, Redis-backed rate-limit counters for multi-worker deploys._
 
 ---
 
