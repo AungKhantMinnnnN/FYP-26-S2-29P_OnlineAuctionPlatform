@@ -100,6 +100,40 @@ class AuctionRestartRequest(BaseModel):
 # endregion
 
 
+# region Content moderation
+class ProhibitedKeywordCreate(BaseModel):
+    keyword: str = Field(..., min_length=1, max_length=100)
+
+    @field_validator('keyword')
+    def keyword_must_not_be_blank(cls, v):
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError('keyword cannot be blank')
+        return cleaned
+
+
+class ProhibitedKeywordResponse(BaseModel):
+    id: UUID
+    keyword: str
+    added_by_username: Optional[str] = None
+    created_at: datetime
+
+
+class FlaggedAttemptItem(BaseModel):
+    id: UUID
+    user_id: UUID
+    username: Optional[str] = None
+    keyword_matched: str
+    field: str
+    attempted_text: str
+    created_at: datetime
+
+
+class FlaggedAttemptsResponse(PaginationMeta):
+    items: List[FlaggedAttemptItem]
+# endregion
+
+
 # region System logs
 class SystemLogEntry(BaseModel):
     id: str

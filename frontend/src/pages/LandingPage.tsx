@@ -6,37 +6,22 @@ import { useQuery } from '@tanstack/react-query'
 import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
 import { getPublicFeedback } from '../api/feedbackApi'
-import { getMarketingVideoUrl, uploadMarketingVideo } from '../api/marketingApi'
+import { getMarketingVideoUrl } from '../api/marketingApi'
 import { getMyWatchlist } from '../api/usersApi'
 import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
 import EmptyState from '../components/EmptyState'
 
 export default function LandingPage() {
-  const { isAuthenticated, user, role } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const isPremium = user?.subscription_tier === 'premium'
   const isFreeUser = isAuthenticated && !isPremium
 
-  const { data: videoUrl, refetch: refetchVideo } = useQuery({
+  const { data: videoUrl } = useQuery({
     queryKey: ['marketing-video'],
     queryFn: getMarketingVideoUrl,
   })
-  const [uploadingVideo, setUploadingVideo] = useState(false)
 
-  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setUploadingVideo(true)
-    try {
-      await uploadMarketingVideo(file)
-      await refetchVideo()
-    } catch {
-      // silent — admin can retry the upload
-    } finally {
-      setUploadingVideo(false)
-      event.target.value = ''
-    }
-  }
   const { data: auctionsData, isLoading } = useQuery({
     queryKey: ['auctions', 'landing'],
     queryFn: () => getAuctions({ size: 20 })
@@ -161,19 +146,6 @@ export default function LandingPage() {
                 <h3 className="text-white font-semibold text-xl drop-shadow-md">How AuctionHub Works</h3>
               </div>
             </>
-          )}
-
-          {role === 'admin' && (
-            <label className="absolute top-3 right-3 z-20 cursor-pointer rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-accent-700 shadow-md transition hover:bg-white">
-              {uploadingVideo ? 'Uploading…' : videoUrl ? 'Replace video' : 'Upload video'}
-              <input
-                type="file"
-                accept="video/mp4,video/webm,video/ogg"
-                className="hidden"
-                disabled={uploadingVideo}
-                onChange={handleVideoUpload}
-              />
-            </label>
           )}
         </div>
       </section>

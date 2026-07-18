@@ -6,7 +6,10 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
-from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType, AuctionDuration, User, SubscriptionTier
+from app.models.auction import (
+    Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType,
+    AuctionDuration, User, SubscriptionTier, ProhibitedKeyword, FlaggedListingAttempt,
+)
 from app.schemas.auction import ListingCreate, ListingUpdate
 from datetime import timedelta
 from app.core.storage import storage_service
@@ -99,6 +102,38 @@ class AuctionService:
     FREE_LISTING_HOURLY_LIMIT = 5
 
     @staticmethod
+    async def _check_prohibited_keywords(
+        db: AsyncSession,
+        user_id: UUID,
+        title: Optional[str],
+        description: Optional[str],
+        brand: Optional[str],
+    ) -> None:
+        # Applies to every listing save — draft or active — so prohibited content can't be
+        # smuggled in via a draft that's never published. Case-insensitive substring match.
+        keywords = (await db.execute(select(ProhibitedKeyword.keyword))).scalars().all()
+        if not keywords:
+            return
+
+        for field_name, text in (("title", title), ("description", description), ("brand", brand)):
+            text_lower = (text or "").lower()
+            if not text_lower:
+                continue
+            for keyword in keywords:
+                if keyword.lower() in text_lower:
+                    # Log the attempt before raising — this is what powers the admin's
+                    # flagged-attempts view, so it must persist even though the save is rejected.
+                    db.add(FlaggedListingAttempt(
+                        user_id=user_id, keyword_matched=keyword, field=field_name, attempted_text=text,
+                    ))
+                    await db.commit()
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Your listing could not be saved: the {field_name} contains a "
+                               f"prohibited term ('{keyword}'). Please remove it and try again.",
+                    )
+
+    @staticmethod
     async def create_listing(db: AsyncSession, user_id: UUID, listing_in: ListingCreate) -> Listing:
         user = await db.scalar(select(User).where(User.id == user_id))
         if user and user.subscription_tier == SubscriptionTier.free:
@@ -112,6 +147,10 @@ class AuctionService:
                     status_code=429,
                     detail=f"Free tier limit reached: you can create at most {AuctionService.FREE_LISTING_HOURLY_LIMIT} listings per hour. Upgrade to Premium for unlimited listings."
                 )
+
+        await AuctionService._check_prohibited_keywords(
+            db, user_id, listing_in.title, listing_in.description, listing_in.brand
+        )
 
         listing = Listing(
             seller_id=user_id,
@@ -152,6 +191,16 @@ class AuctionService:
             raise HTTPException(status_code=400, detail="Only draft listings can be edited")
 
         data = listing_in.model_dump(exclude_unset=True, exclude={"status"})
+
+        # Check the prospective merged values (not yet applied to `listing`) so a blocked
+        # edit can't leave partial field mutations sitting on the tracked ORM object.
+        await AuctionService._check_prohibited_keywords(
+            db, user_id,
+            data.get("title", listing.title),
+            data.get("description", listing.description),
+            data.get("brand", listing.brand),
+        )
+
         for field, value in data.items():
             setattr(listing, field, value)
         if "starting_price" in data:

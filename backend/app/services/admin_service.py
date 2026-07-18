@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.models.auction import (
     User, UserRole, UserStatus, UserProfiles, Listing, ListingStatus, Bid, BidStatus,
     AuctionResult, Categories, UserInterest, WalletTransaction, TransactionType,
-    AdminLog, BoardItem, Notification,
+    AdminLog, BoardItem, Notification, ProhibitedKeyword, FlaggedListingAttempt,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
 from app.services.email_service import EmailService
@@ -576,6 +576,83 @@ class AdminService:
         page_items = entries[start:start + size]
 
         return {"items": page_items, "total": total, "page": page, "size": size, "pages": pages}
+    # endregion
+
+    # region Content moderation
+    @staticmethod
+    async def get_prohibited_keywords(db: AsyncSession) -> List[dict]:
+        query = (
+            select(ProhibitedKeyword, User.username)
+            .outerjoin(User, User.id == ProhibitedKeyword.added_by)
+            .order_by(ProhibitedKeyword.keyword)
+        )
+        rows = (await db.execute(query)).all()
+        return [{
+            "id": kw.id,
+            "keyword": kw.keyword,
+            "added_by_username": username,
+            "created_at": kw.created_at,
+        } for kw, username in rows]
+
+    @staticmethod
+    async def create_prohibited_keyword(db: AsyncSession, admin: User, keyword: str) -> dict:
+        existing = await db.scalar(
+            select(ProhibitedKeyword).where(func.lower(ProhibitedKeyword.keyword) == keyword.lower())
+        )
+        if existing:
+            raise HTTPException(status_code=409, detail="This keyword is already on the prohibited list")
+
+        entry = ProhibitedKeyword(keyword=keyword, added_by=admin.id)
+        db.add(entry)
+        db.add(AdminLog(
+            admin_id=admin.id, action="add_prohibited_keyword", target_id=entry.id,
+            details=f"Added prohibited keyword '{keyword}'",
+        ))
+        await db.commit()
+        await db.refresh(entry)
+        return {
+            "id": entry.id,
+            "keyword": entry.keyword,
+            "added_by_username": admin.username,
+            "created_at": entry.created_at,
+        }
+
+    @staticmethod
+    async def delete_prohibited_keyword(db: AsyncSession, admin: User, keyword_id: UUID) -> None:
+        entry = await db.scalar(select(ProhibitedKeyword).where(ProhibitedKeyword.id == keyword_id))
+        if not entry:
+            raise HTTPException(status_code=404, detail="Prohibited keyword not found")
+
+        keyword_text = entry.keyword
+        await db.delete(entry)
+        db.add(AdminLog(
+            admin_id=admin.id, action="remove_prohibited_keyword", target_id=keyword_id,
+            details=f"Removed prohibited keyword '{keyword_text}'",
+        ))
+        await db.commit()
+
+    @staticmethod
+    async def get_flagged_attempts(db: AsyncSession, page: int, size: int) -> Dict[str, Any]:
+        query = select(FlaggedListingAttempt, User.username).join(User, User.id == FlaggedListingAttempt.user_id)
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query)
+
+        query = query.order_by(FlaggedListingAttempt.created_at.desc()).offset((page - 1) * size).limit(size)
+        rows = (await db.execute(query)).all()
+
+        items = [{
+            "id": attempt.id,
+            "user_id": attempt.user_id,
+            "username": username,
+            "keyword_matched": attempt.keyword_matched,
+            "field": attempt.field,
+            "attempted_text": attempt.attempted_text,
+            "created_at": attempt.created_at,
+        } for attempt, username in rows]
+
+        pages = (total + size - 1) // size if total else 0
+        return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
     # endregion
 
     # region Logs

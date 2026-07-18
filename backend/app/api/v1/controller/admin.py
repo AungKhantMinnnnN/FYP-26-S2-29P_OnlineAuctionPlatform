@@ -10,6 +10,7 @@ from app.schemas.admin import (
     AdminUsersResponse, AdminUserDetails, SuspendUserRequest, CategoryCreate, CategoryUpdate,
     CategoryDeleteResponse, BidCancelResponse, AuctionRestartRequest,
     AdminLogsResponse, AdminStatsResponse, SystemLogsResponse,
+    ProhibitedKeywordCreate, ProhibitedKeywordResponse, FlaggedAttemptsResponse,
 )
 from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, CategoryResponse
 from app.services.admin_service import AdminService
@@ -158,6 +159,44 @@ async def cancel_bid(
     admin: User = Depends(get_admin_user),
 ):
     return await AdminService.cancel_bid(db=db, admin=admin, bid_id=id)
+# endregion
+
+
+# region Content moderation
+@router.get("/prohibited-keywords", response_model=List[ProhibitedKeywordResponse])
+async def list_prohibited_keywords(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return await AdminService.get_prohibited_keywords(db=db)
+
+
+@router.post("/prohibited-keywords", response_model=ProhibitedKeywordResponse, status_code=status.HTTP_201_CREATED)
+async def create_prohibited_keyword(
+    data: ProhibitedKeywordCreate,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    return await AdminService.create_prohibited_keyword(db=db, admin=admin, keyword=data.keyword)
+
+
+@router.delete("/prohibited-keywords/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_prohibited_keyword(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    await AdminService.delete_prohibited_keyword(db=db, admin=admin, keyword_id=id)
+
+
+@router.get("/flagged-attempts", response_model=FlaggedAttemptsResponse)
+async def list_flagged_attempts(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return await AdminService.get_flagged_attempts(db=db, page=page, size=size)
 # endregion
 
 

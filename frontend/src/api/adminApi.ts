@@ -166,6 +166,54 @@ export const getAuditLogs = async (
   return res.data
 }
 
+// ── Content Moderation ──────────────────────────────────────────────────────────
+
+export interface ProhibitedKeyword {
+  id: string
+  keyword: string
+  added_by_username: string | null
+  created_at: string
+}
+
+export const getProhibitedKeywords = async (): Promise<ProhibitedKeyword[]> => {
+  const res = await apiClient.get<ProhibitedKeyword[]>('/admin/prohibited-keywords')
+  return res.data
+}
+
+export const createProhibitedKeyword = async (keyword: string): Promise<ProhibitedKeyword> => {
+  const res = await apiClient.post<ProhibitedKeyword>('/admin/prohibited-keywords', { keyword })
+  return res.data
+}
+
+export const deleteProhibitedKeyword = async (id: string): Promise<void> => {
+  await apiClient.delete(`/admin/prohibited-keywords/${id}`)
+}
+
+export interface FlaggedAttempt {
+  id: string
+  user_id: string
+  username: string | null
+  keyword_matched: string
+  field: string
+  attempted_text: string
+  created_at: string
+}
+
+export interface FlaggedAttemptsResponse {
+  items: FlaggedAttempt[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export const getFlaggedAttempts = async (
+  params?: { page?: number; size?: number }
+): Promise<FlaggedAttemptsResponse> => {
+  const res = await apiClient.get<FlaggedAttemptsResponse>('/admin/flagged-attempts', { params })
+  return res.data
+}
+
 export const getAdminCategories = async (): Promise<AdminCategory[]> => {
   const res = await apiClient.get<AdminCategory[]>('/admin/categories')
   return res.data
