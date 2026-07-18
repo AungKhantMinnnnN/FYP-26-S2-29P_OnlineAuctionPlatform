@@ -118,6 +118,8 @@ class ProfileUpdateRequest(BaseModel):
     country: Optional[str] = None
     dob: Optional[str] = None  # ISO date string: YYYY-MM-DD
     bio: Optional[str] = None
+    email_alerts_enabled: Optional[bool] = None
+    marketing_emails_enabled: Optional[bool] = None
 
 
 class ProfileResponse(BaseModel):
@@ -128,6 +130,8 @@ class ProfileResponse(BaseModel):
     country: Optional[str] = None
     dob: Optional[str] = None
     bio: Optional[str] = None
+    email_alerts_enabled: bool = True
+    marketing_emails_enabled: bool = False
 # endregion
 
 

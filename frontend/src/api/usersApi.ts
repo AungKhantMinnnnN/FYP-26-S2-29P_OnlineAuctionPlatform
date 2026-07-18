@@ -39,6 +39,8 @@ export interface ProfileUpdatePayload {
   city?: string
   country?: string
   bio?: string
+  email_alerts_enabled?: boolean
+  marketing_emails_enabled?: boolean
 }
 
 export interface ProfileResponse {
@@ -49,6 +51,8 @@ export interface ProfileResponse {
   country: string | null
   dob: string | null
   bio: string | null
+  email_alerts_enabled: boolean
+  marketing_emails_enabled: boolean
 }
 
 export const updateProfile = async (data: ProfileUpdatePayload): Promise<ProfileResponse> => {

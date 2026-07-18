@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Gavel, User, Activity, Store, PlusCircle, Shield, Users, Tags, FileWarning, ScrollText, LayoutGrid, MessageCircle, BarChart3, FileText } from 'lucide-react'
+import { LayoutDashboard, Gavel, User, Activity, Store, PlusCircle, Users, Tags, FileWarning, ScrollText, LayoutGrid, MessageCircle, MessageSquareHeart, BarChart3, FileText } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const links = [
@@ -9,11 +9,11 @@ const links = [
   { to: '/create-listing', label: 'Create Listing', icon: PlusCircle, roles: ['user'], badge: null },
   { to: '/collector-board', label: 'Collector Board', icon: LayoutGrid, roles: ['user'], badge: 'PRO' },
   { to: '/profile', label: 'Profile', icon: User, roles: ['user'], badge: null },
-  { to: '/admin-dashboard', label: 'Admin Panel', icon: Shield, roles: ['admin'] },
   { to: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { to: '/admin/listings', label: 'Listings', icon: Gavel, roles: ['admin'] },
   { to: '/admin/categories', label: 'Categories', icon: Tags, roles: ['admin'] },
   { to: '/admin/feedback-types', label: 'Feedback Types', icon: MessageCircle, roles: ['admin'] },
+  { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquareHeart, roles: ['admin'] },
   { to: '/admin/cases', label: 'Cases', icon: FileWarning, roles: ['admin'] },
   { to: '/admin/activity-stats', label: 'Activity Stats', icon: BarChart3, roles: ['admin'] },
   { to: '/admin/system-logs', label: 'System Logs', icon: FileText, roles: ['admin'] },

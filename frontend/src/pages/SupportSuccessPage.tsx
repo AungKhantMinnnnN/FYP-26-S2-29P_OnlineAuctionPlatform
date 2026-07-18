@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, Home, Search, RotateCcw } from 'lucide-react'
+import { CheckCircle2, Clock3, Home, Search, ListChecks } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 
 export default function SupportSuccessPage() {
@@ -74,11 +74,11 @@ export default function SupportSuccessPage() {
           </Link>
 
           <Link
-            to="/support"
+            to="/support?tab=tickets"
             className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100"
           >
-            <RotateCcw size={18} />
-            Submit Again
+            <ListChecks size={18} />
+            View My Tickets
           </Link>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './context/AuthContext'
 import PublicLayout from './layouts/PublicLayout'
@@ -16,7 +16,6 @@ import ProfilePage from './pages/ProfilePage'
 import SellerDashboardPage from './pages/SellerDashboardPage'
 import ListingFormPage from './pages/ListingFormPage'
 import AdminLoginPage from './pages/AdminLoginPage'
-import AdminDashboardPage from './pages/AdminDashboardPage'
 import WatchlistPage from './pages/WatchlistPage'
 import WalletPage from './pages/WalletPage'
 import ChooseInterestsPage from './pages/ChooseInterestsPage'
@@ -83,8 +82,7 @@ export default function App() {
           {/* Admin routes */}
           <Route element={<ProtectedRoute roles={['admin']} />}>
             <Route element={<DashboardLayout />}>
-            
-              <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+              <Route path="/admin-dashboard" element={<Navigate to="/admin/users" replace />} />
               <Route path="/admin/:section" element={<AdminManagementPage />} />
             </Route>
           </Route>

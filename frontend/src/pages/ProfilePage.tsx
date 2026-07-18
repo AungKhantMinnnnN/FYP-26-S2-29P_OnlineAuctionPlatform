@@ -122,10 +122,39 @@ export default function ProfilePage() {
     setSubscriptionMessage(res.message)
   }
 
-  // Notifications — local preference only; no backend endpoint persists these yet.
-  const [emailAlerts, setEmailAlerts] = useState(true)
-  const [pushNotifications, setPushNotifications] = useState(true)
-  const [marketingEmails, setMarketingEmails] = useState(false)
+  // Notifications
+  const [emailAlerts, setEmailAlerts] = useState(user?.profile?.email_alerts_enabled ?? true)
+  const [marketingEmails, setMarketingEmails] = useState(user?.profile?.marketing_emails_enabled ?? false)
+  const [notificationsError, setNotificationsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setEmailAlerts(user?.profile?.email_alerts_enabled ?? true)
+    setMarketingEmails(user?.profile?.marketing_emails_enabled ?? false)
+  }, [user])
+
+  const handleToggleEmailAlerts = async (value: boolean) => {
+    setEmailAlerts(value)
+    setNotificationsError(null)
+    try {
+      await updateProfile({ email_alerts_enabled: value })
+      await refreshUser()
+    } catch {
+      setEmailAlerts(!value)
+      setNotificationsError('Unable to update preference. Please try again.')
+    }
+  }
+
+  const handleToggleMarketingEmails = async (value: boolean) => {
+    setMarketingEmails(value)
+    setNotificationsError(null)
+    try {
+      await updateProfile({ marketing_emails_enabled: value })
+      await refreshUser()
+    } catch {
+      setMarketingEmails(!value)
+      setNotificationsError('Unable to update preference. Please try again.')
+    }
+  }
 
   // Interests
   const [selectedInterests, setSelectedInterests] = useState<Set<string>>(new Set())
@@ -352,9 +381,11 @@ export default function ProfilePage() {
                 <p className="mt-1 text-sm text-slate-500">Choose how you receive updates.</p>
               </div>
               <div className="px-6">
-                <NotificationToggle title="Email Alerts" subtitle="Receive bid updates via email." enabled={emailAlerts} onChange={setEmailAlerts} />
-                <NotificationToggle title="Push Notifications" subtitle="Instant alerts when you're outbid." enabled={pushNotifications} onChange={setPushNotifications} />
-                <NotificationToggle title="Marketing Emails" subtitle="Receive promotions and platform news." enabled={marketingEmails} onChange={setMarketingEmails} />
+                {notificationsError && (
+                  <p className="pt-4 text-sm font-medium text-red-600">{notificationsError}</p>
+                )}
+                <NotificationToggle title="Email Alerts" subtitle="Receive account and bid updates via email." enabled={emailAlerts} onChange={handleToggleEmailAlerts} />
+                <NotificationToggle title="Marketing Emails" subtitle="Receive promotions and platform news." enabled={marketingEmails} onChange={handleToggleMarketingEmails} />
               </div>
             </div>
           </div>

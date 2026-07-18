@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Clock,
   CreditCard,
   HelpCircle,
   LifeBuoy,
+  ListChecks,
   MessageSquareHeart,
   Send,
   ShieldCheck,
@@ -17,7 +18,10 @@ import {
   createSupportTicket,
   createTestimonial,
   getIssueTypes,
+  getMyDisputes,
+  getMyTestimonials,
 } from '../api/supportApi'
+import type { SupportTicketResponse, TestimonialResponse } from '../api/supportApi'
 import {
   getFeedbackTypes,
   checkFeedbackEligibility,
@@ -26,8 +30,21 @@ import {
 import type { FeedbackType } from '../api/feedbackApi'
 import { useAuth } from '../context/AuthContext'
 import { getMyBids } from '../api/usersApi'
+import StatusBadge from '../components/StatusBadge'
 
-type TabType = 'support' | 'story' | 'feedback'
+type TabType = 'support' | 'story' | 'feedback' | 'tickets'
+
+function formatTicketDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-SG', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
 
 const sortIssueTypes = (issueTypes: { id: string; name: string }[]) => {
   return [...issueTypes].sort((a, b) => {
@@ -39,7 +56,9 @@ const sortIssueTypes = (issueTypes: { id: string; name: string }[]) => {
 
 export default function SupportPage() {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('support')
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') === 'tickets' ? 'tickets' : 'support'
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   const [issueTypes, setIssueTypes] = useState<{ id: string; name: string }[]>([])
   const [selectedIssueTypeId, setSelectedIssueTypeId] = useState('')
   const [category, setCategory] = useState('')
@@ -64,6 +83,29 @@ export default function SupportPage() {
   const [submittedTypeIds, setSubmittedTypeIds] = useState<string[]>([])
   const [fbLoadingEligibility, setFbLoadingEligibility] = useState(false)
   const [fbSuccess, setFbSuccess] = useState('')
+
+  // My Tickets tab state
+  const [tickets, setTickets] = useState<SupportTicketResponse[]>([])
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false)
+  const [ticketsError, setTicketsError] = useState('')
+
+  useEffect(() => {
+    if (activeTab !== 'tickets' || !user) return
+    setIsLoadingTickets(true)
+    setTicketsError('')
+    getMyDisputes()
+      .then(setTickets)
+      .catch(() => setTicketsError('Unable to load your tickets. Please try again.'))
+      .finally(() => setIsLoadingTickets(false))
+  }, [activeTab, user])
+
+  // My Testimonials (shown under the Share Story tab)
+  const [myTestimonials, setMyTestimonials] = useState<TestimonialResponse[]>([])
+
+  useEffect(() => {
+    if (activeTab !== 'story' || !user) return
+    getMyTestimonials().then(setMyTestimonials).catch(() => {})
+  }, [activeTab, user])
 
   useEffect(() => {
     const loadIssueTypes = async () => {
@@ -286,7 +328,7 @@ export default function SupportPage() {
           </aside>
 
           <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
-            <div className="mb-6 grid grid-cols-3 rounded-2xl bg-slate-100 p-1.5">
+            <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1.5 sm:grid-cols-4 sm:gap-0">
               <button
                 type="button"
                 onClick={() => { setActiveTab('support'); setError('') }}
@@ -297,6 +339,18 @@ export default function SupportPage() {
                 <span className="inline-flex items-center justify-center gap-2">
                   <LifeBuoy size={16} />
                   Support Case
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('tickets'); setError('') }}
+                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                  activeTab === 'tickets' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <ListChecks size={16} />
+                  My Tickets
                 </span>
               </button>
               <button
@@ -325,7 +379,54 @@ export default function SupportPage() {
               </button>
             </div>
 
-            {activeTab === 'feedback' ? (
+            {activeTab === 'tickets' ? (
+              /* ── My Tickets tab ──────────────────────────────────────────── */
+              !user ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <ListChecks size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">Sign in to view your support tickets.</p>
+                </div>
+              ) : isLoadingTickets ? (
+                <p className="py-12 text-center text-sm text-slate-400">Loading your tickets…</p>
+              ) : ticketsError ? (
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                  {ticketsError}
+                </div>
+              ) : tickets.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <ListChecks size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">You haven't submitted any support tickets yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tickets.map(ticket => (
+                    <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-slate-900">{ticket.subject || ticket.category}</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{ticket.category}</p>
+                        </div>
+                        <StatusBadge status={ticket.status} />
+                      </div>
+
+                      <p className="mt-3 text-sm leading-6 text-slate-600">{ticket.description}</p>
+
+                      <p className="mt-3 text-xs text-slate-400">Submitted {formatTicketDate(ticket.created_at)}</p>
+
+                      {ticket.resolution_note && (
+                        <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+                          <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">Response from support</p>
+                          <p className="mt-1 leading-6">{ticket.resolution_note}</p>
+                          {ticket.resolved_at && (
+                            <p className="mt-1 text-xs text-emerald-600">{formatTicketDate(ticket.resolved_at)}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : activeTab === 'feedback' ? (
               /* ── Feedback tab ────────────────────────────────────────────── */
               !user ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
@@ -459,6 +560,7 @@ export default function SupportPage() {
               )
             ) : (
               /* ── Support / Story tabs ────────────────────────────────────── */
+              <>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {activeTab === 'support' ? (
                   <>
@@ -591,6 +693,29 @@ export default function SupportPage() {
                       : 'Submit Testimonial'}
                 </button>
               </form>
+
+              {activeTab === 'story' && user && myTestimonials.length > 0 && (
+                <div className="mt-8 space-y-3 border-t border-slate-100 pt-6">
+                  <h3 className="text-sm font-bold text-slate-700">Your Submitted Stories</h3>
+                  {myTestimonials.map(t => (
+                    <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={14} className={i < t.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
+                          ))}
+                        </div>
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${t.is_featured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          {t.is_featured ? 'Approved' : 'Pending Review'}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">{t.content}</p>
+                      <p className="mt-2 text-xs text-slate-400">Submitted {formatTicketDate(t.created_at)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              </>
             )}
           </section>
         </div>

@@ -1,4 +1,40 @@
-import apiClient from './apiClient'
+import apiClient, { biddingClient, recsClient } from './apiClient'
+import type { TestimonialResponse } from './supportApi'
+
+// ── Service Health ───────────────────────────────────────────────────────────────
+// Each microservice exposes its own /health route; there's no aggregate backend
+// endpoint, so the admin UI pings all three directly and reports what came back.
+
+export interface ServiceHealthStatus {
+  name: string
+  status: 'up' | 'down'
+  detail?: string
+  latencyMs?: number
+}
+
+export const checkServicesHealth = async (): Promise<ServiceHealthStatus[]> => {
+  const targets: { name: string; client: typeof apiClient; path: string }[] = [
+    { name: 'API Gateway', client: apiClient, path: '/health' },
+    { name: 'Bidding Engine', client: biddingClient, path: '/bids/health' },
+    { name: 'Recommendation Engine', client: recsClient, path: '/recs/health' },
+  ]
+
+  return Promise.all(
+    targets.map(async ({ name, client, path }) => {
+      const start = performance.now()
+      try {
+        await client.get(path, { timeout: 5000 })
+        return { name, status: 'up' as const, latencyMs: Math.round(performance.now() - start) }
+      } catch (error: any) {
+        return {
+          name,
+          status: 'down' as const,
+          detail: error?.response ? `HTTP ${error.response.status}` : 'Unreachable',
+        }
+      }
+    }),
+  )
+}
 
 // ── Platform Activity Stats ─────────────────────────────────────────────────────
 
@@ -84,6 +120,29 @@ export interface CategoryDeleteResponse {
   action: 'deleted' | 'deactivated'
 }
 
+// ── Disputes (Support Cases) ──────────────────────────────────────────────────────
+
+export type DisputeStatus = 'open' | 'in_review' | 'resolved' | 'closed'
+
+export interface AdminDispute {
+  id: string
+  reporter_id: string
+  listing_id: string | null
+  issue_type_id: string | null
+  subject: string | null
+  category: string
+  description: string
+  status: DisputeStatus
+  resolution_note: string | null
+  resolved_at: string | null
+  created_at: string
+}
+
+export interface DisputeRespondPayload {
+  status: DisputeStatus
+  resolution_note?: string
+}
+
 // ── API (admin-only) ─────────────────────────────────────────────────────────────
 
 export const getPlatformStats = async (): Promise<AdminStatsResponse> => {
@@ -122,5 +181,30 @@ export const updateAdminCategory = async (id: string, data: CategoryUpdatePayloa
 
 export const deleteAdminCategory = async (id: string): Promise<CategoryDeleteResponse> => {
   const res = await apiClient.delete<CategoryDeleteResponse>(`/admin/categories/${id}`)
+  return res.data
+}
+
+export const getAdminDisputes = async (status?: DisputeStatus): Promise<AdminDispute[]> => {
+  const res = await apiClient.get<AdminDispute[]>('/disputes/', {
+    params: status ? { status } : undefined,
+  })
+  return res.data
+}
+
+export const respondToDispute = async (
+  id: string,
+  data: DisputeRespondPayload,
+): Promise<AdminDispute> => {
+  const res = await apiClient.post<AdminDispute>(`/disputes/${id}/respond`, data)
+  return res.data
+}
+
+export const getAdminTestimonials = async (): Promise<TestimonialResponse[]> => {
+  const res = await apiClient.get<TestimonialResponse[]>('/testimonials/admin')
+  return res.data
+}
+
+export const approveTestimonial = async (id: string): Promise<TestimonialResponse> => {
+  const res = await apiClient.post<TestimonialResponse>(`/testimonials/${id}/approve`)
   return res.data
 }

@@ -106,6 +106,8 @@ class UserProfiles(Base):
     country = Column(String(100))
     dob = Column(Date)
     bio = Column(String)
+    email_alerts_enabled = Column(Boolean, default=True, nullable=False)
+    marketing_emails_enabled = Column(Boolean, default=False, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
     user = relationship("User", back_populates="profile")

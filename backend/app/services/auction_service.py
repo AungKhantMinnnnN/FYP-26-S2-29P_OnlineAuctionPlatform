@@ -34,7 +34,7 @@ class AuctionService:
         if listing_status:
             query = query.where(Listing.status == listing_status)
         else:
-            query = query.where(Listing.status != ListingStatus.draft)
+            query = query.where(Listing.status.not_in([ListingStatus.draft, ListingStatus.removed]))
 
         if category_id:
             query = query.where(Listing.category_id == category_id)

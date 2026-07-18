@@ -19,6 +19,8 @@ export interface User {
     city?: string;
     country?: string;
     bio?: string;
+    email_alerts_enabled?: boolean;
+    marketing_emails_enabled?: boolean;
   };
 }
 

@@ -40,6 +40,8 @@ class UserProfileResponse(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     bio: Optional[str] = None
+    email_alerts_enabled: bool = True
+    marketing_emails_enabled: bool = False
 
     class Config:
         from_attributes = True
