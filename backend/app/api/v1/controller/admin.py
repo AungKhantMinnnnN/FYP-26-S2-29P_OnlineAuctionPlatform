@@ -9,7 +9,7 @@ from app.api.deps import get_admin_user
 from app.schemas.admin import (
     AdminUsersResponse, AdminUserDetails, SuspendUserRequest, CategoryCreate, CategoryUpdate,
     CategoryDeleteResponse, BidCancelResponse, AuctionRestartRequest,
-    AdminLogsResponse, AdminStatsResponse,
+    AdminLogsResponse, AdminStatsResponse, SystemLogsResponse,
 )
 from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, CategoryResponse
 from app.services.admin_service import AdminService
@@ -162,6 +162,15 @@ async def cancel_bid(
 
 
 # region Logs & stats
+@router.get("/system-logs", response_model=SystemLogsResponse)
+async def get_system_logs(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    _: User = Depends(get_admin_user),
+):
+    return AdminService.get_system_logs(page=page, size=size)
+
+
 @router.get("/logs", response_model=AdminLogsResponse)
 async def get_admin_logs(
     page: int = Query(1, ge=1),

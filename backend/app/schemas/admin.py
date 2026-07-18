@@ -100,6 +100,20 @@ class AuctionRestartRequest(BaseModel):
 # endregion
 
 
+# region System logs
+class SystemLogEntry(BaseModel):
+    id: str
+    timestamp: datetime
+    level: str
+    service: str
+    message: str
+
+
+class SystemLogsResponse(PaginationMeta):
+    items: List[SystemLogEntry]
+# endregion
+
+
 # region Admin logs
 class AdminLogItem(BaseModel):
     id: UUID

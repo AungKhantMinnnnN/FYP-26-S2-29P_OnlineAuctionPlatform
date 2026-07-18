@@ -391,7 +391,7 @@ export default function AuctionDetailPage() {
                 <input
                   type="number"
                   min={minimumBid}
-                  step={auction.bidding_type === 'public' ? 1.0 : auction.minIncrement}
+                  step={0.01}
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
                   placeholder={`Enter at least $${minimumBid.toFixed(2)}`}
