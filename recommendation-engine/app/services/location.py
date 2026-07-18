@@ -5,7 +5,9 @@ _STATE_ZIP_RE = re.compile(r"^([a-z]{2})\s*\d{0,5}(-\d{4})?$")
 
 def parse_location(address: str | None) -> dict[str, str | None]:
     """Best-effort (city, region) extraction from a freeform address for grouping."""
-    if not address or not address.strip():
+    # Guard non-strings too: cached DataFrames deliver missing addresses as float NaN,
+    # which is truthy, so a plain `if not address` check lets it through.
+    if not isinstance(address, str) or not address.strip():
         return {"city": None, "region": None}
 
     parts = [p.strip() for p in address.split(",") if p.strip()]
