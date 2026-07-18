@@ -1,4 +1,6 @@
+import re
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 
@@ -7,6 +9,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.models.auction import (
     User, UserRole, UserStatus, UserProfiles, Listing, ListingStatus, Bid, BidStatus,
     AuctionResult, Categories, UserInterest, WalletTransaction, TransactionType,
@@ -14,6 +17,13 @@ from app.models.auction import (
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
 from app.services.email_service import EmailService
+
+# Matches the formatter in app.core.logger:
+# "%(asctime)s | %(levelname)s | %(name)s | %(funcName)s | %(message)s"
+_LOG_LINE_RE = re.compile(
+    r'^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \| '
+    r'(?P<level>\w+) \| (?P<name>\S+) \| (?P<func>\S+) \| (?P<message>.*)$'
+)
 
 
 def _to_summary(user: User) -> dict:
@@ -524,6 +534,48 @@ class AdminService:
             "new_current_price": listing.current_price,
             "funds_released": funds_released,
         }
+    # endregion
+
+    # region System logs
+    @staticmethod
+    def get_system_logs(page: int, size: int) -> Dict[str, Any]:
+        # The general log file (see app.core.logger) receives every record from every
+        # sub-logger (auth/auction/admin/access) via propagation, so it alone is a complete,
+        # de-duplicated stream of this service's activity.
+        log_path = Path(settings.LOG_DIR) / "APIGateWay.log"
+        entries: List[dict] = []
+
+        if log_path.exists():
+            with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                for idx, line in enumerate(f):
+                    match = _LOG_LINE_RE.match(line.strip())
+                    if not match:
+                        continue
+                    name = match.group("name")
+                    service = name.split(".", 1)[1] if "." in name else "general"
+                    # The formatter writes naive local time; the container always runs in UTC
+                    # (no TZ override anywhere), so attach it explicitly — otherwise the naive
+                    # string round-trips through JSON with no offset and browsers parse it as
+                    # local time, skewing every timestamp by the admin's UTC offset.
+                    ts = datetime.strptime(match.group("timestamp"), "%Y-%m-%d %H:%M:%S").replace(
+                        tzinfo=timezone.utc
+                    )
+                    entries.append({
+                        "id": str(idx),
+                        "timestamp": ts,
+                        "level": match.group("level").lower(),
+                        "service": service,
+                        "message": match.group("message"),
+                    })
+
+        entries.reverse()  # most recent first
+
+        total = len(entries)
+        pages = (total + size - 1) // size if total else 0
+        start = (page - 1) * size
+        page_items = entries[start:start + size]
+
+        return {"items": page_items, "total": total, "page": page, "size": size, "pages": pages}
     # endregion
 
     # region Logs

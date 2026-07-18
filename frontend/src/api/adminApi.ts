@@ -53,7 +53,9 @@ export interface AdminStatsResponse {
 }
 
 // ── System Logs ─────────────────────────────────────────────────────────────────
-// No backend endpoint yet — the section renders a graceful-empty shell.
+// Tails the API Gateway's own rotating log file (see backend app.core.logger); the
+// bidding-engine and recommendation-engine run in separate containers with no shared
+// log volume, so their activity isn't included here.
 
 export interface SystemLogEntry {
   id: string
