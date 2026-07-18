@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Download, Eye, Gavel, Pencil, Search, ShieldAlert, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, Download, Eye, Gavel, Image, Pencil, Search, ShieldAlert, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../api/apiClient'
+import { getAuction } from '../api/auctionsApi'
 import DashboardStatCard from '../components/DashboardStatCard'
 import StatusBadge from '../components/StatusBadge'
 
 type Listing = {
   id: string; title: string; seller_id: string; category_id?: string | null; condition: string
   current_price?: number | null; starting_price?: number | null; status: string; end_time?: string | null
-  seller?: { username: string }; images?: { image_url?: string }[]
+  seller?: { username: string }; images?: { image_url?: string }[]; description?: string | null; brand?: string | null
+  min_increment?: number | null
 }
 type ListingsResponse = { items: Listing[]; total: number; page: number; pages: number }
 type Bid = { id: string; bidder?: { username: string }; bidder_id: string; amount: number; status: string; placed_at: string }
@@ -20,7 +22,7 @@ const dateTime = (value?: string | null) => value ? new Intl.DateTimeFormat('en-
 const titleCase = (value: string) => value.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase())
 
 export default function AdminListingsPage() {
-  const navigate = useNavigate()
+  const routerNavigate = useNavigate()
   const [listings, setListings] = useState<Listing[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [searchInput, setSearchInput] = useState('')
@@ -35,6 +37,8 @@ export default function AdminListingsPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [selected, setSelected] = useState<Listing | null>(null)
+  const [detail, setDetail] = useState<Listing | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [bids, setBids] = useState<Bid[]>([])
   const [bidsLoading, setBidsLoading] = useState(false)
   const [restartEnd, setRestartEnd] = useState('')
@@ -76,12 +80,42 @@ export default function AdminListingsPage() {
     catch (err: any) { setError(err?.response?.data?.detail || 'Unable to load bids for this listing.') }
     finally { setBidsLoading(false) }
   }
+  const openDetail = async (listing: Listing) => {
+    setDetail(listing); setDetailLoading(true); setError('')
+    try { setDetail(await getAuction(listing.id)) }
+    catch (err: any) { setError(err?.response?.data?.detail || 'Unable to load the auction details.') }
+    finally { setDetailLoading(false) }
+  }
+  // Keep admin listing details inside this page; other destinations use the router normally.
+  const navigate = (to: string) => {
+    const auctionId = to.match(/^\/auction\/(.+)$/)?.[1]
+    const listing = auctionId ? listings.find(item => item.id === auctionId) : undefined
+    if (listing) { void openDetail(listing); return }
+    routerNavigate(to)
+  }
   const exportCsv = () => {
     const rows = [['ID', 'Title', 'Seller', 'Category', 'Current bid', 'Status', 'Ends'], ...visibleListings.map(item => [item.id, item.title, item.seller?.username || item.seller_id, categories.find(c => c.id === item.category_id)?.name || 'Uncategorised', String(item.current_price || item.starting_price || 0), item.status, item.end_time || ''])]
     const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
     const link = document.createElement('a'); link.href = url; link.download = 'listings.csv'; link.click(); URL.revokeObjectURL(url)
   }
+
+  if (detail) return <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <button onClick={() => { setDetail(null); setError('') }} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"><ArrowLeft size={16} />Back to listings</button>
+      <button onClick={() => navigate('/')} className="inline-flex items-center gap-2 text-sm font-bold text-accent-700 hover:text-accent-800"><span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-600 text-white"><Gavel size={16} /></span>AuctionHub</button>
+    </div>
+    {detailLoading ? <div className="rounded-2xl border border-slate-200 bg-white px-5 py-16 text-center text-sm text-slate-500 shadow-sm">Loading auction details…</div> : <>
+      <div><p className="text-sm font-semibold text-accent-700">Admin listing detail</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">{detail.title}</h1><p className="mt-1 text-sm text-slate-500">Listing ID: {detail.id}</p></div>
+      {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3"><div className="space-y-6 lg:col-span-2">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"><div className="aspect-video bg-slate-100">{detail.images?.[0]?.image_url ? <img src={detail.images[0].image_url} alt={detail.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-slate-300"><Image size={52} /></div>}</div></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm"><div className="mb-4 flex flex-wrap items-center gap-2"><StatusBadge status={detail.status} /><span className="text-sm text-slate-500">{titleCase(detail.condition)}</span>{detail.brand && <span className="text-sm text-slate-500">• {detail.brand}</span>}</div><h2 className="text-lg font-bold text-slate-950">Description</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{detail.description || 'No description was provided for this listing.'}</p></div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-950">Bid activity</h2><p className="mt-1 text-sm text-slate-500">Review bids or remove a fraudulent bid.</p></div><button onClick={() => void openBids(detail)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">View bids</button></div></div>
+      </div><aside><div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm"><p className="text-sm text-slate-500">Current bid</p><p className="mt-1 text-3xl font-bold text-slate-950">{money(detail.current_price || detail.starting_price)}</p><dl className="mt-5 space-y-3 border-t border-slate-100 pt-4 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">Seller</dt><dd className="font-semibold text-slate-900">{detail.seller?.username || detail.seller_id.slice(0, 8)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Starting price</dt><dd className="font-semibold text-slate-900">{money(detail.starting_price)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Min. increment</dt><dd className="font-semibold text-slate-900">{money(detail.min_increment)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Ends</dt><dd className="text-right font-semibold text-slate-900">{dateTime(detail.end_time)}</dd></div></dl></div></aside></div>
+    </>}
+    {modal === 'bids' && selected && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold text-slate-950">Review bids</h2><p className="mt-1 text-sm text-slate-500">{selected.title}</p></div><button onClick={() => setModal(null)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={18} /></button></div><div className="mt-5 max-h-80 overflow-y-auto rounded-xl border border-slate-200">{bidsLoading ? <p className="p-5 text-sm text-slate-500">Loading bids…</p> : bids.length ? bids.map(bid => <div key={bid.id} className="flex items-center justify-between gap-3 border-b border-slate-100 p-3 last:border-0"><div><p className="text-sm font-semibold text-slate-800">{bid.bidder?.username || bid.bidder_id.slice(0, 8)} · {money(bid.amount)}</p><p className="text-xs text-slate-500">{dateTime(bid.placed_at)} · {titleCase(bid.status)}</p></div><button disabled={acting || bid.status === 'cancelled'} onClick={() => void runAction(() => apiClient.delete(`/admin/bids/${bid.id}`), 'Fraudulent bid removed.')} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">Remove bid</button></div>) : <p className="p-5 text-sm text-slate-500">No bids found.</p>}</div></div></div>}
+  </div>
 
   return <div className="space-y-6">
     <div><h1 className="text-2xl font-bold tracking-tight text-slate-950">Listing Management</h1><p className="mt-1 text-sm text-slate-500">Manage inventory, approve listings, and monitor live bidding activities.</p></div>
