@@ -53,7 +53,16 @@ async def websocket_endpoint(
     try:
         while True:
             data = await websocket.receive_text()
-            
+
+            # Throttle message floods before touching the DB or Redis lock.
+            if not manager.allow_message(websocket):
+                logger.warning(f"ListingId: [{listing_id}] UserId: [{user_id}] rate limited")
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "message": "Too many requests. Please slow down."
+                }))
+                continue
+
             # Use a new DB session for each message to avoid holding long-running transactions
             async with AsyncSessionLocal() as db:
                 result = await BiddingService.process_bid_message(db, listing_id, user_id, data)
@@ -68,12 +77,8 @@ async def websocket_endpoint(
                     "message": result.get("error", "Unknown error")
                 }))
     except WebSocketDisconnect:
-        print("WEB SOCKET DISCONNECT CAUGHT")
-        logger.error("Web socket has been disconnected.")
+        logger.info(f"ListingId: [{listing_id}] UserId: [{user_id}] WebSocket disconnected.")
         manager.disconnect(websocket, listing_id)
     except Exception as e:
-        import traceback
-        print(f"UNEXPECTED ERROR: {e}")
-        traceback.print_exc()
-        logger.error(f"Unexpected error in websocket loop: {e}")
+        logger.error(f"ListingId: [{listing_id}] Unexpected error in websocket loop: {e}", exc_info=True)
         manager.disconnect(websocket, listing_id)
