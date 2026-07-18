@@ -6,6 +6,7 @@ import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
 import { getTrending } from '../api/recommendationsApi'
 import type { TrendingListing } from '../api/recommendationsApi'
+import { getMyWatchlist } from '../api/usersApi'
 import { useAuth } from '../context/AuthContext'
 import SearchBar from '../components/SearchBar'
 import FilterPanel from '../components/FilterPanel'
@@ -62,6 +63,13 @@ export default function BrowseAuctionsPage() {
     queryKey: ['trending', user?.id ?? null],
     queryFn: () => getTrending({ user_id: user?.id, limit: 8 })
   })
+
+  const { data: watchlistData } = useQuery({
+    queryKey: ['users', 'me', 'watchlist', 'browse'],
+    queryFn: getMyWatchlist,
+    enabled: !!user,
+  })
+  const watchlistIds = new Set(watchlistData?.listing_ids ?? [])
 
   const mapToCardType = (listing: AuctionListing) => ({
     id: listing.id,
@@ -223,7 +231,7 @@ export default function BrowseAuctionsPage() {
             </div>
           ) : auctionsList.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-              {auctionsList.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={!!user} />)}
+              {auctionsList.map(a => <AuctionCard key={a.id} auction={a} showWatchlist={!!user} isWatched={watchlistIds.has(String(a.id))} />)}
             </div>
           ) : (
             <div className="mb-8">

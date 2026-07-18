@@ -58,7 +58,7 @@ export default function SellerDashboardPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        <SectionHeader title="My Listings" actionText="View all" actionTo="/seller-listings" />
+        <SectionHeader title="My Listings" actionText="View all" actionTo="/activity" />
         {isLoading ? (
           <div className="text-center text-slate-500 py-8 animate-pulse">Loading listings...</div>
         ) : (
@@ -121,7 +121,7 @@ export default function SellerDashboardPage() {
         <h3 className="font-semibold text-slate-950 mb-3">Quick Actions</h3>
         <div className="flex flex-wrap gap-3">
           <SecondaryButton to="/create-listing">Create Listing</SecondaryButton>
-          <SecondaryButton to="/seller-listings">View All Listings</SecondaryButton>
+          <SecondaryButton to="/activity">View All Listings</SecondaryButton>
           <SecondaryButton to="/profile">Update Profile</SecondaryButton>
         </div>
       </div>

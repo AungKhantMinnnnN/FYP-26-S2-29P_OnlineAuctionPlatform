@@ -295,7 +295,10 @@ class UserService:
             profile = UserProfiles(user_id=user.id)
             db.add(profile)
 
-        for field in ("full_name", "phone", "address", "city", "country", "bio"):
+        for field in (
+            "full_name", "phone", "address", "city", "country", "bio",
+            "email_alerts_enabled", "marketing_emails_enabled",
+        ):
             if data.get(field) is not None:
                 setattr(profile, field, data[field])
 
@@ -317,6 +320,8 @@ class UserService:
             "country": profile.country,
             "dob": profile.dob.isoformat() if profile.dob else None,
             "bio": profile.bio,
+            "email_alerts_enabled": profile.email_alerts_enabled,
+            "marketing_emails_enabled": profile.marketing_emails_enabled,
         }
     # endregion
 

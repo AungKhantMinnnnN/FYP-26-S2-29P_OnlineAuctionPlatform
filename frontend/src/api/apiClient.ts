@@ -35,4 +35,8 @@ export const recsClient = createClient(
   import.meta.env.VITE_RECS_URL || 'http://localhost:8002/v1.0.0'
 );
 
+export const biddingClient = createClient(
+  import.meta.env.VITE_BIDDING_URL || 'http://localhost:8001/v1.0.0'
+);
+
 export default apiClient;

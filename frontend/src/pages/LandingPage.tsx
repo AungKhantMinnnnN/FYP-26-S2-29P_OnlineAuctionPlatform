@@ -6,14 +6,37 @@ import { useQuery } from '@tanstack/react-query'
 import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
 import { getPublicFeedback } from '../api/feedbackApi'
+import { getMarketingVideoUrl, uploadMarketingVideo } from '../api/marketingApi'
+import { getMyWatchlist } from '../api/usersApi'
 import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
 import EmptyState from '../components/EmptyState'
 
 export default function LandingPage() {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, role } = useAuth()
   const isPremium = user?.subscription_tier === 'premium'
   const isFreeUser = isAuthenticated && !isPremium
+
+  const { data: videoUrl, refetch: refetchVideo } = useQuery({
+    queryKey: ['marketing-video'],
+    queryFn: getMarketingVideoUrl,
+  })
+  const [uploadingVideo, setUploadingVideo] = useState(false)
+
+  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setUploadingVideo(true)
+    try {
+      await uploadMarketingVideo(file)
+      await refetchVideo()
+    } catch {
+      // silent — admin can retry the upload
+    } finally {
+      setUploadingVideo(false)
+      event.target.value = ''
+    }
+  }
   const { data: auctionsData, isLoading } = useQuery({
     queryKey: ['auctions', 'landing'],
     queryFn: () => getAuctions({ size: 20 })
@@ -24,6 +47,13 @@ export default function LandingPage() {
     queryFn: getFormMetadata
   })
   const categories = (metadata?.categories ?? []).filter(c => c.is_active)
+
+  const { data: watchlistData } = useQuery({
+    queryKey: ['users', 'me', 'watchlist', 'landing'],
+    queryFn: getMyWatchlist,
+    enabled: isAuthenticated,
+  })
+  const watchlistIds = new Set(watchlistData?.listing_ids ?? [])
 
   const { data: feedbackData } = useQuery({
     queryKey: ['feedback', 'public'],
@@ -116,16 +146,35 @@ export default function LandingPage() {
             View Auctions
           </Link>
         </div>
-        {/* Video Placeholder */}
-        <div className="w-full aspect-video bg-slate-200 rounded-xl border border-slate-300 mt-8 overflow-hidden relative shadow-lg flex items-center justify-center group cursor-pointer">
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-300/50 to-slate-400/50" />
-          <div className="z-10 bg-white/90 rounded-full p-5 shadow-xl flex items-center justify-center transform group-hover:scale-110 transition-transform">
-            <Play size={40} className="text-accent-600 fill-accent-600" />
-          </div>
-          <div className="absolute bottom-6 left-6 text-left z-10">
-            <span className="bg-accent-600/90 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 inline-block shadow-md">Platform Tour</span>
-            <h3 className="text-white font-semibold text-xl drop-shadow-md">How AuctionHub Works</h3>
-          </div>
+        {/* Hero video */}
+        <div className="w-full aspect-video bg-slate-200 rounded-xl border border-slate-300 mt-8 overflow-hidden relative shadow-lg flex items-center justify-center group">
+          {videoUrl ? (
+            <video src={videoUrl} controls className="h-full w-full object-cover" />
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-300/50 to-slate-400/50" />
+              <div className="z-10 bg-white/90 rounded-full p-5 shadow-xl flex items-center justify-center">
+                <Play size={40} className="text-accent-600 fill-accent-600" />
+              </div>
+              <div className="absolute bottom-6 left-6 text-left z-10">
+                <span className="bg-accent-600/90 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 inline-block shadow-md">Platform Tour</span>
+                <h3 className="text-white font-semibold text-xl drop-shadow-md">How AuctionHub Works</h3>
+              </div>
+            </>
+          )}
+
+          {role === 'admin' && (
+            <label className="absolute top-3 right-3 z-20 cursor-pointer rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-accent-700 shadow-md transition hover:bg-white">
+              {uploadingVideo ? 'Uploading…' : videoUrl ? 'Replace video' : 'Upload video'}
+              <input
+                type="file"
+                accept="video/mp4,video/webm,video/ogg"
+                className="hidden"
+                disabled={uploadingVideo}
+                onChange={handleVideoUpload}
+              />
+            </label>
+          )}
         </div>
       </section>
 
@@ -177,7 +226,7 @@ export default function LandingPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {trending.length > 0 ? trending.map(a => <AuctionCard key={a.id} auction={a} />) : <EmptyState message="No trending items right now." actionText="Browse all" actionTo="/browse" />}
+            {trending.length > 0 ? trending.map(a => <AuctionCard key={a.id} auction={a} isWatched={watchlistIds.has(String(a.id))} />) : <EmptyState message="No trending items right now." actionText="Browse all" actionTo="/browse" />}
           </div>
         )}
       </section>

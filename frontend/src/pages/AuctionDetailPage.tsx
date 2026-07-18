@@ -8,7 +8,25 @@ import SecondaryButton from '../components/SecondaryButton'
 import AuctionCard from '../components/AuctionCard'
 import { useAuth } from '../context/AuthContext'
 import apiClient from '../api/apiClient'
-import { getMyWatchlist, addToWatchlist, removeFromWatchlist } from '../api/watchlistApi'
+import { getMyWatchlist, addToWatchlist, removeFromWatchlist } from '../api/usersApi'
+import { getAuctions } from '../api/auctionsApi'
+import type { AuctionListing } from '../api/auctionsApi'
+
+const mapListingToCard = (listing: AuctionListing) => ({
+  id: listing.id,
+  title: listing.title,
+  category: 'Other',
+  condition: listing.condition,
+  currentBid: listing.current_price || 0,
+  startingPrice: listing.starting_price || 0,
+  endTime: new Date(listing.end_time),
+  seller: { name: 'Seller', rating: 5.0 },
+  bids: 0,
+  watchers: 0,
+  status: listing.status,
+  description: listing.description || '',
+  image: listing.images.length > 0 ? listing.images[0].image_url : undefined,
+})
 
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -29,8 +47,8 @@ export default function AuctionDetailPage() {
   const [watchLoading, setWatchLoading] = useState(false)
   const [watchError, setWatchError] = useState('')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  
-  const related = []
+  const [related, setRelated] = useState<ReturnType<typeof mapListingToCard>[]>([])
+  const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set())
   const minimumBid = useMemo(() => {
     if (!auction) return 0;
     if (auction.bidding_type === 'public') {
@@ -131,19 +149,36 @@ export default function AuctionDetailPage() {
     }
   }, [id, user, refreshUser])
 
-  // Reflect whether this listing is already on the user's watchlist.
+  // Reflect whether this listing (and any related listings) is already on the user's watchlist.
   useEffect(() => {
     if (!user || !id) return
     let active = true
     getMyWatchlist()
       .then((data) => {
-        if (active) setWatched(data.listing_ids.includes(id))
+        if (!active) return
+        setWatched(data.listing_ids.includes(id))
+        setWatchlistIds(new Set(data.listing_ids))
       })
       .catch(() => {
         // Non-fatal — leave the button in its default (unwatched) state.
       })
     return () => { active = false }
   }, [user, id])
+
+  // Related items — other active listings in the same category.
+  useEffect(() => {
+    if (!auction?.category_id || !id) return
+    let active = true
+    getAuctions({ category_id: auction.category_id, status: 'active', size: 7 })
+      .then((res) => {
+        if (!active) return
+        setRelated(res.items.filter(item => item.id !== id).slice(0, 6).map(mapListingToCard))
+      })
+      .catch(() => {
+        // Non-fatal — related section just stays empty.
+      })
+    return () => { active = false }
+  }, [auction?.category_id, id])
 
   const handleToggleWatch = async () => {
     setWatchError('')
@@ -401,7 +436,7 @@ export default function AuctionDetailPage() {
           <h2 className="text-lg font-semibold text-slate-950 mb-4">Related Items</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {related.map((a) => (
-              <AuctionCard key={a.id} auction={a} />
+              <AuctionCard key={a.id} auction={a} isWatched={watchlistIds.has(String(a.id))} />
             ))}
           </div>
         </div>

@@ -44,6 +44,11 @@ export const createSupportTicket = async (
   return response.data
 }
 
+export const getMyDisputes = async (): Promise<SupportTicketResponse[]> => {
+  const response = await apiClient.get<SupportTicketResponse[]>('/disputes/me')
+  return response.data
+}
+
 export interface TestimonialRequest {
   content: string
   rating: number
@@ -66,5 +71,15 @@ export const createTestimonial = async (
     data
   )
 
+  return response.data
+}
+
+export const getMyTestimonials = async (): Promise<TestimonialResponse[]> => {
+  const response = await apiClient.get<TestimonialResponse[]>('/testimonials/me')
+  return response.data
+}
+
+export const getPublicTestimonials = async (): Promise<TestimonialResponse[]> => {
+  const response = await apiClient.get<TestimonialResponse[]>('/testimonials/')
   return response.data
 }

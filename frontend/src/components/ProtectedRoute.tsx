@@ -22,7 +22,7 @@ export default function ProtectedRoute({ roles = [] }: ProtectedRouteProps) {
   }
 
   if (roles.length && role && !roles.includes(role)) {
-    return <Navigate to={role === 'admin' ? '/admin-dashboard' : '/browse'} replace />
+    return <Navigate to={role === 'admin' ? '/admin/users' : '/browse'} replace />
   }
 
   return <Outlet />

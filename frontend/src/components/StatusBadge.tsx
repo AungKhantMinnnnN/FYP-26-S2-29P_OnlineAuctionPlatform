@@ -9,7 +9,9 @@ const map: Record<string, string> = {
   leading: 'bg-blue-50 text-blue-700 ring-blue-200',
   reported: 'bg-orange-50 text-orange-700 ring-orange-200',
   open: 'bg-amber-50 text-amber-700 ring-amber-200',
+  in_review: 'bg-blue-50 text-blue-700 ring-blue-200',
   resolved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  closed: 'bg-slate-100 text-slate-600 ring-slate-300',
   suspended: 'bg-red-50 text-red-700 ring-red-200',
   deleted: 'bg-slate-100 text-slate-600 ring-slate-300',
 }
