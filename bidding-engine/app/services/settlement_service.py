@@ -145,7 +145,8 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
         seller_result = await db.execute(select(User).where(User.id == listing.seller_id))
         seller = seller_result.scalars().first()
 
-        reserve_met = winning_bid.amount >= listing.reserve_price
+        # No reserve price set (NULL) means "no reserve" — any bid meets it.
+        reserve_met = listing.reserve_price is None or winning_bid.amount >= listing.reserve_price
 
         if not reserve_met:
             # Reserve price not met — refund the highest bidder's hold, end with no winner
