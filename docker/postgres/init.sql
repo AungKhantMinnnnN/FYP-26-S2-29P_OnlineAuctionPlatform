@@ -196,9 +196,21 @@ CREATE TABLE site_content (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug VARCHAR(100) UNIQUE NOT NULL,
     content JSONB NOT NULL DEFAULT '{}'::jsonb,
+    draft_content JSONB,
     updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Append-only publish history for site_content — one row per publish/rollback, never mutated.
+CREATE TABLE site_content_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug VARCHAR(100) NOT NULL,
+    content JSONB NOT NULL,
+    note VARCHAR(200),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX ix_site_content_versions_slug ON site_content_versions (slug, created_at DESC);
 
 -- User-submitted platform testimonials; admin flags which ones show on the landing page
 CREATE TABLE testimonials (
