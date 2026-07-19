@@ -13,6 +13,7 @@ import {
   Eye,
   Gavel,
   Pencil,
+  Play,
   Plus,
   Reply,
   RefreshCw,
@@ -24,6 +25,7 @@ import {
   ToggleRight,
   TrendingUp,
   Trash2,
+  Upload,
   UserCheck,
   UserRound,
   Users,
@@ -57,9 +59,16 @@ import {
   checkServicesHealth,
   getAdminTestimonials,
   approveTestimonial,
+  deleteTestimonial,
+  getProhibitedKeywords,
+  createProhibitedKeyword,
+  deleteProhibitedKeyword,
+  getFlaggedAttempts,
+  getAiModerationFlags,
 } from '../api/adminApi'
-import type { AdminCategory, AdminDispute, DisputeStatus } from '../api/adminApi'
+import type { AdminCategory, AdminDispute, DisputeStatus, ProhibitedKeyword, KeywordCategory } from '../api/adminApi'
 import type { TestimonialResponse } from '../api/supportApi'
+import { getMarketingVideoUrl, uploadMarketingVideo } from '../api/marketingApi'
 
 import {
   adminUsersApi,
@@ -2096,6 +2105,7 @@ function TestimonialsSection() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const reload = async () => {
     try {
@@ -2123,6 +2133,22 @@ function TestimonialsSection() {
       setError(getErrorMessage(error, 'Failed to approve testimonial.'))
     } finally {
       setApprovingId(null)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    const shouldDelete = window.confirm('Remove this testimonial? This cannot be undone.')
+    if (!shouldDelete) return
+
+    setError('')
+    setDeletingId(id)
+    try {
+      await deleteTestimonial(id)
+      await reload()
+    } catch (error: any) {
+      setError(getErrorMessage(error, 'Failed to remove testimonial.'))
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -2164,8 +2190,8 @@ function TestimonialsSection() {
               <p className="mt-3 text-sm leading-6 text-slate-600">{t.content}</p>
               <p className="mt-2 text-xs text-slate-400">Submitted {formatDate(t.created_at)}</p>
 
-              {!t.is_featured && (
-                <div className="mt-3 flex justify-end">
+              <div className="mt-3 flex justify-end gap-2">
+                {!t.is_featured && (
                   <button
                     type="button"
                     disabled={approvingId === t.id}
@@ -2175,12 +2201,308 @@ function TestimonialsSection() {
                     <Check size={14} />
                     {approvingId === t.id ? 'Approving…' : 'Approve for display'}
                   </button>
-                </div>
-              )}
+                )}
+                <button
+                  type="button"
+                  disabled={deletingId === t.id}
+                  onClick={() => void handleDelete(t.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                >
+                  <Trash2 size={14} />
+                  {deletingId === t.id ? 'Removing…' : 'Remove'}
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function ProhibitedKeywordsPanel() {
+  const [keywords, setKeywords] = useState<ProhibitedKeyword[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [newKeyword, setNewKeyword] = useState('')
+  const [newCategory, setNewCategory] = useState<KeywordCategory>('illegal_item')
+  const [adding, setAdding] = useState(false)
+
+  const reload = async () => {
+    try {
+      const data = await getProhibitedKeywords()
+      setKeywords(data)
+    } catch {
+      setError('Failed to load prohibited keywords.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void reload()
+  }, [])
+
+  const handleAdd = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!newKeyword.trim()) return
+
+    setAdding(true)
+    setError('')
+    try {
+      await createProhibitedKeyword(newKeyword.trim(), newCategory)
+      setNewKeyword('')
+      await reload()
+    } catch (error: any) {
+      setError(getErrorMessage(error, 'Failed to add keyword.'))
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    const shouldDelete = window.confirm('Remove this keyword from the prohibited list?')
+    if (!shouldDelete) return
+
+    setError('')
+    try {
+      await deleteProhibitedKeyword(id)
+      await reload()
+    } catch (error: any) {
+      setError(getErrorMessage(error, 'Failed to remove keyword.'))
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <h3 className="font-bold text-slate-950">Prohibited Keywords</h3>
+      <p className="mb-4 text-sm text-slate-500">
+        Listings (including drafts) can't be saved if their title, description, or brand contains
+        any of these words — matching is case-insensitive.
+      </p>
+
+      <form onSubmit={handleAdd} className="mb-4 flex flex-wrap items-end gap-3">
+        <div className="min-w-[200px] flex-1">
+          <label className="mb-1 block text-xs font-semibold text-slate-600">Keyword</label>
+          <input
+            value={newKeyword}
+            onChange={event => setNewKeyword(event.target.value)}
+            placeholder="e.g. heroin"
+            required
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-600">Category</label>
+          <select
+            value={newCategory}
+            onChange={event => setNewCategory(event.target.value as KeywordCategory)}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+          >
+            <option value="illegal_item">Illegal item</option>
+            <option value="profanity">Profanity</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          disabled={adding}
+          className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-4 py-2 text-sm font-bold text-white hover:bg-accent-700 disabled:opacity-60"
+        >
+          <Plus size={15} />
+          {adding ? 'Adding…' : 'Add Keyword'}
+        </button>
+      </form>
+
+      {error && (
+        <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : keywords.length === 0 ? (
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+          No prohibited keywords yet.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {keywords.map(kw => {
+            const isProfanity = kw.category === 'profanity'
+            return (
+              <span
+                key={kw.id}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ring-1 ${
+                  isProfanity
+                    ? 'bg-amber-50 text-amber-700 ring-amber-100'
+                    : 'bg-red-50 text-red-700 ring-red-100'
+                }`}
+              >
+                {kw.keyword}
+                <span className="text-[10px] font-bold uppercase opacity-60">
+                  {isProfanity ? 'profanity' : 'illegal'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(kw.id)}
+                  className={isProfanity ? 'text-amber-400 hover:text-amber-600' : 'text-red-400 hover:text-red-600'}
+                  title="Remove keyword"
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FlaggedAttemptsPanel() {
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin', 'flagged-attempts', page],
+    queryFn: () => getFlaggedAttempts({ page, size: 20 }),
+  })
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <h3 className="font-bold text-slate-950">Flagged Attempts</h3>
+      <p className="mb-4 text-sm text-slate-500">
+        Users who tried to save a listing containing a prohibited keyword, and what triggered it.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : isError ? (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          Couldn't load flagged attempts. Please try again.
+        </div>
+      ) : (
+        <>
+          <DataTable
+            headers={['Timestamp', 'User', 'Field', 'Keyword', 'Attempted Text']}
+            rows={(data?.items ?? []).map(attempt => [
+              formatDate(attempt.created_at),
+              attempt.username ?? '—',
+              <span key={attempt.id} className="capitalize">{attempt.field}</span>,
+              <span key={attempt.id} className="font-semibold text-red-700">{attempt.keyword_matched}</span>,
+              <span key={attempt.id} className="line-clamp-2 max-w-xs text-slate-500">{attempt.attempted_text}</span>,
+            ])}
+            emptyMessage="No flagged attempts yet."
+          />
+          <Pagination page={data?.page ?? 1} pages={data?.pages ?? 1} onPage={setPage} />
+        </>
+      )}
+    </div>
+  )
+}
+
+function AIModerationFlagsPanel() {
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin', 'ai-moderation-flags', page],
+    queryFn: () => getAiModerationFlags({ page, size: 20 }),
+  })
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <h3 className="font-bold text-slate-950">AI-Flagged Listings</h3>
+      <p className="mb-4 text-sm text-slate-500">
+        Listings that passed the keyword filter but were flagged by the OpenAI moderation
+        check for manual review. These are signals, not automatic blocks — nothing here has
+        been rejected.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : isError ? (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          Couldn't load AI-flagged listings. Please try again.
+        </div>
+      ) : (
+        <>
+          <DataTable
+            headers={['Timestamp', 'User', 'Field', 'Categories', 'Flagged Text']}
+            rows={(data?.items ?? []).map(flag => [
+              formatDate(flag.created_at),
+              flag.username ?? '—',
+              <span key={flag.id} className="capitalize">{flag.field}</span>,
+              <span key={flag.id} className="font-semibold text-amber-700">{flag.categories}</span>,
+              <span key={flag.id} className="line-clamp-2 max-w-xs text-slate-500">{flag.flagged_text}</span>,
+            ])}
+            emptyMessage="No AI-flagged listings yet."
+          />
+          <Pagination page={data?.page ?? 1} pages={data?.pages ?? 1} onPage={setPage} />
+        </>
+      )}
+    </div>
+  )
+}
+
+function MarketingSection() {
+  const { data: videoUrl, refetch } = useQuery({
+    queryKey: ['marketing-video'],
+    queryFn: getMarketingVideoUrl,
+  })
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      await uploadMarketingVideo(file)
+      await refetch()
+    } catch {
+      setError('Failed to upload video. Please try again.')
+    } finally {
+      setUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          {error}
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-slate-950">Homepage Hero Video</h3>
+            <p className="text-sm text-slate-500">Shown at the top of the public landing page.</p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-accent-700">
+            <Upload size={14} />
+            {uploading ? 'Uploading…' : videoUrl ? 'Replace video' : 'Upload video'}
+            <input
+              type="file"
+              accept="video/mp4,video/webm,video/ogg"
+              className="hidden"
+              disabled={uploading}
+              onChange={handleUpload}
+            />
+          </label>
+        </div>
+
+        <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+          {videoUrl ? (
+            <video src={videoUrl} controls className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-slate-400">
+              <Play size={32} />
+              <p className="text-sm">No video uploaded yet.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -2248,6 +2570,20 @@ export default function AdminManagementPage() {
     return <AdminListingsPage />
   }
 
+  if (section === 'moderation') {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Moderation"
+          subtitle="Manage prohibited listing content and review blocked attempts."
+        />
+        <ProhibitedKeywordsPanel />
+        <FlaggedAttemptsPanel />
+        <AIModerationFlagsPanel />
+      </div>
+    )
+  }
+
   if (section === 'categories') {
     return (
       <div className="space-y-6">
@@ -2280,6 +2616,18 @@ export default function AdminManagementPage() {
           subtitle="Approve user-submitted stories for public display."
         />
         <TestimonialsSection />
+      </div>
+    )
+  }
+
+  if (section === 'marketing') {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Marketing"
+          subtitle="Manage the hero video shown on the public landing page."
+        />
+        <MarketingSection />
       </div>
     )
   }

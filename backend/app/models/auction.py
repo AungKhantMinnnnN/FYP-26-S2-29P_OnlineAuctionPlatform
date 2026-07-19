@@ -365,3 +365,39 @@ class ItemFeedback(Base):
     reviewee = relationship("User", foreign_keys=[reviewee_id], lazy="joined")
     feedback_type = relationship("FeedbackType", back_populates="feedbacks", lazy="joined")
 #endregion
+
+#region Content moderation
+class ProhibitedKeyword(Base):
+    __tablename__ = "prohibited_keywords"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    keyword = Column(String(100), nullable=False)
+    category = Column(String(20), nullable=False, default="illegal_item")
+    added_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+class FlaggedListingAttempt(Base):
+    __tablename__ = "flagged_listing_attempts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    keyword_matched = Column(String(100), nullable=False)
+    field = Column(String(20), nullable=False)
+    attempted_text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+class AIModerationFlag(Base):
+    # Secondary, non-blocking check: listings that passed the keyword gate but were
+    # flagged by the OpenAI moderation API for human review. Never blocks listing
+    # creation on its own — see AuctionService._check_ai_moderation.
+    __tablename__ = "ai_moderation_flags"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    categories = Column(String(200), nullable=False)
+    field = Column(String(20), nullable=False)
+    flagged_text = Column(Text, nullable=False)
+    reviewed = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+#endregion

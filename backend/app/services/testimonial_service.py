@@ -49,6 +49,15 @@ class TestimonialService:
         return testimonial
 
     @staticmethod
+    async def delete_testimonial(db: AsyncSession, testimonial_id: UUID) -> None:
+        result = await db.execute(select(Testimonial).where(Testimonial.id == testimonial_id))
+        testimonial = result.scalars().first()
+        if not testimonial:
+            raise HTTPException(status_code=404, detail="Testimonial not found")
+        await db.delete(testimonial)
+        await db.commit()
+
+    @staticmethod
     async def create_testimonial(
         db: AsyncSession, user_id: UUID, data: TestimonialCreate
     ) -> Testimonial:

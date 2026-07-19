@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from fastapi import HTTPException
@@ -6,10 +7,16 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
-from app.models.auction import Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType, AuctionDuration, User, SubscriptionTier
+from app.models.auction import (
+    Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType,
+    AuctionDuration, User, SubscriptionTier, ProhibitedKeyword, FlaggedListingAttempt,
+    AIModerationFlag,
+)
 from app.schemas.auction import ListingCreate, ListingUpdate
 from datetime import timedelta
 from app.core.storage import storage_service
+from app.core.text_matching import keyword_matches
+from app.core.ai_moderation import check_text_flagged
 from fastapi import UploadFile
 import uuid
 
@@ -99,6 +106,68 @@ class AuctionService:
     FREE_LISTING_HOURLY_LIMIT = 5
 
     @staticmethod
+    async def _check_prohibited_keywords(
+        db: AsyncSession,
+        user_id: UUID,
+        title: Optional[str],
+        description: Optional[str],
+        brand: Optional[str],
+    ) -> None:
+        # Applies to every listing save — draft or active — so prohibited content can't be
+        # smuggled in via a draft that's never published. keyword_matches() catches direct
+        # usage, symbol/leetspeak obfuscation, and minor typos — see app.core.text_matching.
+        keywords = (await db.execute(select(ProhibitedKeyword.keyword))).scalars().all()
+        if not keywords:
+            return
+
+        for field_name, text in (("title", title), ("description", description), ("brand", brand)):
+            if not text:
+                continue
+            for keyword in keywords:
+                if keyword_matches(keyword, text):
+                    # Log the attempt before raising — this is what powers the admin's
+                    # flagged-attempts view, so it must persist even though the save is rejected.
+                    db.add(FlaggedListingAttempt(
+                        user_id=user_id, keyword_matched=keyword, field=field_name, attempted_text=text,
+                    ))
+                    await db.commit()
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Your listing could not be saved: the {field_name} contains a "
+                               f"prohibited term ('{keyword}'). Please remove it and try again.",
+                    )
+
+    @staticmethod
+    async def _check_ai_moderation(db: AsyncSession, listing: Listing, user_id: UUID) -> None:
+        # Runs only after the listing is already saved (needs listing.id for the FK) — this
+        # is a review signal for admins, never a gate, so it can't block or fail the save.
+        # See app.core.ai_moderation for why: unproven accuracy on "item for sale" phrasing,
+        # and a network dependency that must never be load-bearing for listing creation.
+        # The try/except here is deliberate: check_text_flagged() already swallows its own
+        # network/API errors, but persisting the flag is a separate DB write that could still
+        # fail (e.g. a transient connection error) — without this guard, that failure would
+        # propagate up and turn an already-successful listing save into a 500 for the client.
+        try:
+            flagged_any = False
+            for field_name, text in (("title", listing.title), ("description", listing.description)):
+                if not text:
+                    continue
+                categories = await check_text_flagged(text)
+                if categories:
+                    db.add(AIModerationFlag(
+                        listing_id=listing.id, user_id=user_id, categories=",".join(categories),
+                        field=field_name, flagged_text=text,
+                    ))
+                    flagged_any = True
+            if flagged_any:
+                await db.commit()
+        except Exception as exc:
+            logging.getLogger("APIGateWay.moderation").warning(
+                "Failed to persist AI moderation flag for listing %s: %s", listing.id, exc
+            )
+            await db.rollback()
+
+    @staticmethod
     async def create_listing(db: AsyncSession, user_id: UUID, listing_in: ListingCreate) -> Listing:
         user = await db.scalar(select(User).where(User.id == user_id))
         if user and user.subscription_tier == SubscriptionTier.free:
@@ -112,6 +181,10 @@ class AuctionService:
                     status_code=429,
                     detail=f"Free tier limit reached: you can create at most {AuctionService.FREE_LISTING_HOURLY_LIMIT} listings per hour. Upgrade to Premium for unlimited listings."
                 )
+
+        await AuctionService._check_prohibited_keywords(
+            db, user_id, listing_in.title, listing_in.description, listing_in.brand
+        )
 
         listing = Listing(
             seller_id=user_id,
@@ -132,6 +205,7 @@ class AuctionService:
         db.add(listing)
         await db.commit()
         await db.refresh(listing)
+        await AuctionService._check_ai_moderation(db, listing, user_id)
         return listing
 
     EDITABLE_STATUSES = (ListingStatus.draft, ListingStatus.pending_review)
@@ -152,6 +226,16 @@ class AuctionService:
             raise HTTPException(status_code=400, detail="Only draft listings can be edited")
 
         data = listing_in.model_dump(exclude_unset=True, exclude={"status"})
+
+        # Check the prospective merged values (not yet applied to `listing`) so a blocked
+        # edit can't leave partial field mutations sitting on the tracked ORM object.
+        await AuctionService._check_prohibited_keywords(
+            db, user_id,
+            data.get("title", listing.title),
+            data.get("description", listing.description),
+            data.get("brand", listing.brand),
+        )
+
         for field, value in data.items():
             setattr(listing, field, value)
         if "starting_price" in data:
@@ -171,6 +255,7 @@ class AuctionService:
         listing.updated_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(listing)
+        await AuctionService._check_ai_moderation(db, listing, user_id)
         return listing
 
     @staticmethod
