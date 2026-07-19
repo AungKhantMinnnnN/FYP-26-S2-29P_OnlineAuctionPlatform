@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Clock,
   CreditCard,
+  Eye,
   HelpCircle,
   LifeBuoy,
   ListChecks,
@@ -26,13 +27,14 @@ import {
   getFeedbackTypes,
   checkFeedbackEligibility,
   submitFeedback,
+  getMySubmittedFeedback,
 } from '../api/feedbackApi'
-import type { FeedbackType } from '../api/feedbackApi'
+import type { FeedbackType, FeedbackItem } from '../api/feedbackApi'
 import { useAuth } from '../context/AuthContext'
 import { getMyBids } from '../api/usersApi'
 import StatusBadge from '../components/StatusBadge'
 
-type TabType = 'support' | 'story' | 'feedback' | 'tickets'
+type TabType = 'support' | 'story' | 'feedback' | 'tickets' | 'stories' | 'my-feedback'
 
 function formatTicketDate(value: string): string {
   const date = new Date(value)
@@ -99,12 +101,29 @@ export default function SupportPage() {
       .finally(() => setIsLoadingTickets(false))
   }, [activeTab, user])
 
-  // My Testimonials (shown under the Share Story tab)
+  // My Stories tab state
   const [myTestimonials, setMyTestimonials] = useState<TestimonialResponse[]>([])
+  const [isLoadingStories, setIsLoadingStories] = useState(false)
 
   useEffect(() => {
-    if (activeTab !== 'story' || !user) return
-    getMyTestimonials().then(setMyTestimonials).catch(() => {})
+    if (activeTab !== 'stories' || !user) return
+    setIsLoadingStories(true)
+    getMyTestimonials().then(setMyTestimonials).catch(() => {}).finally(() => setIsLoadingStories(false))
+  }, [activeTab, user])
+
+  // My Feedback tab state
+  const [myFeedback, setMyFeedback] = useState<FeedbackItem[]>([])
+  const [isLoadingMyFeedback, setIsLoadingMyFeedback] = useState(false)
+  const [myFeedbackError, setMyFeedbackError] = useState('')
+
+  useEffect(() => {
+    if (activeTab !== 'my-feedback' || !user) return
+    setIsLoadingMyFeedback(true)
+    setMyFeedbackError('')
+    getMySubmittedFeedback()
+      .then(setMyFeedback)
+      .catch(() => setMyFeedbackError('Unable to load your feedback. Please try again.'))
+      .finally(() => setIsLoadingMyFeedback(false))
   }, [activeTab, user])
 
   useEffect(() => {
@@ -328,55 +347,90 @@ export default function SupportPage() {
           </aside>
 
           <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
-            <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1.5 sm:grid-cols-4 sm:gap-0">
-              <button
-                type="button"
-                onClick={() => { setActiveTab('support'); setError('') }}
-                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                  activeTab === 'support' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span className="inline-flex items-center justify-center gap-2">
-                  <LifeBuoy size={16} />
-                  Support Case
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('tickets'); setError('') }}
-                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                  activeTab === 'tickets' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span className="inline-flex items-center justify-center gap-2">
-                  <ListChecks size={16} />
-                  My Tickets
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('story'); setError('') }}
-                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                  activeTab === 'story' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span className="inline-flex items-center justify-center gap-2">
-                  <MessageSquareHeart size={16} />
-                  Share Story
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('feedback'); setError(''); setFbSuccess('') }}
-                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                  activeTab === 'feedback' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span className="inline-flex items-center justify-center gap-2">
-                  <ThumbsUp size={16} />
-                  Leave Feedback
-                </span>
-              </button>
+            <div className="mb-6 space-y-3">
+              <div>
+                <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">Submit</p>
+                <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('support'); setError('') }}
+                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                      activeTab === 'support' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <LifeBuoy size={16} />
+                      <span className="hidden sm:inline">Support Case</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('story'); setError('') }}
+                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                      activeTab === 'story' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <MessageSquareHeart size={16} />
+                      <span className="hidden sm:inline">Share Story</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('feedback'); setError(''); setFbSuccess('') }}
+                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                      activeTab === 'feedback' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <ThumbsUp size={16} />
+                      <span className="hidden sm:inline">Leave Feedback</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">View Your Submissions</p>
+                <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('tickets'); setError('') }}
+                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                      activeTab === 'tickets' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <ListChecks size={16} />
+                      <span className="hidden sm:inline">My Tickets</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('stories'); setError('') }}
+                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                      activeTab === 'stories' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Star size={16} />
+                      <span className="hidden sm:inline">My Stories</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('my-feedback'); setError('') }}
+                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                      activeTab === 'my-feedback' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Eye size={16} />
+                      <span className="hidden sm:inline">My Feedback</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {activeTab === 'tickets' ? (
@@ -422,6 +476,81 @@ export default function SupportPage() {
                           )}
                         </div>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : activeTab === 'stories' ? (
+              /* ── My Stories tab ──────────────────────────────────────────── */
+              !user ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <Star size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">Sign in to view your submitted stories.</p>
+                </div>
+              ) : isLoadingStories ? (
+                <p className="py-12 text-center text-sm text-slate-400">Loading your stories…</p>
+              ) : myTestimonials.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <Star size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">You haven't shared a story yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myTestimonials.map(t => (
+                    <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={14} className={i < t.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
+                          ))}
+                        </div>
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${t.is_featured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          {t.is_featured ? 'Approved' : 'Pending Review'}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">{t.content}</p>
+                      <p className="mt-2 text-xs text-slate-400">Submitted {formatTicketDate(t.created_at)}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : activeTab === 'my-feedback' ? (
+              /* ── My Feedback tab ─────────────────────────────────────────── */
+              !user ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <Eye size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">Sign in to view feedback you've submitted.</p>
+                </div>
+              ) : isLoadingMyFeedback ? (
+                <p className="py-12 text-center text-sm text-slate-400">Loading your feedback…</p>
+              ) : myFeedbackError ? (
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                  {myFeedbackError}
+                </div>
+              ) : myFeedback.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <Eye size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">You haven't submitted any feedback yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myFeedback.map(f => (
+                    <div key={f.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-slate-900">{f.listing?.title ?? 'Listing'}</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            {f.feedback_type?.name ?? 'Feedback'} {f.reviewee ? `· for ${f.reviewee.username}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={14} className={i < f.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
+                          ))}
+                        </div>
+                      </div>
+                      {f.comment && <p className="mt-3 text-sm leading-6 text-slate-600">{f.comment}</p>}
+                      <p className="mt-2 text-xs text-slate-400">Submitted {formatTicketDate(f.created_at)}</p>
                     </div>
                   ))}
                 </div>
@@ -693,28 +822,6 @@ export default function SupportPage() {
                       : 'Submit Testimonial'}
                 </button>
               </form>
-
-              {activeTab === 'story' && user && myTestimonials.length > 0 && (
-                <div className="mt-8 space-y-3 border-t border-slate-100 pt-6">
-                  <h3 className="text-sm font-bold text-slate-700">Your Submitted Stories</h3>
-                  {myTestimonials.map(t => (
-                    <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} size={14} className={i < t.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
-                          ))}
-                        </div>
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${t.is_featured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                          {t.is_featured ? 'Approved' : 'Pending Review'}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-slate-600">{t.content}</p>
-                      <p className="mt-2 text-xs text-slate-400">Submitted {formatTicketDate(t.created_at)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
               </>
             )}
           </section>

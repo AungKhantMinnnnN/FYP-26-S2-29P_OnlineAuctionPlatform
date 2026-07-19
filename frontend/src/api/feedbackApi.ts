@@ -92,6 +92,11 @@ export const submitFeedback = async (data: FeedbackCreate): Promise<FeedbackItem
   return res.data
 }
 
+export const getMySubmittedFeedback = async (): Promise<FeedbackItem[]> => {
+  const res = await apiClient.get<FeedbackItem[]>('/feedback/me/submitted')
+  return res.data
+}
+
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
 export const getAllFeedbackTypes = async (): Promise<FeedbackType[]> => {

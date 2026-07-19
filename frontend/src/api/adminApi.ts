@@ -168,9 +168,12 @@ export const getAuditLogs = async (
 
 // ── Content Moderation ──────────────────────────────────────────────────────────
 
+export type KeywordCategory = 'illegal_item' | 'profanity'
+
 export interface ProhibitedKeyword {
   id: string
   keyword: string
+  category: KeywordCategory
   added_by_username: string | null
   created_at: string
 }
@@ -180,8 +183,11 @@ export const getProhibitedKeywords = async (): Promise<ProhibitedKeyword[]> => {
   return res.data
 }
 
-export const createProhibitedKeyword = async (keyword: string): Promise<ProhibitedKeyword> => {
-  const res = await apiClient.post<ProhibitedKeyword>('/admin/prohibited-keywords', { keyword })
+export const createProhibitedKeyword = async (
+  keyword: string,
+  category: KeywordCategory = 'illegal_item',
+): Promise<ProhibitedKeyword> => {
+  const res = await apiClient.post<ProhibitedKeyword>('/admin/prohibited-keywords', { keyword, category })
   return res.data
 }
 
@@ -211,6 +217,35 @@ export const getFlaggedAttempts = async (
   params?: { page?: number; size?: number }
 ): Promise<FlaggedAttemptsResponse> => {
   const res = await apiClient.get<FlaggedAttemptsResponse>('/admin/flagged-attempts', { params })
+  return res.data
+}
+
+// AI-moderation review queue: listings that passed the keyword gate but were flagged by
+// the OpenAI moderation API for human review — never auto-blocked, see backend app.core.ai_moderation.
+export interface AIModerationFlag {
+  id: string
+  listing_id: string
+  user_id: string
+  username: string | null
+  categories: string
+  field: string
+  flagged_text: string
+  reviewed: boolean
+  created_at: string
+}
+
+export interface AIModerationFlagsResponse {
+  items: AIModerationFlag[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export const getAiModerationFlags = async (
+  params?: { page?: number; size?: number }
+): Promise<AIModerationFlagsResponse> => {
+  const res = await apiClient.get<AIModerationFlagsResponse>('/admin/ai-moderation-flags', { params })
   return res.data
 }
 
@@ -257,4 +292,8 @@ export const getAdminTestimonials = async (): Promise<TestimonialResponse[]> => 
 export const approveTestimonial = async (id: string): Promise<TestimonialResponse> => {
   const res = await apiClient.post<TestimonialResponse>(`/testimonials/${id}/approve`)
   return res.data
+}
+
+export const deleteTestimonial = async (id: string): Promise<void> => {
+  await apiClient.delete(`/testimonials/${id}`)
 }

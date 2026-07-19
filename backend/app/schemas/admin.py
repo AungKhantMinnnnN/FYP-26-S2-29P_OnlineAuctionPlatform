@@ -4,6 +4,8 @@ from typing import Optional, List, Literal
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.auction import AuctionListingResponse
+
 SLUG_PATTERN = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
 
 
@@ -100,9 +102,20 @@ class AuctionRestartRequest(BaseModel):
 # endregion
 
 
+# region Listing detail
+class AdminListingDetailResponse(AuctionListingResponse):
+    winner_username: Optional[str] = None
+    winning_amount: Optional[float] = None
+# endregion
+
+
 # region Content moderation
+KeywordCategory = Literal['illegal_item', 'profanity']
+
+
 class ProhibitedKeywordCreate(BaseModel):
     keyword: str = Field(..., min_length=1, max_length=100)
+    category: KeywordCategory = 'illegal_item'
 
     @field_validator('keyword')
     def keyword_must_not_be_blank(cls, v):
@@ -115,6 +128,7 @@ class ProhibitedKeywordCreate(BaseModel):
 class ProhibitedKeywordResponse(BaseModel):
     id: UUID
     keyword: str
+    category: KeywordCategory
     added_by_username: Optional[str] = None
     created_at: datetime
 
@@ -131,6 +145,22 @@ class FlaggedAttemptItem(BaseModel):
 
 class FlaggedAttemptsResponse(PaginationMeta):
     items: List[FlaggedAttemptItem]
+
+
+class AIModerationFlagItem(BaseModel):
+    id: UUID
+    listing_id: UUID
+    user_id: UUID
+    username: Optional[str] = None
+    categories: str
+    field: str
+    flagged_text: str
+    reviewed: bool
+    created_at: datetime
+
+
+class AIModerationFlagsResponse(PaginationMeta):
+    items: List[AIModerationFlagItem]
 # endregion
 
 

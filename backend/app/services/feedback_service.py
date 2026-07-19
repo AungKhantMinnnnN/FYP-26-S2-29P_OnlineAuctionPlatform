@@ -190,3 +190,14 @@ class FeedbackService:
             .order_by(ItemFeedback.created_at.desc())
         )
         return result.scalars().all()
+
+    @staticmethod
+    async def get_submitted_by_user(db: AsyncSession, reviewer_id: UUID) -> List[ItemFeedback]:
+        # No is_public filter: this is the submitter's own history, unlike get_for_user
+        # (public feedback received by someone else) — they can see it regardless.
+        result = await db.execute(
+            select(ItemFeedback)
+            .where(ItemFeedback.reviewer_id == reviewer_id)
+            .order_by(ItemFeedback.created_at.desc())
+        )
+        return result.scalars().all()

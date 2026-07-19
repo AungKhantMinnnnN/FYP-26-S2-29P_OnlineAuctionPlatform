@@ -59,12 +59,14 @@ import {
   checkServicesHealth,
   getAdminTestimonials,
   approveTestimonial,
+  deleteTestimonial,
   getProhibitedKeywords,
   createProhibitedKeyword,
   deleteProhibitedKeyword,
   getFlaggedAttempts,
+  getAiModerationFlags,
 } from '../api/adminApi'
-import type { AdminCategory, AdminDispute, DisputeStatus, ProhibitedKeyword } from '../api/adminApi'
+import type { AdminCategory, AdminDispute, DisputeStatus, ProhibitedKeyword, KeywordCategory } from '../api/adminApi'
 import type { TestimonialResponse } from '../api/supportApi'
 import { getMarketingVideoUrl, uploadMarketingVideo } from '../api/marketingApi'
 
@@ -2103,6 +2105,7 @@ function TestimonialsSection() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const reload = async () => {
     try {
@@ -2130,6 +2133,22 @@ function TestimonialsSection() {
       setError(getErrorMessage(error, 'Failed to approve testimonial.'))
     } finally {
       setApprovingId(null)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    const shouldDelete = window.confirm('Remove this testimonial? This cannot be undone.')
+    if (!shouldDelete) return
+
+    setError('')
+    setDeletingId(id)
+    try {
+      await deleteTestimonial(id)
+      await reload()
+    } catch (error: any) {
+      setError(getErrorMessage(error, 'Failed to remove testimonial.'))
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -2171,8 +2190,8 @@ function TestimonialsSection() {
               <p className="mt-3 text-sm leading-6 text-slate-600">{t.content}</p>
               <p className="mt-2 text-xs text-slate-400">Submitted {formatDate(t.created_at)}</p>
 
-              {!t.is_featured && (
-                <div className="mt-3 flex justify-end">
+              <div className="mt-3 flex justify-end gap-2">
+                {!t.is_featured && (
                   <button
                     type="button"
                     disabled={approvingId === t.id}
@@ -2182,8 +2201,17 @@ function TestimonialsSection() {
                     <Check size={14} />
                     {approvingId === t.id ? 'Approving…' : 'Approve for display'}
                   </button>
-                </div>
-              )}
+                )}
+                <button
+                  type="button"
+                  disabled={deletingId === t.id}
+                  onClick={() => void handleDelete(t.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                >
+                  <Trash2 size={14} />
+                  {deletingId === t.id ? 'Removing…' : 'Remove'}
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -2197,6 +2225,7 @@ function ProhibitedKeywordsPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newKeyword, setNewKeyword] = useState('')
+  const [newCategory, setNewCategory] = useState<KeywordCategory>('illegal_item')
   const [adding, setAdding] = useState(false)
 
   const reload = async () => {
@@ -2221,7 +2250,7 @@ function ProhibitedKeywordsPanel() {
     setAdding(true)
     setError('')
     try {
-      await createProhibitedKeyword(newKeyword.trim())
+      await createProhibitedKeyword(newKeyword.trim(), newCategory)
       setNewKeyword('')
       await reload()
     } catch (error: any) {
@@ -2263,6 +2292,17 @@ function ProhibitedKeywordsPanel() {
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
           />
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-600">Category</label>
+          <select
+            value={newCategory}
+            onChange={event => setNewCategory(event.target.value as KeywordCategory)}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+          >
+            <option value="illegal_item">Illegal item</option>
+            <option value="profanity">Profanity</option>
+          </select>
+        </div>
         <button
           type="submit"
           disabled={adding}
@@ -2287,22 +2327,32 @@ function ProhibitedKeywordsPanel() {
         </p>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {keywords.map(kw => (
-            <span
-              key={kw.id}
-              className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 ring-1 ring-red-100"
-            >
-              {kw.keyword}
-              <button
-                type="button"
-                onClick={() => void handleDelete(kw.id)}
-                className="text-red-400 hover:text-red-600"
-                title="Remove keyword"
+          {keywords.map(kw => {
+            const isProfanity = kw.category === 'profanity'
+            return (
+              <span
+                key={kw.id}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ring-1 ${
+                  isProfanity
+                    ? 'bg-amber-50 text-amber-700 ring-amber-100'
+                    : 'bg-red-50 text-red-700 ring-red-100'
+                }`}
               >
-                <X size={13} />
-              </button>
-            </span>
-          ))}
+                {kw.keyword}
+                <span className="text-[10px] font-bold uppercase opacity-60">
+                  {isProfanity ? 'profanity' : 'illegal'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(kw.id)}
+                  className={isProfanity ? 'text-amber-400 hover:text-amber-600' : 'text-red-400 hover:text-red-600'}
+                  title="Remove keyword"
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            )
+          })}
         </div>
       )}
     </div>
@@ -2341,6 +2391,48 @@ function FlaggedAttemptsPanel() {
               <span key={attempt.id} className="line-clamp-2 max-w-xs text-slate-500">{attempt.attempted_text}</span>,
             ])}
             emptyMessage="No flagged attempts yet."
+          />
+          <Pagination page={data?.page ?? 1} pages={data?.pages ?? 1} onPage={setPage} />
+        </>
+      )}
+    </div>
+  )
+}
+
+function AIModerationFlagsPanel() {
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['admin', 'ai-moderation-flags', page],
+    queryFn: () => getAiModerationFlags({ page, size: 20 }),
+  })
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <h3 className="font-bold text-slate-950">AI-Flagged Listings</h3>
+      <p className="mb-4 text-sm text-slate-500">
+        Listings that passed the keyword filter but were flagged by the OpenAI moderation
+        check for manual review. These are signals, not automatic blocks — nothing here has
+        been rejected.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-400">Loading…</p>
+      ) : isError ? (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          Couldn't load AI-flagged listings. Please try again.
+        </div>
+      ) : (
+        <>
+          <DataTable
+            headers={['Timestamp', 'User', 'Field', 'Categories', 'Flagged Text']}
+            rows={(data?.items ?? []).map(flag => [
+              formatDate(flag.created_at),
+              flag.username ?? '—',
+              <span key={flag.id} className="capitalize">{flag.field}</span>,
+              <span key={flag.id} className="font-semibold text-amber-700">{flag.categories}</span>,
+              <span key={flag.id} className="line-clamp-2 max-w-xs text-slate-500">{flag.flagged_text}</span>,
+            ])}
+            emptyMessage="No AI-flagged listings yet."
           />
           <Pagination page={data?.page ?? 1} pages={data?.pages ?? 1} onPage={setPage} />
         </>
@@ -2487,6 +2579,7 @@ export default function AdminManagementPage() {
         />
         <ProhibitedKeywordsPanel />
         <FlaggedAttemptsPanel />
+        <AIModerationFlagsPanel />
       </div>
     )
   }

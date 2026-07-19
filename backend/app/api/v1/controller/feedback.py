@@ -98,6 +98,15 @@ async def check_eligibility(
     return await FeedbackService.get_eligibility(db, current_user.id, listing_id)
 
 
+@router.get("/me/submitted", response_model=List[FeedbackResponse])
+async def get_my_submitted_feedback(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Feedback the current user has submitted (as reviewer), regardless of visibility."""
+    return await FeedbackService.get_submitted_by_user(db, current_user.id)
+
+
 @router.post("/", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
 async def submit_feedback(
     data: FeedbackCreate,

@@ -14,8 +14,10 @@ from app.models.auction import (
     User, UserRole, UserStatus, UserProfiles, Listing, ListingStatus, Bid, BidStatus,
     AuctionResult, Categories, UserInterest, WalletTransaction, TransactionType,
     AdminLog, BoardItem, Notification, ProhibitedKeyword, FlaggedListingAttempt,
+    AIModerationFlag,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
+from app.schemas.auction import AuctionListingResponse
 from app.services.email_service import EmailService
 
 # Matches the formatter in app.core.logger:
@@ -235,6 +237,32 @@ class AdminService:
 
         pages = (total + size - 1) // size if total else 0
         return {"items": listings, "total": total, "page": page, "size": size, "pages": pages}
+
+    @staticmethod
+    async def get_listing_detail(db: AsyncSession, listing_id: UUID) -> dict:
+        listing = await db.scalar(
+            select(Listing).options(selectinload(Listing.images), selectinload(Listing.seller))
+            .where(Listing.id == listing_id)
+        )
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+
+        data = AuctionListingResponse.model_validate(listing, from_attributes=True).model_dump()
+        data["winner_username"] = None
+        data["winning_amount"] = None
+
+        if listing.status == ListingStatus.ended:
+            row = (await db.execute(
+                select(AuctionResult, User.username)
+                .outerjoin(User, User.id == AuctionResult.winner_id)
+                .where(AuctionResult.listing_id == listing_id)
+            )).first()
+            if row:
+                auction_result, winner_username = row
+                data["winner_username"] = winner_username
+                data["winning_amount"] = auction_result.final_price
+
+        return data
 
     @staticmethod
     async def approve_listing(db: AsyncSession, admin: User, listing_id: UUID) -> Listing:
@@ -590,29 +618,31 @@ class AdminService:
         return [{
             "id": kw.id,
             "keyword": kw.keyword,
+            "category": kw.category,
             "added_by_username": username,
             "created_at": kw.created_at,
         } for kw, username in rows]
 
     @staticmethod
-    async def create_prohibited_keyword(db: AsyncSession, admin: User, keyword: str) -> dict:
+    async def create_prohibited_keyword(db: AsyncSession, admin: User, keyword: str, category: str = "illegal_item") -> dict:
         existing = await db.scalar(
             select(ProhibitedKeyword).where(func.lower(ProhibitedKeyword.keyword) == keyword.lower())
         )
         if existing:
             raise HTTPException(status_code=409, detail="This keyword is already on the prohibited list")
 
-        entry = ProhibitedKeyword(keyword=keyword, added_by=admin.id)
+        entry = ProhibitedKeyword(keyword=keyword, category=category, added_by=admin.id)
         db.add(entry)
         db.add(AdminLog(
             admin_id=admin.id, action="add_prohibited_keyword", target_id=entry.id,
-            details=f"Added prohibited keyword '{keyword}'",
+            details=f"Added prohibited keyword '{keyword}' ({category})",
         ))
         await db.commit()
         await db.refresh(entry)
         return {
             "id": entry.id,
             "keyword": entry.keyword,
+            "category": entry.category,
             "added_by_username": admin.username,
             "created_at": entry.created_at,
         }
@@ -650,6 +680,31 @@ class AdminService:
             "attempted_text": attempt.attempted_text,
             "created_at": attempt.created_at,
         } for attempt, username in rows]
+
+        pages = (total + size - 1) // size if total else 0
+        return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
+
+    @staticmethod
+    async def get_ai_moderation_flags(db: AsyncSession, page: int, size: int) -> Dict[str, Any]:
+        query = select(AIModerationFlag, User.username).join(User, User.id == AIModerationFlag.user_id)
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query)
+
+        query = query.order_by(AIModerationFlag.created_at.desc()).offset((page - 1) * size).limit(size)
+        rows = (await db.execute(query)).all()
+
+        items = [{
+            "id": flag.id,
+            "listing_id": flag.listing_id,
+            "user_id": flag.user_id,
+            "username": username,
+            "categories": flag.categories,
+            "field": flag.field,
+            "flagged_text": flag.flagged_text,
+            "reviewed": flag.reviewed,
+            "created_at": flag.created_at,
+        } for flag, username in rows]
 
         pages = (total + size - 1) // size if total else 0
         return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
