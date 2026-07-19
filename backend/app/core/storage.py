@@ -1,5 +1,4 @@
 import io
-from datetime import timedelta
 from minio import Minio
 from minio.error import S3Error
 from app.core.config import settings
@@ -69,9 +68,14 @@ class StorageService:
             self.client.stat_object(self.video_bucket, MARKETING_VIDEO_KEY)
         except S3Error:
             return None
-        return self.client.presigned_get_object(
-            self.video_bucket, MARKETING_VIDEO_KEY, expires=timedelta(hours=1)
-        )
+        # A presigned_get_object URL is built against S3_ENDPOINT (the internal Docker
+        # hostname "minio"), which the browser can't resolve — same class of bug that
+        # ListingImages.image_url avoids by using a browser-reachable base instead. The
+        # video bucket is public-read (see docker/minio/init-buckets.sh), so no signature
+        # is needed: a plain path through nginx's /auction-videos/ proxy
+        # (see docker/nginx/default.conf) works, using the same public origin already
+        # relied on for browser-facing links elsewhere (see notification_service.py).
+        return f"{settings.FRONTEND_URL.rstrip('/')}/auction-videos/{MARKETING_VIDEO_KEY}"
 
 
 storage_service = StorageService()
