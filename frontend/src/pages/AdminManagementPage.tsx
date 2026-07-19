@@ -2457,8 +2457,8 @@ function MarketingSection() {
     try {
       await uploadMarketingVideo(file)
       await refetch()
-    } catch {
-      setError('Failed to upload video. Please try again.')
+    } catch (error: any) {
+      setError(getErrorMessage(error, 'Failed to upload video. Please try again.'))
     } finally {
       setUploading(false)
       event.target.value = ''

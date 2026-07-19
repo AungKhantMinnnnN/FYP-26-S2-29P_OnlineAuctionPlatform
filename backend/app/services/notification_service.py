@@ -11,7 +11,7 @@ logger = setup_logging("NotificationService")
 
 
 def _listing_url(listing_id: str) -> str:
-    return f"{settings.FRONTEND_URL}/listings/{listing_id}"
+    return f"{settings.FRONTEND_URL}/auction/{listing_id}"
 
 
 async def _get_user(db: AsyncSession, user_id: str) -> User | None:
