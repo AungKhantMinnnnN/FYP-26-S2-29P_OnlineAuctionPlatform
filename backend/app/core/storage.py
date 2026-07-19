@@ -57,7 +57,10 @@ class StorageService:
                 length=len(file_bytes),
                 content_type=content_type
             )
-        except S3Error as err:
+        except Exception as err:
+            # Broad catch (not just S3Error): connection-level failures — MinIO
+            # unreachable, DNS/network errors, timeouts — raise from urllib3, not
+            # minio.error.S3Error, and would otherwise surface as an opaque 500.
             raise Exception(f"Failed to upload marketing video: {err}")
 
     def get_marketing_video_url(self) -> str | None:
