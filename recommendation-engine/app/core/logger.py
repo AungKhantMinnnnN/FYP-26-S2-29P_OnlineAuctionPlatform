@@ -1,6 +1,6 @@
 import logging
 import os
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 
 
 def setup_logging(service_name: str = "recommendation-engine") -> logging.Logger:
@@ -12,45 +12,30 @@ def setup_logging(service_name: str = "recommendation-engine") -> logging.Logger
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-    logger = logging.getLogger(service_name)
-    logger.setLevel(logging.INFO)
+    def file_handler(filename: str, level: int = logging.INFO) -> TimedRotatingFileHandler:
+        # Rolls over to a fresh file at midnight; keeps 5 days of rotated files and
+        # auto-deletes anything older (backupCount). Rotated files get a .YYYY-MM-DD suffix.
+        handler = TimedRotatingFileHandler(
+            filename=os.path.join(log_dir, filename),
+            when="midnight",
+            backupCount=5,
+            encoding="utf-8",
+        )
+        handler.setFormatter(log_formatter)
+        handler.setLevel(level)
+        return handler
 
     # ── Console handler ───────────────────────────────────────────
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(log_formatter)
     console_handler.setLevel(logging.INFO)
 
-    # ── General log file ──────────────────────────────────────────
-    general_handler = RotatingFileHandler(
-        filename=os.path.join(log_dir, f"{service_name}.log"),
-        maxBytes=10 * 1024 * 1024,
-        backupCount=5
-    )
-    general_handler.setFormatter(log_formatter)
-    general_handler.setLevel(logging.INFO)
-
-    # ── Error log file ────────────────────────────────────────────
-    error_handler = RotatingFileHandler(
-        filename=os.path.join(log_dir, f"{service_name}-error.log"),
-        maxBytes=10 * 1024 * 1024,
-        backupCount=5
-    )
-    error_handler.setFormatter(log_formatter)
-    error_handler.setLevel(logging.ERROR)
-
-    # ── ML pipeline log file — training and inference runs ────────
-    ml_handler = RotatingFileHandler(
-        filename=os.path.join(log_dir, "ml-pipeline.log"),
-        maxBytes=10 * 1024 * 1024,
-        backupCount=10
-    )
-    ml_handler.setFormatter(log_formatter)
-    ml_handler.setLevel(logging.INFO)
-
+    logger = logging.getLogger(service_name)
+    logger.setLevel(logging.INFO)
     if not logger.handlers:
         logger.addHandler(console_handler)
-        logger.addHandler(general_handler)
-        logger.addHandler(error_handler)
+        logger.addHandler(file_handler(f"{service_name}.log"))
+        logger.addHandler(file_handler(f"{service_name}-error.log", logging.ERROR))
 
     # Wire all app.* module loggers (getLogger(__name__) in service files)
     # so their output flows through the same console + file handlers.
@@ -58,14 +43,14 @@ def setup_logging(service_name: str = "recommendation-engine") -> logging.Logger
     app_logger.setLevel(logging.INFO)
     if not app_logger.handlers:
         app_logger.addHandler(console_handler)
-        app_logger.addHandler(general_handler)
-        app_logger.addHandler(error_handler)
+        app_logger.addHandler(file_handler(f"{service_name}.log"))
+        app_logger.addHandler(file_handler(f"{service_name}-error.log", logging.ERROR))
 
     # Separate logger for ML pipeline events
     ml_logger = logging.getLogger(f"{service_name}.ml")
     ml_logger.setLevel(logging.INFO)
     if not ml_logger.handlers:
-        ml_logger.addHandler(ml_handler)
+        ml_logger.addHandler(file_handler("ml-pipeline.log"))
         ml_logger.addHandler(console_handler)
 
     return logger

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
+from datetime import date
 from uuid import UUID
 
 from app.db.session import get_db
@@ -11,7 +12,7 @@ from app.schemas.admin import (
     CategoryDeleteResponse, BidCancelResponse, AuctionRestartRequest,
     AdminLogsResponse, AdminStatsResponse, SystemLogsResponse,
     ProhibitedKeywordCreate, ProhibitedKeywordResponse, FlaggedAttemptsResponse,
-    AIModerationFlagsResponse, AdminListingDetailResponse,
+    AIModerationFlagsResponse, AdminListingDetailResponse, OptionItem,
 )
 from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, CategoryResponse
 from app.services.admin_service import AdminService
@@ -221,13 +222,25 @@ async def list_ai_moderation_flags(
 
 
 # region Logs & stats
+@router.get("/options/{set_key}", response_model=List[OptionItem])
+async def get_options(
+    set_key: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return await AdminService.get_options(db=db, set_key=set_key)
+
+
 @router.get("/system-logs", response_model=SystemLogsResponse)
 async def get_system_logs(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    day: Optional[date] = Query(None, description="Filter to a single day (YYYY-MM-DD)"),
+    level: Optional[str] = Query(None, description="info | warning | error"),
+    service: Optional[str] = Query(None, description="backend | bidding-engine | recommendation-engine"),
     _: User = Depends(get_admin_user),
 ):
-    return AdminService.get_system_logs(page=page, size=size)
+    return AdminService.get_system_logs(page=page, size=size, day=day, level=level, service=service)
 
 
 @router.get("/logs", response_model=AdminLogsResponse)
@@ -236,10 +249,11 @@ async def get_admin_logs(
     size: int = Query(20, ge=1, le=100),
     admin_id: Optional[UUID] = Query(None),
     action: Optional[str] = Query(None),
+    day: Optional[date] = Query(None, description="Filter to a single day (YYYY-MM-DD)"),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    return await AdminService.get_logs(db=db, page=page, size=size, admin_id=admin_id, action=action)
+    return await AdminService.get_logs(db=db, page=page, size=size, admin_id=admin_id, action=action, day=day)
 
 
 @router.get("/stats", response_model=AdminStatsResponse)

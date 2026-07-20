@@ -45,7 +45,7 @@ export const adminUsersApi = {
     search = '',
     page = 1,
     size = 10,
-    status?: UserAccountStatus,
+    status?: string,  // value comes from the DB-backed user_status option set
   ): Promise<AdminUsersResponse> {
     const response = await apiClient.get<AdminUsersResponse>(
       '/admin/users',
