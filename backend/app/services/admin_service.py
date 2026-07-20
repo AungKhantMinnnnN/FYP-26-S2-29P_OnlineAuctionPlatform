@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from uuid import UUID
@@ -14,7 +14,7 @@ from app.models.auction import (
     User, UserRole, UserStatus, UserProfiles, Listing, ListingStatus, Bid, BidStatus,
     AuctionResult, Categories, UserInterest, WalletTransaction, TransactionType,
     AdminLog, BoardItem, Notification, ProhibitedKeyword, FlaggedListingAttempt,
-    AIModerationFlag,
+    AIModerationFlag, OptionSet,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
 from app.schemas.auction import AuctionListingResponse
@@ -26,6 +26,16 @@ _LOG_LINE_RE = re.compile(
     r'^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \| '
     r'(?P<level>\w+) \| (?P<name>\S+) \| (?P<func>\S+) \| (?P<message>.*)$'
 )
+
+# General log file per microservice -> label shown in the admin UI. Each service's
+# general file already contains every level (INFO/WARNING/ERROR) from all its sub-loggers
+# via propagation, so reading only these gives a complete, de-duplicated stream.
+# Error/sub-logger files (-error.log, bids.log, ml-pipeline.log, ...) are skipped as dupes.
+_GENERAL_LOG_FILES = {
+    "APIGateWay.log": "backend",
+    "bidding-engine.log": "bidding-engine",
+    "recommendation-engine.log": "recommendation-engine",
+}
 
 
 def _to_summary(user: User) -> dict:
@@ -564,39 +574,69 @@ class AdminService:
         }
     # endregion
 
+    # region Options
+    @staticmethod
+    async def get_options(db: AsyncSession, set_key: str) -> List[dict]:
+        rows = (await db.execute(
+            select(OptionSet)
+            .where(OptionSet.set_key == set_key, OptionSet.is_active == True)
+            .order_by(OptionSet.sort_order, OptionSet.label)
+        )).scalars().all()
+        return [{"value": r.value, "label": r.label} for r in rows]
+    # endregion
+
     # region System logs
     @staticmethod
-    def get_system_logs(page: int, size: int) -> Dict[str, Any]:
-        # The general log file (see app.core.logger) receives every record from every
-        # sub-logger (auth/auction/admin/access) via propagation, so it alone is a complete,
-        # de-duplicated stream of this service's activity.
-        log_path = Path(settings.LOG_DIR) / "APIGateWay.log"
+    def get_system_logs(
+        page: int,
+        size: int,
+        day: Optional[date] = None,
+        level: Optional[str] = None,
+        service: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        # Read the general log of every microservice. ALL_LOGS_DIR is a read-only mount of
+        # all services' log dirs in Docker, one level deep (all-logs/<svc>/x.log); it falls
+        # back to this service's flat LOG_DIR locally. The "<name>*" glob picks up both the
+        # current file and rotated daily files (<name>.log.YYYY-MM-DD) so past days stay
+        # filterable; the "*/" prefix keeps stale top-level files from duplicating subdir ones.
+        base = Path(settings.ALL_LOGS_DIR or settings.LOG_DIR)
+        subdir = "*/" if settings.ALL_LOGS_DIR else ""
+        level = level.lower() if level else None
+
         entries: List[dict] = []
+        idx = 0
 
-        if log_path.exists():
-            with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-                for idx, line in enumerate(f):
-                    match = _LOG_LINE_RE.match(line.strip())
-                    if not match:
-                        continue
-                    name = match.group("name")
-                    service = name.split(".", 1)[1] if "." in name else "general"
-                    # The formatter writes naive local time; the container always runs in UTC
-                    # (no TZ override anywhere), so attach it explicitly — otherwise the naive
-                    # string round-trips through JSON with no offset and browsers parse it as
-                    # local time, skewing every timestamp by the admin's UTC offset.
-                    ts = datetime.strptime(match.group("timestamp"), "%Y-%m-%d %H:%M:%S").replace(
-                        tzinfo=timezone.utc
-                    )
-                    entries.append({
-                        "id": str(idx),
-                        "timestamp": ts,
-                        "level": match.group("level").lower(),
-                        "service": service,
-                        "message": match.group("message"),
-                    })
+        for fname, svc in _GENERAL_LOG_FILES.items():
+            if service and svc != service:
+                continue
+            for log_path in sorted(base.glob(f"{subdir}{fname}*")):
+                with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        match = _LOG_LINE_RE.match(line.strip())
+                        if not match:
+                            continue
+                        lvl = match.group("level").lower()
+                        if level and lvl != level:
+                            continue
+                        # The formatter writes naive local time; the container always runs in UTC
+                        # (no TZ override anywhere), so attach it explicitly — otherwise the naive
+                        # string round-trips through JSON with no offset and browsers parse it as
+                        # local time, skewing every timestamp by the admin's UTC offset.
+                        ts = datetime.strptime(match.group("timestamp"), "%Y-%m-%d %H:%M:%S").replace(
+                            tzinfo=timezone.utc
+                        )
+                        if day and ts.date() != day:
+                            continue
+                        entries.append({
+                            "id": str(idx),
+                            "timestamp": ts,
+                            "level": lvl,
+                            "service": svc,
+                            "message": match.group("message"),
+                        })
+                        idx += 1
 
-        entries.reverse()  # most recent first
+        entries.sort(key=lambda e: e["timestamp"], reverse=True)  # most recent first, across services
 
         total = len(entries)
         pages = (total + size - 1) // size if total else 0
@@ -718,12 +758,16 @@ class AdminService:
         size: int,
         admin_id: Optional[UUID],
         action: Optional[str],
+        day: Optional[date] = None,
     ) -> Dict[str, Any]:
         query = select(AdminLog, User.username).join(User, User.id == AdminLog.admin_id)
         if admin_id:
             query = query.where(AdminLog.admin_id == admin_id)
         if action:
             query = query.where(AdminLog.action == action)
+        if day:
+            start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+            query = query.where(AdminLog.created_at >= start, AdminLog.created_at < start + timedelta(days=1))
 
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)

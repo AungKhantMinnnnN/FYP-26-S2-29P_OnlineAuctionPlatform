@@ -266,6 +266,20 @@ CREATE TABLE feedback_types (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Admin dropdown option catalogue: one lookup table keyed by set_key that backs every
+-- admin dropdown. Seeded in scripts/migrations/2026_07_20_option_sets.sql.
+CREATE TABLE option_sets (
+    id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    set_key    VARCHAR(50)  NOT NULL,
+    value      VARCHAR(100) NOT NULL,
+    label      VARCHAR(100) NOT NULL,
+    sort_order INTEGER      NOT NULL DEFAULT 0,
+    is_active  BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (set_key, value)
+);
+CREATE INDEX idx_option_sets_key ON option_sets(set_key) WHERE is_active = TRUE;
+
 -- Item-level feedback: any bidder can review; eligibility enforced at app layer
 CREATE TABLE item_feedback (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

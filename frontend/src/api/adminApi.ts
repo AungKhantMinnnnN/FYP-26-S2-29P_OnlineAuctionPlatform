@@ -153,16 +153,27 @@ export const getPlatformStats = async (): Promise<AdminStatsResponse> => {
 }
 
 export const getSystemLogs = async (
-  params?: { page?: number; size?: number; level?: string; service?: string }
+  params?: { page?: number; size?: number; day?: string; level?: string; service?: string }
 ): Promise<SystemLogsResponse> => {
   const res = await apiClient.get<SystemLogsResponse>('/admin/system-logs', { params })
   return res.data
 }
 
 export const getAuditLogs = async (
-  params?: { page?: number; size?: number; admin_id?: string; action?: string }
+  params?: { page?: number; size?: number; admin_id?: string; action?: string; day?: string }
 ): Promise<AuditLogsResponse> => {
   const res = await apiClient.get<AuditLogsResponse>('/admin/logs', { params })
+  return res.data
+}
+
+export interface OptionItem {
+  value: string
+  label: string
+}
+
+// Dropdown option catalogue — one lookup table, keyed by set name (see option_sets).
+export const getOptions = async (setKey: string): Promise<OptionItem[]> => {
+  const res = await apiClient.get<OptionItem[]>(`/admin/options/${setKey}`)
   return res.data
 }
 
@@ -185,7 +196,7 @@ export const getProhibitedKeywords = async (): Promise<ProhibitedKeyword[]> => {
 
 export const createProhibitedKeyword = async (
   keyword: string,
-  category: KeywordCategory = 'illegal_item',
+  category: string = 'illegal_item',  // value comes from the DB-backed keyword_category set
 ): Promise<ProhibitedKeyword> => {
   const res = await apiClient.post<ProhibitedKeyword>('/admin/prohibited-keywords', { keyword, category })
   return res.data

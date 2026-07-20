@@ -9,6 +9,11 @@ from app.schemas.auction import AuctionListingResponse
 SLUG_PATTERN = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
 
 
+class OptionItem(BaseModel):
+    value: str
+    label: str
+
+
 class PaginationMeta(BaseModel):
     total: int
     page: int

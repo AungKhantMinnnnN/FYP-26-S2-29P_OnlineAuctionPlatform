@@ -27,6 +27,9 @@ class Settings(BaseSettings):
 
     # Logging
     LOG_DIR: str
+    # Read-only mount of ALL services' logs (see docker-compose). Falls back to LOG_DIR
+    # for local runs where only this service's logs are present.
+    ALL_LOGS_DIR: str | None = None
 
     # Microservices URLs
     BIDDING_SERVICE_URL: str

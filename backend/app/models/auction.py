@@ -336,6 +336,17 @@ class AuctionDuration(Base):
     sort_order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
+class OptionSet(Base):
+    __tablename__ = "option_sets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    set_key = Column(String(50), nullable=False, index=True)
+    value = Column(String(100), nullable=False)
+    label = Column(String(100), nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
 class FeedbackType(Base):
     __tablename__ = "feedback_types"
 
