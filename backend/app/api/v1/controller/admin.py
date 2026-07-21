@@ -5,16 +5,16 @@ from datetime import date
 from uuid import UUID
 
 from app.db.session import get_db
-from app.models.auction import User, UserStatus, ListingStatus
+from app.models.auction import User, UserStatus, UserRole, ListingStatus
 from app.api.deps import get_admin_user
 from app.schemas.admin import (
     AdminUsersResponse, AdminUserDetails, SuspendUserRequest, CategoryCreate, CategoryUpdate,
     CategoryDeleteResponse, BidCancelResponse, AuctionRestartRequest,
     AdminLogsResponse, AdminStatsResponse, SystemLogsResponse,
     ProhibitedKeywordCreate, ProhibitedKeywordResponse, FlaggedAttemptsResponse,
-    AIModerationFlagsResponse, AdminListingDetailResponse, OptionItem,
+    AIModerationFlagsResponse, AdminListingDetailResponse, AdminListingsResponse, OptionItem,
 )
-from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, CategoryResponse
+from app.schemas.auction import AuctionListingResponse, CategoryResponse
 from app.services.admin_service import AdminService
 
 router = APIRouter()
@@ -25,12 +25,15 @@ router = APIRouter()
 async def list_users(
     search: Optional[str] = Query(None),
     user_status: Optional[UserStatus] = Query(None, alias="status"),
+    role: Optional[UserRole] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    return await AdminService.get_users(db=db, search=search, status_filter=user_status, page=page, size=size)
+    return await AdminService.get_users(
+        db=db, search=search, status_filter=user_status, role_filter=role, page=page, size=size,
+    )
 
 
 @router.get("/users/{id}", response_model=AdminUserDetails)
@@ -72,7 +75,7 @@ async def delete_user(
 
 
 # region Listings
-@router.get("/listings", response_model=PaginatedAuctionResponse)
+@router.get("/listings", response_model=AdminListingsResponse)
 async def list_listings(
     listing_status: Optional[ListingStatus] = Query(None, alias="status"),
     search: Optional[str] = Query(None),

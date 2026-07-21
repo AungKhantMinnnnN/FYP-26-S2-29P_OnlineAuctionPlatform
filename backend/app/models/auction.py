@@ -412,3 +412,18 @@ class AIModerationFlag(Base):
     reviewed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 #endregion
+
+#region Marketing
+class MarketingVideo(Base):
+    # Every hero-video upload gets its own row and its own MinIO object key;
+    # exactly one row is is_active at a time (see MarketingService.activate_video).
+    __tablename__ = "marketing_videos"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    s3_key = Column(String(255), nullable=False, unique=True)
+    original_filename = Column(String(255), nullable=True)
+    content_type = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=False, nullable=False)
+    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+#endregion

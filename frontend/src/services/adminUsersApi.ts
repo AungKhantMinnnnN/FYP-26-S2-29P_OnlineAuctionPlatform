@@ -34,6 +34,7 @@ export interface AdminUsersResponse {
   page: number
   size: number
   pages: number
+  admin_count: number
 }
 
 export interface SuspendUserRequest {
@@ -46,6 +47,7 @@ export const adminUsersApi = {
     page = 1,
     size = 10,
     status?: string,  // value comes from the DB-backed user_status option set
+    role?: string,  // value comes from the DB-backed user_role option set
   ): Promise<AdminUsersResponse> {
     const response = await apiClient.get<AdminUsersResponse>(
       '/admin/users',
@@ -55,6 +57,7 @@ export const adminUsersApi = {
           page,
           size,
           status,
+          role,
         },
       },
     )

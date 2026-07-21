@@ -14,7 +14,7 @@ type Listing = {
   min_increment?: number | null; reserve_price?: number | null
   winner_username?: string | null; winning_amount?: number | null
 }
-type ListingsResponse = { items: Listing[]; total: number; page: number; pages: number }
+type ListingsResponse = { items: Listing[]; total: number; page: number; pages: number; sell_through_pct?: number | null }
 type Bid = { id: string; bidder?: { username: string }; bidder_id: string; amount: number; status: string; placed_at: string }
 type Category = { id: string; name: string }
 
@@ -28,6 +28,7 @@ export default function AdminListingsPage() {
   const statusOptions = useOptions('listing_status')
   const conditionOptions = useOptions('item_condition')
   const [listings, setListings] = useState<Listing[]>([])
+  const [sellThroughPct, setSellThroughPct] = useState<number | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -54,8 +55,9 @@ export default function AdminListingsPage() {
     try {
       const response = await apiClient.get<ListingsResponse>('/admin/listings', { params: { page, size: PAGE_SIZE, search: search || undefined, status: status || undefined } })
       setListings(response.data.items); setTotal(response.data.total); setPages(response.data.pages)
+      setSellThroughPct(response.data.sell_through_pct ?? null)
     } catch (err: any) {
-      setListings([]); setTotal(0); setPages(0)
+      setListings([]); setTotal(0); setPages(0); setSellThroughPct(null)
       setError(err?.response?.data?.detail || 'Unable to load listings. Confirm that the admin listings API is running.')
     } finally { setLoading(false) }
   }, [page, search, status])
@@ -127,7 +129,12 @@ export default function AdminListingsPage() {
       <DashboardStatCard title="Live Auctions" value={loading ? '—' : liveCount} icon={Gavel} trend="On this page" />
       <DashboardStatCard title="Pending Review" value={loading ? '—' : reviewCount} icon={ShieldAlert} trend="On this page" />
       <DashboardStatCard title="Total Bid Volume" value={loading ? '—' : money(bidVolume)} icon={Gavel} trend="Current bids on this page" />
-      <DashboardStatCard title="Avg. Sell-through" value="—" icon={Gavel} trend="Backend metric not available" />
+      <DashboardStatCard
+        title="Avg. Sell-through"
+        value={loading ? '—' : sellThroughPct === null ? '—' : `${sellThroughPct}%`}
+        icon={Gavel}
+        trend={sellThroughPct === null ? 'No ended listings on this page' : 'Ended listings that found a winner'}
+      />
     </div>
     <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

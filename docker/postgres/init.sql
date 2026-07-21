@@ -280,6 +280,19 @@ CREATE TABLE option_sets (
 );
 CREATE INDEX idx_option_sets_key ON option_sets(set_key) WHERE is_active = TRUE;
 
+-- Marketing hero-video library: every upload keeps its own row/object key; exactly
+-- one row is is_active = TRUE at a time (the video the public landing page shows).
+CREATE TABLE marketing_videos (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    s3_key            VARCHAR(255) NOT NULL UNIQUE,
+    original_filename VARCHAR(255),
+    content_type      VARCHAR(100),
+    is_active         BOOLEAN NOT NULL DEFAULT FALSE,
+    uploaded_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_marketing_videos_active ON marketing_videos(is_active) WHERE is_active = TRUE;
+
 -- Item-level feedback: any bidder can review; eligibility enforced at app layer
 CREATE TABLE item_feedback (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
