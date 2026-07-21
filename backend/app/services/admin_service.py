@@ -28,9 +28,9 @@ _LOG_LINE_RE = re.compile(
 )
 
 # General log file per microservice -> label shown in the admin UI. Each service's
-# general file already contains every level (INFO/WARNING/ERROR) from all its sub-loggers
+# general file already contains every level (INFO/WARNING/ERROR) from its module loggers
 # via propagation, so reading only these gives a complete, de-duplicated stream.
-# Error/sub-logger files (-error.log, bids.log, ml-pipeline.log, ...) are skipped as dupes.
+# The matching -error.log (and any rotated .YYYY-MM-DD files) are skipped as dupes.
 _GENERAL_LOG_FILES = {
     "APIGateWay.log": "backend",
     "bidding-engine.log": "bidding-engine",

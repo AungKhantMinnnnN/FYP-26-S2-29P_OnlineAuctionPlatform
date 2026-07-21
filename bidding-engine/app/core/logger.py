@@ -37,19 +37,8 @@ def setup_logging(service_name: str = "bidding-engine") -> logging.Logger:
         logger.addHandler(file_handler(f"{service_name}.log"))
         logger.addHandler(file_handler(f"{service_name}-error.log", logging.ERROR))
 
-    # Separate logger specifically for bid events
-    bid_logger = logging.getLogger(f"{service_name}.bids")
-    bid_logger.setLevel(logging.INFO)
-    if not bid_logger.handlers:
-        bid_logger.addHandler(file_handler("bids.log"))
-        bid_logger.addHandler(console_handler)
-
     return logger
 
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(f"bidding-engine.{name}")
-
-
-def get_bid_logger() -> logging.Logger:
-    return logging.getLogger("bidding-engine.bids")

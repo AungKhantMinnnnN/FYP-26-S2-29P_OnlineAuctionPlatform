@@ -40,37 +40,8 @@ def setup_logging(service_name: str = "APIGateWay") -> logging.Logger:
         logger.addHandler(file_handler(f"{service_name}.log"))
         logger.addHandler(file_handler(f"{service_name}-error.log", logging.ERROR))
 
-    # ── Sub-loggers: own file + console; propagate up to the general file too ──
-    def sub_logger(suffix: str, filename: str) -> None:
-        lg = logging.getLogger(f"{service_name}.{suffix}")
-        lg.setLevel(logging.INFO)
-        if not lg.handlers:
-            lg.addHandler(file_handler(filename))
-            lg.addHandler(console_handler)
-
-    sub_logger("auth", "auth.log")        # login, logout, token events
-    sub_logger("auction", "auction.log")  # listing create, update, status change
-    sub_logger("admin", "admin.log")      # all admin actions
-    sub_logger("access", "access.log")    # every incoming HTTP request
-
     return logger
 
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(f"APIGateWay.{name}")
-
-
-def get_auth_logger() -> logging.Logger:
-    return logging.getLogger("APIGateWay.auth")
-
-
-def get_auction_logger() -> logging.Logger:
-    return logging.getLogger("APIGateWay.auction")
-
-
-def get_admin_logger() -> logging.Logger:
-    return logging.getLogger("APIGateWay.admin")
-
-
-def get_access_logger() -> logging.Logger:
-    return logging.getLogger("APIGateWay.access")

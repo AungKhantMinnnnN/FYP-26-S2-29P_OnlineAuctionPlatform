@@ -46,19 +46,8 @@ def setup_logging(service_name: str = "recommendation-engine") -> logging.Logger
         app_logger.addHandler(file_handler(f"{service_name}.log"))
         app_logger.addHandler(file_handler(f"{service_name}-error.log", logging.ERROR))
 
-    # Separate logger for ML pipeline events
-    ml_logger = logging.getLogger(f"{service_name}.ml")
-    ml_logger.setLevel(logging.INFO)
-    if not ml_logger.handlers:
-        ml_logger.addHandler(file_handler("ml-pipeline.log"))
-        ml_logger.addHandler(console_handler)
-
     return logger
 
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(f"recommendation-engine.{name}")
-
-
-def get_ml_logger() -> logging.Logger:
-    return logging.getLogger("recommendation-engine.ml")
