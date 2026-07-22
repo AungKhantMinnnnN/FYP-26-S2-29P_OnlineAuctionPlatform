@@ -24,6 +24,7 @@ import UserActivityPage from './pages/UserActivityPage'
 import CollectorBoardPage from './pages/CollectorBoardPage';
 
 import AdminManagementPage from './pages/AdminManagementPage'
+import AdminCmsPage from './pages/AdminCmsPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 import SupportPage from './pages/SupportPage'
@@ -88,6 +89,11 @@ export default function App() {
               <Route path="/admin-dashboard" element={<Navigate to="/admin/users" replace />} />
               <Route path="/admin/:section" element={<AdminManagementPage />} />
             </Route>
+          </Route>
+
+          {/* Admin CMS editor (protected, standalone — full-bleed Puck canvas, no dashboard chrome) */}
+          <Route element={<ProtectedRoute roles={['admin']} />}>
+            <Route path="/admin/cms" element={<AdminCmsPage />} />
           </Route>
         </Routes>
       </AuthProvider>
