@@ -134,7 +134,15 @@ export default function LandingPage() {
         {/* Hero video */}
         <div className="w-full aspect-video bg-slate-200 rounded-xl border border-slate-300 mt-8 overflow-hidden relative shadow-lg flex items-center justify-center group">
           {videoUrl ? (
-            <video src={videoUrl} controls className="h-full w-full object-cover" />
+            <video
+              src={videoUrl}
+              controls
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="h-full w-full object-cover"
+            />
           ) : (
             <>
               <div className="absolute inset-0 bg-gradient-to-b from-slate-300/50 to-slate-400/50" />
