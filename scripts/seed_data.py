@@ -29,6 +29,7 @@ from app.models.auction import (
     Testimonial,
     IssueType,
     Dispute, DisputeStatus,
+    SiteContent,
 )
 from app.core.security import get_password_hash
 from app.core.config import settings
@@ -933,6 +934,83 @@ async def seed_data():
             ))
         await db.flush()
         print(f"Disputes: {len(dispute_specs)} created (open/in_review/resolved/closed mix).")
+
+        # ── 16. CMS default content (landing page) ─────────────────────────────
+        # Without a seeded row, a fresh DB's "/" would render through CmsPage as a
+        # blank page (CmsService returns an empty Data shape when no row exists).
+        # Mirrors puckConfig.tsx's defaultProps exactly so a new environment renders
+        # the same designed page an admin would see before making any edits.
+        existing_landing = await db.scalar(select(SiteContent).where(SiteContent.slug == "landing"))
+        if not existing_landing:
+            landing_content = {
+                "root": {"props": {}},
+                "zones": {},
+                "content": [
+                    {"type": "Hero", "props": {
+                        "id": "Hero-1",
+                        "heading": "The Premium Marketplace for Serious Collectors",
+                        "subheading": "Discover, bid, and win exclusive items in a high-trust, high-velocity environment. Join a community where authenticity and speed matter.",
+                        "primaryCtaLabel": "Start Bidding",
+                        "primaryCtaLink": "/register",
+                        "secondaryCtaLabel": "View Auctions",
+                        "secondaryCtaLink": "/browse",
+                    }},
+                    {"type": "Categories", "props": {"id": "Categories-1"}},
+                    {"type": "TrendingAuctions", "props": {"id": "TrendingAuctions-1"}},
+                    {"type": "FeatureGrid", "props": {
+                        "id": "FeatureGrid-1",
+                        "heading": "The AuctionHub Advantage",
+                        "subheading": "Built for high-stakes trading with enterprise-grade technology.",
+                        "features": [
+                            {"icon": "zap", "title": "Real-Time Sync", "text": "Low-latency WebSocket infrastructure ensures every bid is recorded instantly. No lag, no missed opportunities."},
+                            {"icon": "shield", "title": "Verified Listings", "text": "Multi-step verification process guarantees item authenticity and seller credibility for every listing."},
+                            {"icon": "trendingUp", "title": "AI Pricing Confidence", "text": "Advanced machine learning models analyse historical data to provide real-time valuation insights."},
+                        ],
+                    }},
+                    {"type": "TestimonialWall", "props": {"id": "TestimonialWall-1"}},
+                    {"type": "PricingBlock", "props": {
+                        "id": "PricingBlock-1",
+                        "heading": "Transparent Pricing",
+                        "subheading": "Scale your collecting hobby or business with ease",
+                        "freeName": "Free",
+                        "freeDescription": "For casual buyers and sellers starting out.",
+                        "freePrice": "$0",
+                        "freeBullets": [
+                            {"text": "Full marketplace browsing access"},
+                            {"text": "Up to 10 active bids per hour"},
+                            {"text": "Standard seller verification"},
+                        ],
+                        "premiumName": "Premium",
+                        "premiumDescription": "For professional traders and collectors.",
+                        "premiumPrice": "$49",
+                        "premiumBullets": [
+                            {"text": "No bidding or listing limits"},
+                            {"text": "Advanced Collector Dashboard"},
+                            {"text": "Priority Verification & Badging"},
+                            {"text": "24/7 VIP Concierge Support"},
+                        ],
+                    }},
+                    {"type": "ContactBlock", "props": {
+                        "id": "ContactBlock-1",
+                        "heading": "Get in Touch",
+                        "subtext": "Have a question, dispute, or partnership enquiry? Our team is here to help.",
+                        "email": "support@auctionhub.com",
+                    }},
+                    {"type": "Banner", "props": {
+                        "id": "Banner-1",
+                        "heading": "Ready to start bidding?",
+                        "body": "Join thousands of local buyers and sellers. Registration is free and PDPA-compliant.",
+                        "ctaLabel": "Register Now",
+                        "ctaLink": "/register",
+                        "hideWhenLoggedIn": True,
+                    }},
+                ],
+            }
+            db.add(SiteContent(slug="landing", content=landing_content))
+            await db.flush()
+            print("CMS content: seeded default 'landing' page.")
+        else:
+            print("CMS content: 'landing' page already exists, skipped.")
 
         await db.commit()
         print(f"""
