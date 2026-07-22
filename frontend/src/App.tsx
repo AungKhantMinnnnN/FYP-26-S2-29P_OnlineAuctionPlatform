@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import PublicLayout from './layouts/PublicLayout'
 import DashboardLayout from './layouts/DashboardLayout'
 import LandingPage from './pages/LandingPage'
+import CmsPage from './cms/CmsPage'
 import BrowseAuctionsPage from './pages/BrowseAuctionsPage'
 import AuctionDetailPage from './pages/AuctionDetailPage'
 import RegisterPage from './pages/RegisterPage'
@@ -53,6 +54,8 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            {/* Scratch preview route for the new Puck-based CMS renderer (P2) — not cut over from LandingPage yet */}
+            <Route path="/cms-preview/landing" element={<CmsPage slug="landing" />} />
           </Route>
           
           {/* Onboarding (protected, standalone — no dashboard layout) */}
