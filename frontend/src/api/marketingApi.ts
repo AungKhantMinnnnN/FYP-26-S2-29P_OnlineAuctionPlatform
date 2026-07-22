@@ -1,5 +1,13 @@
 import apiClient from './apiClient'
 
+export type MarketingVideoItem = {
+  id: string
+  url: string
+  original_filename: string | null
+  is_active: boolean
+  created_at: string
+}
+
 export const getMarketingVideoUrl = async (): Promise<string | null> => {
   try {
     const res = await apiClient.get<{ url: string }>('/marketing-video')
@@ -16,4 +24,17 @@ export const uploadMarketingVideo = async (file: File): Promise<void> => {
   await apiClient.post('/marketing-video', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+}
+
+export const listMarketingVideos = async (): Promise<MarketingVideoItem[]> => {
+  const res = await apiClient.get<{ items: MarketingVideoItem[] }>('/marketing-videos')
+  return res.data.items
+}
+
+export const activateMarketingVideo = async (id: string): Promise<void> => {
+  await apiClient.post(`/marketing-videos/${id}/activate`)
+}
+
+export const deleteMarketingVideo = async (id: string): Promise<void> => {
+  await apiClient.delete(`/marketing-videos/${id}`)
 }

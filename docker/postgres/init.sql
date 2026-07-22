@@ -196,9 +196,21 @@ CREATE TABLE site_content (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug VARCHAR(100) UNIQUE NOT NULL,
     content JSONB NOT NULL DEFAULT '{}'::jsonb,
+    draft_content JSONB,
     updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Append-only publish history for site_content — one row per publish/rollback, never mutated.
+CREATE TABLE site_content_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug VARCHAR(100) NOT NULL,
+    content JSONB NOT NULL,
+    note VARCHAR(200),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX ix_site_content_versions_slug ON site_content_versions (slug, created_at DESC);
 
 -- User-submitted platform testimonials; admin flags which ones show on the landing page
 CREATE TABLE testimonials (
@@ -279,6 +291,19 @@ CREATE TABLE option_sets (
     UNIQUE (set_key, value)
 );
 CREATE INDEX idx_option_sets_key ON option_sets(set_key) WHERE is_active = TRUE;
+
+-- Marketing hero-video library: every upload keeps its own row/object key; exactly
+-- one row is is_active = TRUE at a time (the video the public landing page shows).
+CREATE TABLE marketing_videos (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    s3_key            VARCHAR(255) NOT NULL UNIQUE,
+    original_filename VARCHAR(255),
+    content_type      VARCHAR(100),
+    is_active         BOOLEAN NOT NULL DEFAULT FALSE,
+    uploaded_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_marketing_videos_active ON marketing_videos(is_active) WHERE is_active = TRUE;
 
 -- Item-level feedback: any bidder can review; eligibility enforced at app layer
 CREATE TABLE item_feedback (

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Float, DateTime, Date, ForeignKey, Text, Enum, Boolean, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 import datetime
@@ -410,5 +410,47 @@ class AIModerationFlag(Base):
     field = Column(String(20), nullable=False)
     flagged_text = Column(Text, nullable=False)
     reviewed = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+#endregion
+
+#region Marketing
+class MarketingVideo(Base):
+    # Every hero-video upload gets its own row and its own MinIO object key;
+    # exactly one row is is_active at a time (see MarketingService.activate_video).
+    __tablename__ = "marketing_videos"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    s3_key = Column(String(255), nullable=False, unique=True)
+    original_filename = Column(String(255), nullable=True)
+    content_type = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=False, nullable=False)
+    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+#endregion
+
+#region CMS
+class SiteContent(Base):
+    # One row per editable page (by slug). `content` is the published JSON a visitor
+    # sees; `draft_content` is the admin's work-in-progress and is never public.
+    # NULL draft_content means "no unpublished edits" (draft == published).
+    __tablename__ = "site_content"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    slug = Column(String(100), unique=True, nullable=False)
+    content = Column(JSONB, nullable=False, default=dict)
+    draft_content = Column(JSONB, nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+class SiteContentVersion(Base):
+    # Append-only snapshot per publish (and per rollback, which is recorded as a new
+    # version rather than deleting history — see CmsService.rollback).
+    __tablename__ = "site_content_versions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    slug = Column(String(100), nullable=False, index=True)
+    content = Column(JSONB, nullable=False)
+    note = Column(String(200))
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 #endregion

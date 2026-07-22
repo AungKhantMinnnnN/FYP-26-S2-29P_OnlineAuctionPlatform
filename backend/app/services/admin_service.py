@@ -90,12 +90,15 @@ class AdminService:
         db: AsyncSession,
         search: Optional[str],
         status_filter: Optional[UserStatus],
+        role_filter: Optional[UserRole],
         page: int,
         size: int,
     ) -> Dict[str, Any]:
         query = select(User).outerjoin(UserProfiles, UserProfiles.user_id == User.id)
         if status_filter:
             query = query.where(User.status == status_filter)
+        if role_filter:
+            query = query.where(User.role == role_filter)
         if search:
             like = f"%{search}%"
             query = query.where(or_(
@@ -111,6 +114,12 @@ class AdminService:
         result = await db.execute(query)
         users = result.scalars().all()
 
+        # Always the true platform-wide count, ignoring search/status/role filters —
+        # the "Administrators" stat card means "protected accounts total", not "on this page".
+        admin_count = await db.scalar(
+            select(func.count()).select_from(User).where(User.role == UserRole.admin)
+        )
+
         pages = (total + size - 1) // size if total else 0
         return {
             "items": [_to_summary(u) for u in users],
@@ -118,6 +127,7 @@ class AdminService:
             "page": page,
             "size": size,
             "pages": pages,
+            "admin_count": admin_count,
         }
 
     @staticmethod
@@ -246,7 +256,25 @@ class AdminService:
         listings = result.scalars().all()
 
         pages = (total + size - 1) // size if total else 0
-        return {"items": listings, "total": total, "page": page, "size": size, "pages": pages}
+
+        # Sell-through = share of this page's ended listings that found a winner.
+        # Scoped to the current page (not the whole filtered set) to match the
+        # "on this page" semantics of the other admin listing stat cards.
+        ended_ids = [item.id for item in listings if item.status == ListingStatus.ended]
+        sell_through_pct = None
+        if ended_ids:
+            sold_count = await db.scalar(
+                select(func.count()).select_from(AuctionResult).where(
+                    AuctionResult.listing_id.in_(ended_ids),
+                    AuctionResult.winner_id.isnot(None),
+                )
+            )
+            sell_through_pct = round((sold_count / len(ended_ids)) * 100, 1)
+
+        return {
+            "items": listings, "total": total, "page": page, "size": size, "pages": pages,
+            "sell_through_pct": sell_through_pct,
+        }
 
     @staticmethod
     async def get_listing_detail(db: AsyncSession, listing_id: UUID) -> dict:

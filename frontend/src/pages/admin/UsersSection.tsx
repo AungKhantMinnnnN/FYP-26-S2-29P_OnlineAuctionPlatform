@@ -24,6 +24,7 @@ export default function UsersSection() {
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(0)
   const [total, setTotal] = useState(0)
+  const [adminCount, setAdminCount] = useState(0)
 
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] =
@@ -55,15 +56,18 @@ export default function UsersSection() {
         page,
         USERS_PAGE_SIZE,
         statusFilter || undefined,
+        roleFilter === 'all' ? undefined : roleFilter,
       )
 
       setUsers(response.items)
       setTotal(response.total)
       setPages(response.pages)
+      setAdminCount(response.admin_count)
     } catch (error: any) {
       setUsers([])
       setTotal(0)
       setPages(0)
+      setAdminCount(0)
 
       setError(
         getErrorMessage(
@@ -74,19 +78,11 @@ export default function UsersSection() {
     } finally {
       setLoading(false)
     }
-  }, [page, searchQuery, statusFilter])
+  }, [page, searchQuery, statusFilter, roleFilter])
 
   useEffect(() => {
     void loadUsers()
   }, [loadUsers])
-
-  const displayedUsers = users.filter(user => {
-    if (roleFilter === 'all') {
-      return true
-    }
-
-    return user.role === roleFilter
-  })
 
   const activeUsers = users.filter(
     user => user.status === 'active',
@@ -94,10 +90,6 @@ export default function UsersSection() {
 
   const suspendedUsers = users.filter(
     user => user.status === 'suspended',
-  ).length
-
-  const adminUsers = users.filter(
-    user => user.role === 'admin',
   ).length
 
   const handleSearch = (
@@ -291,7 +283,7 @@ export default function UsersSection() {
   }
 
   const rows: React.ReactNode[][] =
-    displayedUsers.map(user => [
+    users.map(user => [
       <div
         key={`${user.id}-profile`}
         className="flex items-center gap-3"
@@ -419,7 +411,7 @@ export default function UsersSection() {
 
         <DashboardStatCard
           title="Administrators"
-          value={adminUsers}
+          value={adminCount}
           icon={UserRound}
           trend="Protected accounts"
         />
@@ -448,7 +440,10 @@ export default function UsersSection() {
 
         <StyledSelect
           value={roleFilter}
-          onChange={event => setRoleFilter(event.target.value)}
+          onChange={event => {
+            setRoleFilter(event.target.value)
+            setPage(1)
+          }}
         >
           <option value="all">All roles</option>
           {roleOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -504,16 +499,7 @@ export default function UsersSection() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          {roleFilter === 'all'
-            ? total
-            : displayedUsers.length}{' '}
-          user
-          {(roleFilter === 'all'
-            ? total
-            : displayedUsers.length) === 1
-            ? ''
-            : 's'}{' '}
-          found
+          {total} user{total === 1 ? '' : 's'} found
         </p>
       </div>
 

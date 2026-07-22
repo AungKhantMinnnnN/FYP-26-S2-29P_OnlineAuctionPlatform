@@ -3,8 +3,6 @@ from minio import Minio
 from minio.error import S3Error
 from app.core.config import settings
 
-MARKETING_VIDEO_KEY = "hero-video"
-
 
 class StorageService:
     def __init__(self):
@@ -47,11 +45,11 @@ class StorageService:
         except S3Error as err:
             raise Exception(f"Failed to upload file to S3: {err}")
 
-    def upload_marketing_video(self, file_bytes: bytes, content_type: str) -> None:
+    def upload_video(self, file_bytes: bytes, content_type: str, object_key: str) -> None:
         try:
             self.client.put_object(
                 bucket_name=self.video_bucket,
-                object_name=MARKETING_VIDEO_KEY,
+                object_name=object_key,
                 data=io.BytesIO(file_bytes),
                 length=len(file_bytes),
                 content_type=content_type
@@ -60,14 +58,9 @@ class StorageService:
             # Broad catch (not just S3Error): connection-level failures — MinIO
             # unreachable, DNS/network errors, timeouts — raise from urllib3, not
             # minio.error.S3Error, and would otherwise surface as an opaque 500.
-            raise Exception(f"Failed to upload marketing video: {err}")
+            raise Exception(f"Failed to upload video: {err}")
 
-    def get_marketing_video_url(self) -> str | None:
-        try:
-            # Raises S3Error if object doesn't exist
-            self.client.stat_object(self.video_bucket, MARKETING_VIDEO_KEY)
-        except S3Error:
-            return None
+    def get_video_url(self, object_key: str) -> str:
         # A presigned_get_object URL is built against S3_ENDPOINT (the internal Docker
         # hostname "minio"), which the browser can't resolve — same class of bug that
         # ListingImages.image_url avoids by using a browser-reachable base instead. The
@@ -75,7 +68,13 @@ class StorageService:
         # is needed: a plain path through nginx's /auction-videos/ proxy
         # (see docker/nginx/default.conf) works, using the same public origin already
         # relied on for browser-facing links elsewhere (see notification_service.py).
-        return f"{settings.FRONTEND_URL.rstrip('/')}/auction-videos/{MARKETING_VIDEO_KEY}"
+        return f"{settings.FRONTEND_URL.rstrip('/')}/auction-videos/{object_key}"
+
+    def delete_object(self, bucket: str, object_key: str) -> None:
+        try:
+            self.client.remove_object(bucket, object_key)
+        except S3Error as err:
+            raise Exception(f"Failed to delete object: {err}")
 
 
 storage_service = StorageService()

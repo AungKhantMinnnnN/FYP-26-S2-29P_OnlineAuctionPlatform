@@ -33,6 +33,7 @@ class AdminUserSummary(BaseModel):
 
 class AdminUsersResponse(PaginationMeta):
     items: List[AdminUserSummary]
+    admin_count: int
 
 
 class AdminUserProfile(BaseModel):
@@ -111,6 +112,13 @@ class AuctionRestartRequest(BaseModel):
 class AdminListingDetailResponse(AuctionListingResponse):
     winner_username: Optional[str] = None
     winning_amount: Optional[float] = None
+# endregion
+
+
+# region Listings list
+class AdminListingsResponse(PaginationMeta):
+    items: List[AuctionListingResponse]
+    sell_through_pct: Optional[float] = None
 # endregion
 
 

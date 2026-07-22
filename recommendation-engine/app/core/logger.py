@@ -30,12 +30,21 @@ def setup_logging(service_name: str = "recommendation-engine") -> logging.Logger
     console_handler.setFormatter(log_formatter)
     console_handler.setLevel(logging.INFO)
 
+    # "recommendation-engine" and "app" are separate logger hierarchies (not
+    # parent/child), so they can't share handlers via propagation. Both need to
+    # end up in the same physical log files, but two independent
+    # TimedRotatingFileHandler instances on the same path race at midnight
+    # rollover and can corrupt or drop a day's rotated log — so build each file
+    # handler once and add the same instance to both loggers instead.
+    info_file_handler = file_handler(f"{service_name}.log")
+    error_file_handler = file_handler(f"{service_name}-error.log", logging.ERROR)
+
     logger = logging.getLogger(service_name)
     logger.setLevel(logging.INFO)
     if not logger.handlers:
         logger.addHandler(console_handler)
-        logger.addHandler(file_handler(f"{service_name}.log"))
-        logger.addHandler(file_handler(f"{service_name}-error.log", logging.ERROR))
+        logger.addHandler(info_file_handler)
+        logger.addHandler(error_file_handler)
 
     # Wire all app.* module loggers (getLogger(__name__) in service files)
     # so their output flows through the same console + file handlers.
@@ -43,8 +52,8 @@ def setup_logging(service_name: str = "recommendation-engine") -> logging.Logger
     app_logger.setLevel(logging.INFO)
     if not app_logger.handlers:
         app_logger.addHandler(console_handler)
-        app_logger.addHandler(file_handler(f"{service_name}.log"))
-        app_logger.addHandler(file_handler(f"{service_name}-error.log", logging.ERROR))
+        app_logger.addHandler(info_file_handler)
+        app_logger.addHandler(error_file_handler)
 
     return logger
 
