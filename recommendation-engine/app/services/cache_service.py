@@ -50,7 +50,7 @@ def _json_default(obj):
 
 async def set_df(key: str, df: pd.DataFrame, ttl: int) -> None:
     """
-    Serialise a DataFrame to JSON and store it in Redis with a TTL.
+    Serialise a DataFrame to JSON and store it in Redis with a TTL. (Time to live)
 
     orient="split" format: {"columns": [...], "index": [...], "data": [[...], ...]}.
     More compact than orient="records" for wide DataFrames (column names written once).
@@ -99,7 +99,7 @@ async def get_df(key: str) -> pd.DataFrame | None:
 
 async def set_json(key: str, obj, ttl: int) -> None:
     """
-    Serialise a plain Python object (dict/list) to JSON and store it in Redis with a TTL.
+    Serialise a plain Python object (dict/list) to JSON and store it in Redis with a TTL. (Time to live)
 
     Used for:
       - recs:user:{id}:signals  → {"brands": [...], "median_price": float|null}

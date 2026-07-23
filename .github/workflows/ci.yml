@@ -57,12 +57,100 @@ jobs:
       - name: Run type checker
         run: mypy backend/app
 
-      - name: Run tests
+      - name: Run tests (backend)
         env:
           DATABASE_URL: postgresql://auction_user:testpassword@localhost:5432/auction_test
           REDIS_URL: redis://localhost:6379/0
           APP_ENV: test
-        run: pytest backend/tests/ -v --tb=short
+        run: cd backend && pytest tests/ -v --tb=short
+
+      - name: Run tests (bidding-engine)
+        run: |
+          pip install -r bidding-engine/requirements.txt -r bidding-engine/requirements-dev.txt
+          cd bidding-engine && pytest tests/ -v --tb=short
+
+      - name: Run tests (recommendation-engine)
+        run: |
+          pip install -r recommendation-engine/requirements.txt -r recommendation-engine/requirements-dev.txt
+          cd recommendation-engine && pytest tests/ -v --tb=short
+
+  integration-tests:
+    name: Integration tests (real DB + Redis)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: auction_test
+          POSTGRES_USER: auction_user
+          POSTGRES_PASSWORD: testpassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      # init.sql is the complete current schema (28 tables); the prohibited-keyword and
+      # AI-flag tables live only in these two IF-NOT-EXISTS migrations. Together they give
+      # the full schema the drift tests check against.
+      - name: Load schema
+        env:
+          PGPASSWORD: testpassword
+        run: |
+          PSQL="psql -h localhost -U auction_user -d auction_test -v ON_ERROR_STOP=1"
+          $PSQL -f docker/postgres/init.sql
+          $PSQL -f scripts/migrations/2026_07_18_prohibited_keywords.sql
+          $PSQL -f scripts/migrations/2026_07_19_keyword_category_ai_flags.sql
+
+      - name: Install dependencies (all services)
+        run: |
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+          pip install -r bidding-engine/requirements.txt -r bidding-engine/requirements-dev.txt
+          pip install -r recommendation-engine/requirements.txt -r recommendation-engine/requirements-dev.txt
+
+      - name: Integration — backend (schema drift)
+        env:
+          DATABASE_URL: postgresql+asyncpg://auction_user:testpassword@localhost:5432/auction_test
+        run: cd backend && pytest integration/ -v --tb=short
+
+      - name: Integration — recommendation-engine (schema drift)
+        env:
+          DATABASE_URL: postgresql+asyncpg://auction_user:testpassword@localhost:5432/auction_test
+        run: cd recommendation-engine && pytest integration/ -v --tb=short
+
+      # INTEGRATION_DATABASE_URL makes the harness skip local docker provisioning and use the
+      # ephemeral CI database directly (it's isolated per run, so writes are fine).
+      - name: Integration — bidding-engine (concurrency, escrow, drift)
+        env:
+          DATABASE_URL: postgresql+asyncpg://auction_user:testpassword@localhost:5432/auction_test
+          INTEGRATION_DATABASE_URL: postgresql+asyncpg://auction_user:testpassword@localhost:5432/auction_test
+          REDIS_URL: redis://localhost:6379/0
+        run: cd bidding-engine && pytest integration/ -v --tb=short
 
   docker-build:
     name: Docker build check
