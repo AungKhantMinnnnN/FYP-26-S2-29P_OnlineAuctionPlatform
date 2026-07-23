@@ -4,10 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Puck, Render } from '@puckeditor/core'
 import type { Data } from '@puckeditor/core'
 import '@puckeditor/core/puck.css'
-import { ArrowLeft, Loader2, Eye, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Eye, History, X } from 'lucide-react'
 import { puckConfig } from '../cms/puckConfig'
 import { getDraft, saveDraft, publish } from '../api/cmsApi'
 import { getErrorMessage } from './admin/adminShared'
+import VersionHistoryPanel from '../cms/VersionHistoryPanel'
 
 const SLUG = 'landing'
 
@@ -15,6 +16,8 @@ export default function AdminCmsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [previewData, setPreviewData] = useState<Data | null>(null)
+  const [previewLabel, setPreviewLabel] = useState('Preview as published (guest view)')
+  const [showHistory, setShowHistory] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -83,10 +86,20 @@ export default function AdminCmsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setPreviewData(state.data)}
+                onClick={() => {
+                  setPreviewLabel('Preview as published (guest view)')
+                  setPreviewData(state.data)
+                }}
                 className="flex items-center gap-1.5 text-sm font-medium border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-50"
               >
                 <Eye size={16} /> Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHistory(true)}
+                className="flex items-center gap-1.5 text-sm font-medium border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+              >
+                <History size={16} /> History
               </button>
               <button
                 type="button"
@@ -111,7 +124,7 @@ export default function AdminCmsPage() {
       {previewData && (
         <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
-            <span className="text-sm font-semibold text-slate-700">Preview as published (guest view)</span>
+            <span className="text-sm font-semibold text-slate-700">{previewLabel}</span>
             <button onClick={() => setPreviewData(null)} className="text-slate-500 hover:text-slate-900">
               <X size={20} />
             </button>
@@ -120,6 +133,17 @@ export default function AdminCmsPage() {
             <Render config={puckConfig} data={previewData} />
           </div>
         </div>
+      )}
+      {showHistory && (
+        <VersionHistoryPanel
+          slug={SLUG}
+          onClose={() => setShowHistory(false)}
+          onPreview={(content, label) => {
+            setPreviewLabel(`Previewing version from ${label}`)
+            setPreviewData(content)
+          }}
+          onRestored={() => window.location.reload()}
+        />
       )}
     </div>
   )
