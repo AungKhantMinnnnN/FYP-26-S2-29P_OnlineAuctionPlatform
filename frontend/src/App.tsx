@@ -46,7 +46,9 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route element={<PublicLayout />}>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<CmsPage slug="landing" />} />
+            {/* Pre-cutover page, kept temporarily for side-by-side comparison — remove once CmsPage parity is confirmed in production */}
+            <Route path="/landing-legacy" element={<LandingPage />} />
             <Route path="/browse" element={<BrowseAuctionsPage />} />
             <Route path="/auction/:id" element={<AuctionDetailPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -55,8 +57,6 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
-            {/* Scratch preview route for the new Puck-based CMS renderer (P2) — not cut over from LandingPage yet */}
-            <Route path="/cms-preview/landing" element={<CmsPage slug="landing" />} />
           </Route>
           
           {/* Onboarding (protected, standalone — no dashboard layout) */}
