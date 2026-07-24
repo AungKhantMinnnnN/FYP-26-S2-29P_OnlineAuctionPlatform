@@ -5,7 +5,7 @@ import StyledSelect from '../../components/StyledSelect'
 import AdminFilterBar from '../../components/AdminFilterBar'
 import { useOptions } from '../../hooks/useOptions'
 import { getAuditLogs } from '../../api/adminApi'
-import { Pagination } from './adminShared'
+import { Pagination, formatDateTime } from './adminShared'
 
 const EMPTY_FILTERS = { day: '', action: '' }
 
@@ -80,7 +80,7 @@ export default function AuditLogsSection() {
   }
 
   const rows = (data?.items ?? []).map(entry => [
-    new Date(entry.created_at).toLocaleString(),
+    formatDateTime(entry.created_at),
     entry.admin_username ?? '—',
     entry.action,
     entry.target_id ?? '—',

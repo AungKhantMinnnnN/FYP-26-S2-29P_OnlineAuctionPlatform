@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { User as UserIcon, CreditCard, Bell, AlertTriangle, ShieldCheck, Tags, Check, Loader2 } from 'lucide-react'
 import FormInput from '../components/FormInput'
 import TextAreaField from '../components/TextAreaField'
@@ -74,6 +74,7 @@ function confirmCopy(action: PendingAction): { title: string; description: strin
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth()
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState<'personal' | 'security' | 'interests'>('personal')
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
@@ -160,6 +161,7 @@ export default function ProfilePage() {
   const [selectedInterests, setSelectedInterests] = useState<Set<string>>(new Set())
   const [interestsMessage, setInterestsMessage] = useState<string | null>(null)
   const [interestsError, setInterestsError] = useState<string | null>(null)
+  const [interestsHydrated, setInterestsHydrated] = useState(false)
 
   const {
     data: metadata,
@@ -177,9 +179,10 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    const savedInterestIds = getProfileInterestCategoryIds(savedInterests)
-    setSelectedInterests(new Set(savedInterestIds))
-  }, [savedInterests])
+    if (!savedInterests || interestsHydrated) return
+    setSelectedInterests(new Set(getProfileInterestCategoryIds(savedInterests)))
+    setInterestsHydrated(true)
+  }, [savedInterests, interestsHydrated])
 
   const categories: Category[] = metadata?.categories ?? []
 
@@ -200,6 +203,7 @@ export default function ProfilePage() {
       setSelectedInterests(new Set(getProfileInterestCategoryIds(res)))
       setInterestsError(null)
       setInterestsMessage('Interests updated successfully.')
+      queryClient.invalidateQueries({ queryKey: ['my-interests'] })
     },
     onError: () => {
       setInterestsMessage(null)

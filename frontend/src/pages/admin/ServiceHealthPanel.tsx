@@ -3,7 +3,7 @@ import { Check, RefreshCw, Server, X } from 'lucide-react'
 import { checkServicesHealth } from '../../api/adminApi'
 
 export default function ServiceHealthPanel() {
-  const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['admin', 'service-health'],
     queryFn: checkServicesHealth,
     refetchInterval: 30_000,
@@ -29,6 +29,10 @@ export default function ServiceHealthPanel() {
 
       {isLoading ? (
         <p className="text-sm text-slate-400">Checking services…</p>
+      ) : isError ? (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          Couldn't check service health. This tells you nothing about whether services are actually up — try again.
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {(data ?? []).map(service => (

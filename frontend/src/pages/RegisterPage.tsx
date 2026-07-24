@@ -14,7 +14,6 @@ export default function RegisterPage() {
   const [country, setCountry] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
   const [localLoading, setLocalLoading] = useState(false)
 
   const { register, login } = useAuth()
@@ -23,7 +22,6 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
-    setSuccess(false)
 
     if (!fullName.trim() || !username.trim() || !email.trim() || !password.trim()) {
       setError('Please fill in all fields')
@@ -59,12 +57,6 @@ export default function RegisterPage() {
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl" id="register-error-alert">
             {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl" id="register-success-alert">
-            Account created successfully! Redirecting to login...
           </div>
         )}
 

@@ -6,7 +6,7 @@ import StyledSelect from '../../components/StyledSelect'
 import AdminFilterBar from '../../components/AdminFilterBar'
 import { useOptions } from '../../hooks/useOptions'
 import { getSystemLogs } from '../../api/adminApi'
-import { Pagination } from './adminShared'
+import { Pagination, formatDateTime } from './adminShared'
 
 // Date input style, kept in sync with StyledSelect so the whole filter row matches.
 const LOG_FILTER_CONTROL =
@@ -95,7 +95,7 @@ export default function SystemLogsSection() {
   }
 
   const rows = (data?.items ?? []).map(log => [
-    new Date(log.timestamp).toLocaleString(),
+    formatDateTime(log.timestamp),
     <StatusBadge key={log.id} status={log.level} />,
     log.service,
     log.message,

@@ -39,6 +39,7 @@ export default function UserActivityPage() {
   const [purchases, setPurchases] = useState<PurchaseItem[]>([])
   const [stats, setStats] = useState<SellerStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -55,8 +56,10 @@ export default function UserActivityPage() {
         setBids(bidsData.items)
         setPurchases(purchasesData.items)
         setStats(statsData)
+        setLoadError(false)
       } catch (err) {
         console.error('Failed to load activity', err)
+        setLoadError(true)
       } finally {
         setIsLoading(false)
       }
@@ -76,6 +79,11 @@ export default function UserActivityPage() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          Couldn't load your activity. What's shown below may be incomplete — please refresh.
+        </div>
+      )}
       {/* Header banner */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
         <div className="grid gap-6 p-6 lg:grid-cols-[1.4fr_0.8fr] lg:p-8">

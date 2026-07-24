@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/apiClient';
 
 export interface User {
@@ -54,12 +55,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(sessionStorage.getItem('token'));
   const [loading, setLoading] = useState<boolean>(() => !!sessionStorage.getItem('token'));
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const logout = useCallback(() => {
     sessionStorage.removeItem('token');
     setToken(null);
     setUser(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   useEffect(() => {
     let isMounted = true;
@@ -109,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           Authorization: `Bearer ${newToken}`
         }
       });
+      queryClient.clear();
       setUser(profileResponse.data);
       setLoading(false);
       navigate('/dashboard');

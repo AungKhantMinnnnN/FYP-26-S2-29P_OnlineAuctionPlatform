@@ -28,6 +28,28 @@ export function formatDate(dateValue: string | null): string {
   }).format(date)
 }
 
+export function formatDateTime(dateValue: string | null): string {
+  if (!dateValue) {
+    return 'Not available'
+  }
+
+  const date = new Date(dateValue)
+
+  if (Number.isNaN(date.getTime())) {
+    return dateValue
+  }
+
+  return new Intl.DateTimeFormat('en-SG', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
 export function DetailRow({
   label,
   value,

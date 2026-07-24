@@ -5,7 +5,7 @@ from datetime import date
 from uuid import UUID
 
 from app.db.session import get_db
-from app.models.auction import User, UserStatus, UserRole, ListingStatus
+from app.models.auction import User, UserStatus, UserRole, ListingStatus, ItemConditions
 from app.api.deps import get_admin_user
 from app.schemas.admin import (
     AdminUsersResponse, AdminUserDetails, SuspendUserRequest, CategoryCreate, CategoryUpdate,
@@ -79,6 +79,8 @@ async def delete_user(
 async def list_listings(
     listing_status: Optional[ListingStatus] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
+    category_id: Optional[UUID] = Query(None),
+    condition: Optional[ItemConditions] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -86,6 +88,7 @@ async def list_listings(
 ):
     return await AdminService.get_listings(
         db=db, listing_status=listing_status, search=search, page=page, size=size,
+        category_id=category_id, condition=condition,
     )
 
 

@@ -1,8 +1,5 @@
-import React from 'react'
 import { useParams } from 'react-router-dom'
-import DataTable from '../components/DataTable'
 import SectionHeader from '../components/SectionHeader'
-import StatusBadge from '../components/StatusBadge'
 import AdminListingsPage from './AdminListingsPage'
 
 import UsersSection from './admin/UsersSection'
@@ -16,15 +13,6 @@ import CasesSection from './admin/CasesSection'
 import TestimonialsSection from './admin/TestimonialsSection'
 import ModerationSection from './admin/ModerationSection'
 import MarketingSection from './admin/MarketingSection'
-
-// TODO: Replace with backend data once a bid-oversight list endpoint exists.
-const bids: any[] = []
-
-const titleMap: Record<string, string> = {
-  users: 'User Management',
-  'feedback-types': 'Feedback Types',
-  bids: 'Bid Oversight',
-}
 
 export default function AdminManagementPage() {
   const { section = 'users' } = useParams<{
@@ -149,49 +137,11 @@ export default function AdminManagementPage() {
     )
   }
 
-  const configs: Record<
-    string,
-    {
-      headers: string[]
-      rows: React.ReactNode[][]
-    }
-  > = {
-    bids: {
-      headers: [
-        'Bid ID',
-        'Listing',
-        'Bidder',
-        'Amount',
-        'Status',
-      ],
-
-      rows: bids.map(bid => [
-        bid.bid_id,
-        bid.listing_title,
-        bid.bidder_id,
-        `$${bid.bid_amount.toFixed(2)}`,
-        <StatusBadge
-          key={bid.bid_id}
-          status={bid.status}
-        />,
-      ]),
-    },
-  }
-
-  const config = configs[section] || configs.bids
-
   return (
     <div className="space-y-6">
       <SectionHeader
-        title={
-          titleMap[section] || 'Admin Management'
-        }
-        subtitle="Administrative management table ready for backend integration."
-      />
-
-      <DataTable
-        headers={config.headers}
-        rows={config.rows}
+        title="Not found"
+        subtitle={`There's no admin section called "${section}".`}
       />
     </div>
   )

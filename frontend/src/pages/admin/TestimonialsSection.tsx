@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Check, Star, Trash2 } from 'lucide-react'
 import { approveTestimonial, deleteTestimonial, getAdminTestimonials } from '../../api/adminApi'
 import { formatDate, getErrorMessage } from './adminShared'
 import type { TestimonialResponse } from '../../api/supportApi'
 
 export default function TestimonialsSection() {
+  const queryClient = useQueryClient()
   const [testimonials, setTestimonials] = useState<TestimonialResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -33,6 +35,7 @@ export default function TestimonialsSection() {
     try {
       await approveTestimonial(id)
       await reload()
+      queryClient.invalidateQueries({ queryKey: ['feedback', 'public'] })
     } catch (error: any) {
       setError(getErrorMessage(error, 'Failed to approve testimonial.'))
     } finally {
@@ -49,6 +52,7 @@ export default function TestimonialsSection() {
     try {
       await deleteTestimonial(id)
       await reload()
+      queryClient.invalidateQueries({ queryKey: ['feedback', 'public'] })
     } catch (error: any) {
       setError(getErrorMessage(error, 'Failed to remove testimonial.'))
     } finally {

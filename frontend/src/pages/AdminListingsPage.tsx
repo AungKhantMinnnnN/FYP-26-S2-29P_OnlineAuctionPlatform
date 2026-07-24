@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, Check, Download, Eye, Gavel, Image, Search, ShieldAlert, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../api/apiClient'
@@ -53,23 +53,21 @@ export default function AdminListingsPage() {
   const loadListings = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const response = await apiClient.get<ListingsResponse>('/admin/listings', { params: { page, size: PAGE_SIZE, search: search || undefined, status: status || undefined } })
+      const response = await apiClient.get<ListingsResponse>('/admin/listings', { params: { page, size: PAGE_SIZE, search: search || undefined, status: status || undefined, category_id: category || undefined, condition: condition || undefined } })
       setListings(response.data.items); setTotal(response.data.total); setPages(response.data.pages)
       setSellThroughPct(response.data.sell_through_pct ?? null)
     } catch (err: any) {
       setListings([]); setTotal(0); setPages(0); setSellThroughPct(null)
       setError(err?.response?.data?.detail || 'Unable to load listings. Confirm that the admin listings API is running.')
     } finally { setLoading(false) }
-  }, [page, search, status])
+  }, [page, search, status, category, condition])
 
   useEffect(() => { void loadListings() }, [loadListings])
   useEffect(() => {
     apiClient.get<Category[]>('/admin/categories').then(response => setCategories(response.data)).catch(() => setCategories([]))
   }, [])
 
-  const visibleListings = useMemo(() => listings.filter(listing =>
-    (!category || listing.category_id === category) && (!condition || listing.condition === condition)
-  ), [listings, category, condition])
+  const visibleListings = listings
   const liveCount = listings.filter(item => item.status === 'active').length
   const reviewCount = listings.filter(item => item.status === 'pending_review').length
   const bidVolume = listings.reduce((sum, item) => sum + (item.current_price || 0), 0)
@@ -149,13 +147,13 @@ export default function AdminListingsPage() {
           </StyledSelect>
         </label>
         <label className="text-xs font-semibold text-slate-500">CATEGORY
-          <StyledSelect value={category} onChange={event => setCategory(event.target.value)} wrapperClassName="mt-1">
+          <StyledSelect value={category} onChange={event => { setCategory(event.target.value); setPage(1) }} wrapperClassName="mt-1">
             <option value="">All categories</option>
             {categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </StyledSelect>
         </label>
         <label className="text-xs font-semibold text-slate-500">CONDITION
-          <StyledSelect value={condition} onChange={event => setCondition(event.target.value)} wrapperClassName="mt-1">
+          <StyledSelect value={condition} onChange={event => { setCondition(event.target.value); setPage(1) }} wrapperClassName="mt-1">
             <option value="">All conditions</option>
             {conditionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </StyledSelect>

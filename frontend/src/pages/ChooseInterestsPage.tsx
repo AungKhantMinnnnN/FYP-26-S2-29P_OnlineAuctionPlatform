@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Loader2 } from 'lucide-react'
 import { getFormMetadata } from '../api/auctionsApi'
 import type { Category } from '../api/auctionsApi'
 import { getMyInterests, updateMyInterests } from '../api/interestsApi'
-import type { InterestCategory } from '../api/interestsApi'
 import PrimaryButton from '../components/PrimaryButton'
 import EmptyState from '../components/EmptyState'
 
 export default function ChooseInterestsPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [hydratedItems, setHydratedItems] = useState<InterestCategory[] | null>(null)
+  const [hasHydrated, setHasHydrated] = useState(false)
 
   const {
     data: metadata,
@@ -32,10 +32,11 @@ export default function ChooseInterestsPage() {
     retry: false
   })
 
-  // Seed the selection from saved interests once they load. Render-time adjustment
-  // guarded so it only runs when the fetched ids change (avoids setState-in-effect).
-  if (savedInterests?.items && savedInterests.items !== hydratedItems) {
-    setHydratedItems(savedInterests.items)
+  // Seed the selection from saved interests once they load. Guarded to run only
+  // once per mount — a background refetch (e.g. window focus) must not silently
+  // overwrite selections the user is actively editing.
+  if (savedInterests?.items && !hasHydrated) {
+    setHasHydrated(true)
     setSelected(new Set(savedInterests.items.map(i => i.id)))
   }
 
@@ -52,7 +53,10 @@ export default function ChooseInterestsPage() {
 
   const saveMutation = useMutation({
     mutationFn: () => updateMyInterests(Array.from(selected)),
-    onSuccess: () => navigate('/dashboard'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-interests'] })
+      navigate('/dashboard')
+    },
     onError: () => setSaveError("We couldn't save your interests right now. Please try again.")
   })
 
