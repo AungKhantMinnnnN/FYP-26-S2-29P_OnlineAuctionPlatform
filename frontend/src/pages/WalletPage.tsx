@@ -23,6 +23,7 @@ export default function WalletPage({ mode }: WalletPageProps) {
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState<WalletTransactionItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [amount, setAmount] = useState(mode === 'top-up' ? '100' : '')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -32,6 +33,9 @@ export default function WalletPage({ mode }: WalletPageProps) {
       const data = await getMyWallet()
       setBalance(data.balance)
       setTransactions(data.transactions.items)
+      setLoadError(false)
+    } catch {
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -72,6 +76,11 @@ export default function WalletPage({ mode }: WalletPageProps) {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          Couldn't load your wallet. The balance and transactions below may be out of date — please refresh.
+        </div>
+      )}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
         <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
           <div>

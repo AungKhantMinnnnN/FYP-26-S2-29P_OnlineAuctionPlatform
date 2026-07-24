@@ -406,6 +406,9 @@ type Props = {
 }
 
 export const puckConfig: Config<Props> = {
+  root: {
+    fields: {},
+  },
   components: {
     Hero: {
       fields: {

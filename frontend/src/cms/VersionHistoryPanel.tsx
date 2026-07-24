@@ -14,6 +14,14 @@ type VersionHistoryPanelProps = {
   onRestored: () => void
 }
 
+function describeVersion(note: string | null): string | null {
+  if (!note) return null
+  const rollbackMatch = note.match(/^rollback to (.+)$/)
+  if (rollbackMatch) return `Restored from a version published ${formatDate(rollbackMatch[1])}`
+  if (note === 'publish') return 'Published from the editor'
+  return note
+}
+
 export default function VersionHistoryPanel({ slug, onClose, onPreview, onRestored }: VersionHistoryPanelProps) {
   const { user } = useAuth()
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -70,7 +78,7 @@ export default function VersionHistoryPanel({ slug, onClose, onPreview, onRestor
                 )}
               </div>
               {i === 0 && <p className="text-[11px] text-slate-400">{formatDate(v.created_at)}</p>}
-              {v.note && <p className="text-xs text-slate-500 capitalize">{v.note}</p>}
+              {describeVersion(v.note) && <p className="text-xs text-slate-500">{describeVersion(v.note)}</p>}
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
@@ -97,8 +105,9 @@ export default function VersionHistoryPanel({ slug, onClose, onPreview, onRestor
 
       <Modal isOpen={confirmId !== null} onClose={() => setConfirmId(null)} title="Restore this version?">
         <p className="text-sm text-slate-600 mb-5">
-          This immediately republishes the selected version as the live landing page. Nothing is lost —
-          restoring adds a new entry to this history, so it can always be undone the same way.
+          This immediately republishes the selected version as the live landing page and discards any
+          unpublished draft changes. The current published version isn't lost — restoring adds a new
+          entry to this history, so it can always be undone the same way.
         </p>
         <div className="flex items-center justify-end gap-2">
           <button

@@ -15,14 +15,17 @@ export default function SellerDashboardPage() {
   const navigate = useNavigate()
   const [listings, setListings] = useState<AuctionListing[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     const fetchListings = async () => {
       try {
         const data = await getMyListings({ size: 100 })
         setListings(data.items)
+        setLoadError(false)
       } catch (err) {
         console.error("Failed to fetch listings", err)
+        setLoadError(true)
       } finally {
         setIsLoading(false)
       }
@@ -40,6 +43,11 @@ export default function SellerDashboardPage() {
 
   return (
     <div className="space-y-8">
+      {loadError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          Couldn't load your listings. What's shown below may be incomplete — please refresh.
+        </div>
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">Seller Dashboard</h1>

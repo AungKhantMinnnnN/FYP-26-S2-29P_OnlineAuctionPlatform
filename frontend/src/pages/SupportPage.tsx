@@ -85,6 +85,8 @@ export default function SupportPage() {
   const [submittedTypeIds, setSubmittedTypeIds] = useState<string[]>([])
   const [fbLoadingEligibility, setFbLoadingEligibility] = useState(false)
   const [fbSuccess, setFbSuccess] = useState('')
+  const [feedbackDataError, setFeedbackDataError] = useState(false)
+  const [fbEligibilityError, setFbEligibilityError] = useState(false)
 
   // My Tickets tab state
   const [tickets, setTickets] = useState<SupportTicketResponse[]>([])
@@ -149,6 +151,7 @@ export default function SupportPage() {
   useEffect(() => {
     if (!user) return
     const loadFeedbackData = async () => {
+      setFeedbackDataError(false)
       try {
         const [types, bids] = await Promise.all([
           getFeedbackTypes(),
@@ -166,6 +169,7 @@ export default function SupportPage() {
         setBiddedListings(listings)
       } catch (err) {
         console.error('Failed to load feedback data:', err)
+        setFeedbackDataError(true)
       }
     }
     loadFeedbackData()
@@ -177,6 +181,7 @@ export default function SupportPage() {
     setEligibleTypeIds([])
     setSubmittedTypeIds([])
     setFbTypeId('')
+    setFbEligibilityError(false)
     checkFeedbackEligibility(fbListingId)
       .then(r => {
         setEligibleTypeIds(r.eligible_type_ids)
@@ -185,7 +190,10 @@ export default function SupportPage() {
         setFbTypeId(firstEligible ?? '')
         if (r.seller_id) setFbRevieweeId(r.seller_id)
       })
-      .catch(console.error)
+      .catch(err => {
+        console.error(err)
+        setFbEligibilityError(true)
+      })
       .finally(() => setFbLoadingEligibility(false))
   }, [fbListingId, user])
 
@@ -562,6 +570,11 @@ export default function SupportPage() {
                   <ThumbsUp size={40} className="text-slate-300" />
                   <p className="text-sm text-slate-500">Sign in to leave feedback for buyers or sellers.</p>
                 </div>
+              ) : feedbackDataError ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                  <ThumbsUp size={40} className="text-slate-300" />
+                  <p className="text-sm text-slate-500">Couldn't load your auction history. Please refresh and try again.</p>
+                </div>
               ) : biddedListings.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
                   <ThumbsUp size={40} className="text-slate-300" />
@@ -588,6 +601,10 @@ export default function SupportPage() {
                   {fbListingId && (
                     fbLoadingEligibility ? (
                       <p className="text-sm text-slate-400">Checking eligibility…</p>
+                    ) : fbEligibilityError ? (
+                      <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                        Couldn't check your eligibility for this auction. Please try again.
+                      </div>
                     ) : eligibleTypeIds.length === 0 ? (
                       <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
                         You are not eligible to leave feedback for this auction.

@@ -32,6 +32,7 @@ export default function AdminCmsPage() {
       setErrorMessage(null)
       setStatusMessage('Draft saved.')
       setTimeout(() => setStatusMessage(null), 3000)
+      queryClient.invalidateQueries({ queryKey: ['cms', SLUG, 'draft'] })
     },
     onError: (err) => setErrorMessage(getErrorMessage(err, "Couldn't save the draft. Please try again.")),
   })
@@ -43,6 +44,7 @@ export default function AdminCmsPage() {
       setStatusMessage('Published — the live landing page is now updated.')
       setTimeout(() => setStatusMessage(null), 4000)
       queryClient.invalidateQueries({ queryKey: ['cms', SLUG, 'published'] })
+      queryClient.invalidateQueries({ queryKey: ['cms', SLUG, 'draft'] })
     },
     onError: (err) => setErrorMessage(getErrorMessage(err, "Couldn't publish. Please try again.")),
   })
@@ -139,6 +141,7 @@ export default function AdminCmsPage() {
           slug={SLUG}
           onClose={() => setShowHistory(false)}
           onPreview={(content, label) => {
+            setShowHistory(false)
             setPreviewLabel(`Previewing version from ${label}`)
             setPreviewData(content)
           }}

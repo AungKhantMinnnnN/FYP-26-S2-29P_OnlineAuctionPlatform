@@ -14,7 +14,7 @@ from app.models.auction import (
     User, UserRole, UserStatus, UserProfiles, Listing, ListingStatus, Bid, BidStatus,
     AuctionResult, Categories, UserInterest, WalletTransaction, TransactionType,
     AdminLog, BoardItem, Notification, ProhibitedKeyword, FlaggedListingAttempt,
-    AIModerationFlag, OptionSet,
+    AIModerationFlag, OptionSet, ItemConditions,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
 from app.schemas.auction import AuctionListingResponse
@@ -241,12 +241,18 @@ class AdminService:
         search: Optional[str],
         page: int,
         size: int,
+        category_id: Optional[UUID] = None,
+        condition: Optional[ItemConditions] = None,
     ) -> Dict[str, Any]:
         query = select(Listing).options(selectinload(Listing.images), selectinload(Listing.seller))
         if listing_status:
             query = query.where(Listing.status == listing_status)
         if search:
             query = query.where(Listing.title.ilike(f"%{search}%"))
+        if category_id:
+            query = query.where(Listing.category_id == category_id)
+        if condition:
+            query = query.where(Listing.condition == condition)
 
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)

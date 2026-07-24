@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Image, Heart, Eye, Gavel } from 'lucide-react'
 import CountdownBadge from './CountdownBadge'
 import StatusBadge from './StatusBadge'
@@ -31,8 +32,14 @@ interface AuctionCardProps {
 export default function AuctionCard({ auction, showWatchlist = true, isWatched = false }: AuctionCardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [watched, setWatched] = useState(isWatched)
   const [watchLoading, setWatchLoading] = useState(false)
+
+  // Re-sync when the parent's watchlist query refetches with fresh data —
+  // useState(isWatched) only seeds the initial value, it won't otherwise
+  // pick up prop changes on an already-mounted card.
+  useEffect(() => { setWatched(isWatched) }, [isWatched])
 
   const handleWatchToggle = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -47,6 +54,7 @@ export default function AuctionCard({ auction, showWatchlist = true, isWatched =
         await addToWatchlist(String(auction.id))
         setWatched(true)
       }
+      queryClient.invalidateQueries({ queryKey: ['users', 'me', 'watchlist'] })
     } catch {
       // silent — state unchanged
     } finally {

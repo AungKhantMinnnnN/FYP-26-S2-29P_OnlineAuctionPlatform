@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, Image, Heart, User, TrendingUp, Shield, Wallet } from 'lucide-react'
 import CountdownBadge from '../components/CountdownBadge'
 import StatusBadge from '../components/StatusBadge'
@@ -37,12 +38,15 @@ export default function AuctionDetailPage() {
   const ws = useRef<WebSocket | null>(null)
 
   const { user, refreshUser } = useAuth()
+  const queryClient = useQueryClient()
   const [currentBid, setCurrentBid] = useState(0)
   const [bidsPlaced, setBidsPlaced] = useState(0)
   const [bidHistory, setBidHistory] = useState([])
   const [bidAmount, setBidAmount] = useState('')
   const [bidMessage, setBidMessage] = useState('')
   const [bidError, setBidError] = useState('')
+  const [bidPending, setBidPending] = useState(false)
+  const [hasEnded, setHasEnded] = useState(false)
   const [watched, setWatched] = useState(false)
   const [watchLoading, setWatchLoading] = useState(false)
   const [watchError, setWatchError] = useState('')
@@ -60,6 +64,25 @@ export default function AuctionDetailPage() {
     return bidsPlaced === 0 ? Number(auction.starting_price.toFixed(2)) : Number((currentBid + (auction.minIncrement || 1)).toFixed(2));
   }, [auction, currentBid, bidsPlaced])
   const balance = user?.balance ?? 0
+
+  useEffect(() => {
+    if (!auction) return
+    // setTimeout delays beyond ~24.8 days overflow a 32-bit int and fire immediately,
+    // so re-check in bounded chunks rather than scheduling the full remaining time at once.
+    const MAX_DELAY_MS = 24 * 60 * 60 * 1000
+    let timer: ReturnType<typeof setTimeout>
+    const check = () => {
+      const msRemaining = new Date(auction.endTime).getTime() - Date.now()
+      if (msRemaining <= 0) {
+        setHasEnded(true)
+        return
+      }
+      setHasEnded(false)
+      timer = setTimeout(check, Math.min(msRemaining, MAX_DELAY_MS))
+    }
+    check()
+    return () => clearTimeout(timer)
+  }, [auction])
 
   useEffect(() => {
     const fetchAuction = async () => {
@@ -116,6 +139,7 @@ export default function AuctionDetailPage() {
           ])
           setBidError('')
           setBidMessage('A new bid was placed!')
+          setBidPending(false)
 
           if (user && data.bidder_id === user.id) {
               refreshUser()
@@ -123,6 +147,7 @@ export default function AuctionDetailPage() {
         } else if (data.type === 'error') {
           setBidError(data.message)
           setBidMessage('')
+          setBidPending(false)
         }
       } catch (err) {
         console.error('Failed to parse websocket message', err)
@@ -133,6 +158,7 @@ export default function AuctionDetailPage() {
       if (!closedIntentionally) {
         setBidError('Connection error with the bidding server.')
         setBidMessage('')
+        setBidPending(false)
       }
     }
 
@@ -196,6 +222,7 @@ export default function AuctionDetailPage() {
         await addToWatchlist(id)
         setWatched(true)
       }
+      queryClient.invalidateQueries({ queryKey: ['users', 'me', 'watchlist'] })
     } catch {
       setWatchError('Could not update your watchlist. Please try again.')
     } finally {
@@ -208,16 +235,17 @@ export default function AuctionDetailPage() {
 
   const handleBid = (e: React.FormEvent) => {
     e.preventDefault()
+    if (bidPending) return
     setBidMessage('')
     setBidError('')
     const amount = Number(bidAmount)
-    
+
     if (!user) {
       setBidError('Please log in before placing a bid.')
       return
     }
-    if (auction.status !== 'active') {
-      setBidError('This auction is no longer active.')
+    if (auction.status !== 'active' || new Date(auction.endTime).getTime() <= Date.now()) {
+      setBidError('This auction has ended.')
       return
     }
     if (!amount || amount < minimumBid) {
@@ -237,6 +265,7 @@ export default function AuctionDetailPage() {
         ws.current.send(JSON.stringify({ type: 'place_bid', amount }))
         setBidAmount('')
         setBidMessage('Sending bid...')
+        setBidPending(true)
     } else {
         setBidError('Real-time connection is unavailable. Please refresh.')
     }
@@ -386,7 +415,11 @@ export default function AuctionDetailPage() {
               <CountdownBadge endTime={auction.endTime} className="text-sm px-3 py-1.5" />
             </div>
 
-            {user ? (
+            {hasEnded ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center">
+                <p className="text-sm text-slate-600">This auction has ended. No further bids can be placed.</p>
+              </div>
+            ) : user ? (
               <form className="space-y-3" onSubmit={handleBid}>
                 <input
                   type="number"
@@ -399,7 +432,7 @@ export default function AuctionDetailPage() {
                 />
                 {bidError && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{bidError}</p>}
                 {bidMessage && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{bidMessage}</p>}
-                <PrimaryButton fullWidth type="submit">Place Bid</PrimaryButton>
+                <PrimaryButton fullWidth type="submit" disabled={bidPending}>{bidPending ? 'Placing Bid...' : 'Place Bid'}</PrimaryButton>
               </form>
             ) : (
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center">
