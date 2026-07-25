@@ -440,13 +440,9 @@ class AdminService:
         existing = await db.scalar(select(Categories).where(Categories.slug == data.slug))
         if existing:
             raise HTTPException(status_code=409, detail="A category with this slug already exists")
-        if data.parent_id:
-            parent = await db.scalar(select(Categories.id).where(Categories.id == data.parent_id))
-            if not parent:
-                raise HTTPException(status_code=404, detail="Parent category not found")
 
         category = Categories(
-            name=data.name, slug=data.slug, parent_id=data.parent_id, is_active=data.is_active,
+            name=data.name, slug=data.slug, is_active=data.is_active,
         )
         db.add(category)
         await db.commit()
@@ -470,14 +466,6 @@ class AdminService:
         if data.name is not None:
             category.name = data.name
 
-        if data.parent_id is not None:
-            if data.parent_id == category_id:
-                raise HTTPException(status_code=400, detail="A category cannot be its own parent")
-            parent = await db.scalar(select(Categories.id).where(Categories.id == data.parent_id))
-            if not parent:
-                raise HTTPException(status_code=404, detail="Parent category not found")
-            category.parent_id = data.parent_id
-
         if data.is_active is not None:
             category.is_active = data.is_active
 
@@ -498,13 +486,10 @@ class AdminService:
         has_interest_refs = await db.scalar(
             select(func.count()).select_from(UserInterest).where(UserInterest.category_id == category_id)
         ) or 0
-        has_children = await db.scalar(
-            select(func.count()).select_from(Categories).where(Categories.parent_id == category_id)
-        ) or 0
 
         # Hard-delete only when nothing references this category; otherwise deactivate to avoid
-        # breaking FK-referencing listings/interests/child categories.
-        if in_use or has_interest_refs or has_children:
+        # breaking FK-referencing listings/interests.
+        if in_use or has_interest_refs:
             category.is_active = False
             action_taken = "deactivated"
         else:
