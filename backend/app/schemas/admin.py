@@ -63,7 +63,6 @@ class SuspendUserRequest(BaseModel):
 class CategoryCreate(BaseModel):
     name: str
     slug: str
-    parent_id: Optional[UUID] = None
     is_active: bool = True
 
     @field_validator('slug')
@@ -76,7 +75,6 @@ class CategoryCreate(BaseModel):
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
-    parent_id: Optional[UUID] = None
     is_active: Optional[bool] = None
 
     @field_validator('slug')

@@ -99,21 +99,18 @@ export interface AdminCategory {
   id: string
   name: string
   slug: string
-  parent_id: string | null
   is_active: boolean
 }
 
 export interface CategoryCreatePayload {
   name: string
   slug: string
-  parent_id?: string | null
   is_active?: boolean
 }
 
 export interface CategoryUpdatePayload {
   name?: string
   slug?: string
-  parent_id?: string | null
   is_active?: boolean
 }
 

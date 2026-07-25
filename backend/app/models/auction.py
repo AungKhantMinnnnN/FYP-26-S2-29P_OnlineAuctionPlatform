@@ -118,7 +118,6 @@ class Categories(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = Column(String, nullable=False)
     slug = Column(String, unique=True, nullable=False)
-    parent_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
