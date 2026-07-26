@@ -187,9 +187,17 @@ reported, not silently patched — see the project's commit history for what
   independent instance was found the same way — the seeded keyword
   **"shite"** is one substitution from **"suite"** (`h`↔`u`), so this very
   test suite's own boilerplate text "backend QA suite" was *also* rejected.
-  Two unrelated seeded keywords, two unrelated common English words, both
-  caught within the same short test-writing session — suggests this isn't a
-  rare edge case but a systemic false-positive rate. The code's own comment
+  A third, structurally different instance also surfaced: this suite's random
+  test-title suffixes originally used hex characters, and the matcher
+  leetspeak-normalizes digits to letters before comparing (`0`→`o`, `1`→`l`,
+  etc.) — a purely-random hex slice containing "b0b0" normalizes to "bobo",
+  which also matched a seeded keyword. That means *any* hex-like string
+  (a product SKU, a serial number, a coupon code) has a structural,
+  non-trivial chance of tripping this filter, independent of actual intent.
+  Three unrelated false positives, two from plain English words and one from
+  the normalization step itself, all surfaced within one short test-writing
+  session — this isn't a rare edge case but a systemic false-positive rate.
+  The code's own comment
   acknowledges this exact tradeoff category ("heron" vs. "heroin") and
   treats the admin-visible Flagged Attempts log as the mitigation (an admin
   notices and retires the offending keyword) — but that only works if
@@ -202,23 +210,20 @@ reported, not silently patched — see the project's commit history for what
   Test titles/descriptions in this suite were rewritten to avoid both
   trigger words once discovered.
 
-- **F7 — The `2026_07_20_option_sets.sql` migration was never applied to the
-  shared VM's database**, even though the code that depends on it
-  (`AdminService.get_options`, backing `GET /admin/options/{set_key}`) has
-  been deployed for a while. Verified directly:
-  `SELECT to_regclass('public.option_sets')` on the VM's Postgres returns
-  NULL (table doesn't exist). Every call to `GET /admin/options/{set_key}`
-  therefore 500s right now — which silently breaks every admin-UI dropdown
-  that sources its options from it (System Logs' level/service filters,
-  Audit Logs, the Users role/status filters, and others, per the frontend's
-  `adminApi.getOptions` usage). This is a **deployment gap, not a code
-  bug** — the migration file is correct and purely additive
+- **F7 — RESOLVED: the `2026_07_20_option_sets.sql` migration had never been
+  applied to the shared VM's database**, even though the code that depends
+  on it (`AdminService.get_options`, backing `GET /admin/options/{set_key}`)
+  had already been deployed. Verified directly:
+  `SELECT to_regclass('public.option_sets')` on the VM's Postgres returned
+  NULL (table didn't exist), so every call to `GET /admin/options/{set_key}`
+  500'd — silently breaking every admin-UI dropdown that sources its options
+  from it (System Logs' level/service filters, Audit Logs, the Users
+  role/status filters, and others, per the frontend's `adminApi.getOptions`
+  usage). This was a **deployment gap, not a code bug** — the migration file
+  was already correct and purely additive
   (`CREATE TABLE` + `INSERT ... ON CONFLICT DO NOTHING`), just never run.
-  **Not applied in this pass** — deliberately left for the user to run
-  themselves (or explicitly ask this suite's author to), consistent with
-  this project's established "never mutate the live VM without being asked"
-  norm. `test_admin_moderation.py`'s two `get_options` cases will go green
-  the moment it's applied; no test or app code changes needed.
+  **Applied** to the VM's database (35 rows inserted across 10 option sets);
+  confirmed via `SELECT set_key, COUNT(*) FROM option_sets GROUP BY set_key`.
 
 - **F8 — FIXED: `create_prohibited_keyword` logged every new keyword's admin
   audit-log entry with `target_id = NULL`.** In
@@ -235,17 +240,14 @@ reported, not silently patched — see the project's commit history for what
   `backend/app/services/admin_service.py`). The existing 6 historical rows on
   the VM remain `NULL` (this fix only prevents new ones) — a one-off
   backfill isn't possible since the actual keyword id was never recorded.
-  This fix is in the repo but **not yet deployed** to the VM (would need a
-  backend rebuild/redeploy) — `test_admin_moderation.py`'s `get_admin_logs`
-  case will go green once that happens.
+  **Deployed**: backend rebuilt and redeployed to the VM with this fix.
 
 None of F1–F5 are exercised as "expected failures" that would make the
 overall suite red — F1/F3/F4 are asserted as the actual (intentional or at
 least stable) current behavior, and F2 is asserted with an explicit
 self-documenting comment so it turns into a visible signal the moment
-someone fixes the underlying bug. F7 and F8's corresponding test cases
-(`get_options`, `get_admin_logs`) are currently red in the suite and will
-turn green once the migration is applied / the fix is deployed — see §7.
+someone fixes the underlying bug. F7 and F8 have both been resolved and
+deployed — see §6.
 
 ---
 
@@ -264,20 +266,22 @@ opt-in via `QA_RUN_LIVE_AFFECTING_TESTS=1` and restores prior state when run.
 Run against the live shared VM (`http://100.75.75.48/v1.0.0`), 2026-07-26:
 
 ```
-TOTAL   pass=216  fail=3  skip=1   (566s)
+TOTAL   pass=219  fail=0  skip=1   (456s)
 ```
 
-The 3 failures are `test_admin_moderation.py`'s `get_options` (×2) and
-`get_admin_logs` (×1) — both explained in full under Findings F7 and F8
-above. They are **expected to fail** until:
-1. `scripts/migrations/2026_07_20_option_sets.sql` is applied to the VM (F7), and
-2. the backend service is rebuilt/redeployed with the F8 fix already made in
-   `backend/app/services/admin_service.py` (part of this pass).
+**Fully green.** The initial run found 3 failures (`get_options` ×2,
+`get_admin_logs` ×1 — Findings F7/F8); both have since been resolved:
+1. `scripts/migrations/2026_07_20_option_sets.sql` applied to the VM's database.
+2. The backend was rebuilt and redeployed with the F8 fix
+   (`backend/app/services/admin_service.py`).
 
 The 1 skip is `test_marketing.py`'s live-affecting upload/activate round
 trip, skipped by default per `QA_RUN_LIVE_AFFECTING_TESTS` — see §5.
 
-Every other module — all 18 of them — is fully green.
+F1 (missing auth on `/internal/*`) and F6 (prohibited-keyword fuzzy-matcher
+false positives on "listing"/"suite") remain open — both are asserted as
+current, stable behavior in the suite (not treated as failures) pending a
+product/security decision from the team.
 
 ---
 
