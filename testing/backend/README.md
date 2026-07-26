@@ -28,6 +28,31 @@ python run_all.py test_auth.py    # just one
 python test_auth.py               # a module is also runnable standalone
 ```
 
+### Activation scripts
+
+Three convenience entry points wrap the above so you don't have to remember
+the `pip install` + `cd` + `python run_all.py` sequence:
+
+| Script | Use when |
+|---|---|
+| `./run_tests.sh` | This machine has a real Python 3 interpreter (Linux/Mac, or a Windows box with Python installed). Installs deps, then runs the suite. |
+| `.\run_tests.ps1` | Same, for Windows PowerShell. |
+| `./run_remote.sh` | This machine does **not** have Python (e.g. a bare Windows dev box), but you can `ssh`/`scp` to a host that does — the shared VM, by default. Syncs this directory over, installs deps there, runs the suite, streams results back, and cleans up after itself. |
+
+All three forward extra arguments to `run_all.py` (e.g. `./run_tests.sh
+test_auth.py`) and respect the same `QA_*` env vars from the table below —
+`run_remote.sh` specifically forwards any `QA_*` var set in your local shell
+to the remote run, so `QA_RUN_LIVE_AFFECTING_TESTS=1 ./run_remote.sh` works
+as expected.
+
+`run_remote.sh`-specific variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `REMOTE_HOST` | `fyp` | SSH host/alias to run the suite on |
+| `REMOTE_DIR` | `/tmp/backend_qa_suite` | Scratch dir to sync into on the remote host |
+| `KEEP_REMOTE_DIR` | `0` | Set to `1` to leave the synced copy in place instead of deleting it after the run |
+
 ## Configuration
 
 Everything is env-var driven (see `config.py`), with defaults that match this
