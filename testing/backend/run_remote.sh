@@ -44,6 +44,10 @@ echo "Running suite on $REMOTE_HOST..."
 exit_code=0
 ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' && env ${env_forward[*]} python3 run_all.py $*" || exit_code=$?
 
+echo "Fetching generated report(s)..."
+mkdir -p ./reports
+scp -q "$REMOTE_HOST:$REMOTE_DIR/reports/backend_test.*.md" ./reports/ 2>/dev/null || true
+
 if [[ "$KEEP_REMOTE_DIR" != "1" ]]; then
     echo "Cleaning up remote scratch dir..."
     ssh "$REMOTE_HOST" "rm -rf '$REMOTE_DIR'"

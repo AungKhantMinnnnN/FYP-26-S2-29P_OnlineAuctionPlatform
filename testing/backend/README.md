@@ -53,6 +53,18 @@ as expected.
 | `REMOTE_DIR` | `/tmp/backend_qa_suite` | Scratch dir to sync into on the remote host |
 | `KEEP_REMOTE_DIR` | `0` | Set to `1` to leave the synced copy in place instead of deleting it after the run |
 
+### Run reports
+
+Every `run_all.py` invocation (however it was launched — directly, via
+`run_tests.sh`/`.ps1`, or via `run_remote.sh`) writes a Markdown report to
+`reports/backend_test.<timestamp>.md`: run metadata, a per-module summary
+table, and a full case-by-case table (status, timing, failure message) for
+every suite. `run_remote.sh` automatically copies the remote run's report
+back into your local `reports/` folder before cleaning up.
+
+These are generated artifacts (gitignored) — delete old ones whenever, they
+regenerate on every run.
+
 ## Configuration
 
 Everything is env-var driven (see `config.py`), with defaults that match this
