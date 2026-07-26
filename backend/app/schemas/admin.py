@@ -156,22 +156,6 @@ class FlaggedAttemptItem(BaseModel):
 
 class FlaggedAttemptsResponse(PaginationMeta):
     items: List[FlaggedAttemptItem]
-
-
-class AIModerationFlagItem(BaseModel):
-    id: UUID
-    listing_id: UUID
-    user_id: UUID
-    username: Optional[str] = None
-    categories: str
-    field: str
-    flagged_text: str
-    reviewed: bool
-    created_at: datetime
-
-
-class AIModerationFlagsResponse(PaginationMeta):
-    items: List[AIModerationFlagItem]
 # endregion
 
 

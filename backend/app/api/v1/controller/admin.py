@@ -12,7 +12,7 @@ from app.schemas.admin import (
     CategoryDeleteResponse, BidCancelResponse, AuctionRestartRequest,
     AdminLogsResponse, AdminStatsResponse, SystemLogsResponse,
     ProhibitedKeywordCreate, ProhibitedKeywordResponse, FlaggedAttemptsResponse,
-    AIModerationFlagsResponse, AdminListingDetailResponse, AdminListingsResponse, OptionItem,
+    AdminListingDetailResponse, AdminListingsResponse, OptionItem,
 )
 from app.schemas.auction import AuctionListingResponse, CategoryResponse
 from app.services.admin_service import AdminService
@@ -214,16 +214,6 @@ async def list_flagged_attempts(
     _: User = Depends(get_admin_user),
 ):
     return await AdminService.get_flagged_attempts(db=db, page=page, size=size)
-
-
-@router.get("/ai-moderation-flags", response_model=AIModerationFlagsResponse)
-async def list_ai_moderation_flags(
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_admin_user),
-):
-    return await AdminService.get_ai_moderation_flags(db=db, page=page, size=size)
 # endregion
 
 

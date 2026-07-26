@@ -5,7 +5,6 @@ and Logs & stats regions):
   POST   /admin/prohibited-keywords
   DELETE /admin/prohibited-keywords/{id}
   GET    /admin/flagged-attempts
-  GET    /admin/ai-moderation-flags
   GET    /admin/options/{set_key}
   GET    /admin/system-logs
   GET    /admin/logs
@@ -126,15 +125,6 @@ def _():
     assert ApiClient().get("/admin/flagged-attempts").status_code == 401
     admin = auth.admin_client()
     resp = admin.get("/admin/flagged-attempts", params={"page": 1, "size": 5})
-    assert resp.status_code == 200, resp.text
-    assert "items" in resp.json() and "total" in resp.json()
-
-
-@suite.case("list_ai_moderation_flags requires admin and returns a paginated shape")
-def _():
-    assert ApiClient().get("/admin/ai-moderation-flags").status_code == 401
-    admin = auth.admin_client()
-    resp = admin.get("/admin/ai-moderation-flags", params={"page": 1, "size": 5})
     assert resp.status_code == 200, resp.text
     assert "items" in resp.json() and "total" in resp.json()
 

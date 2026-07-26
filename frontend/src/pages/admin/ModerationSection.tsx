@@ -4,7 +4,7 @@ import { Plus, X } from 'lucide-react'
 import DataTable from '../../components/DataTable'
 import StyledSelect from '../../components/StyledSelect'
 import { useOptions } from '../../hooks/useOptions'
-import { createProhibitedKeyword, deleteProhibitedKeyword, getAiModerationFlags, getFlaggedAttempts, getProhibitedKeywords } from '../../api/adminApi'
+import { createProhibitedKeyword, deleteProhibitedKeyword, getFlaggedAttempts, getProhibitedKeywords } from '../../api/adminApi'
 import { Pagination, formatDate, getErrorMessage } from './adminShared'
 import type { ProhibitedKeyword } from '../../api/adminApi'
 
@@ -188,54 +188,11 @@ function FlaggedAttemptsPanel() {
   )
 }
 
-function AIModerationFlagsPanel() {
-  const [page, setPage] = useState(1)
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['admin', 'ai-moderation-flags', page],
-    queryFn: () => getAiModerationFlags({ page, size: 20 }),
-  })
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h3 className="font-bold text-slate-950">AI-Flagged Listings</h3>
-      <p className="mb-4 text-sm text-slate-500">
-        Listings that passed the keyword filter but were flagged by the OpenAI moderation
-        check for manual review. These are signals, not automatic blocks — nothing here has
-        been rejected.
-      </p>
-
-      {isLoading ? (
-        <p className="text-sm text-slate-400">Loading…</p>
-      ) : isError ? (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-          Couldn't load AI-flagged listings. Please try again.
-        </div>
-      ) : (
-        <>
-          <DataTable
-            headers={['Timestamp', 'User', 'Field', 'Categories', 'Flagged Text']}
-            rows={(data?.items ?? []).map(flag => [
-              formatDate(flag.created_at),
-              flag.username ?? '—',
-              <span key={flag.id} className="capitalize">{flag.field}</span>,
-              <span key={flag.id} className="font-semibold text-amber-700">{flag.categories}</span>,
-              <span key={flag.id} className="line-clamp-2 max-w-xs text-slate-500">{flag.flagged_text}</span>,
-            ])}
-            emptyMessage="No AI-flagged listings yet."
-          />
-          <Pagination page={data?.page ?? 1} pages={data?.pages ?? 1} onPage={setPage} />
-        </>
-      )}
-    </div>
-  )
-}
-
 export default function ModerationSection() {
   return (
     <>
       <ProhibitedKeywordsPanel />
       <FlaggedAttemptsPanel />
-      <AIModerationFlagsPanel />
     </>
   )
 }

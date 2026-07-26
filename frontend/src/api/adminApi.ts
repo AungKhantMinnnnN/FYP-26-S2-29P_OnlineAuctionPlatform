@@ -228,35 +228,6 @@ export const getFlaggedAttempts = async (
   return res.data
 }
 
-// AI-moderation review queue: listings that passed the keyword gate but were flagged by
-// the OpenAI moderation API for human review — never auto-blocked, see backend app.core.ai_moderation.
-export interface AIModerationFlag {
-  id: string
-  listing_id: string
-  user_id: string
-  username: string | null
-  categories: string
-  field: string
-  flagged_text: string
-  reviewed: boolean
-  created_at: string
-}
-
-export interface AIModerationFlagsResponse {
-  items: AIModerationFlag[]
-  total: number
-  page: number
-  size: number
-  pages: number
-}
-
-export const getAiModerationFlags = async (
-  params?: { page?: number; size?: number }
-): Promise<AIModerationFlagsResponse> => {
-  const res = await apiClient.get<AIModerationFlagsResponse>('/admin/ai-moderation-flags', { params })
-  return res.data
-}
-
 export const getAdminCategories = async (): Promise<AdminCategory[]> => {
   const res = await apiClient.get<AdminCategory[]>('/admin/categories')
   return res.data

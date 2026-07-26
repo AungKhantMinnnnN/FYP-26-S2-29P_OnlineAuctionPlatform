@@ -14,7 +14,7 @@ from app.models.auction import (
     User, UserRole, UserStatus, UserProfiles, Listing, ListingStatus, Bid, BidStatus,
     AuctionResult, Categories, UserInterest, WalletTransaction, TransactionType,
     AdminLog, BoardItem, Notification, ProhibitedKeyword, FlaggedListingAttempt,
-    AIModerationFlag, OptionSet, ItemConditions,
+    OptionSet, ItemConditions,
 )
 from app.schemas.admin import CategoryCreate, CategoryUpdate
 from app.schemas.auction import AuctionListingResponse
@@ -743,31 +743,6 @@ class AdminService:
             "attempted_text": attempt.attempted_text,
             "created_at": attempt.created_at,
         } for attempt, username in rows]
-
-        pages = (total + size - 1) // size if total else 0
-        return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
-
-    @staticmethod
-    async def get_ai_moderation_flags(db: AsyncSession, page: int, size: int) -> Dict[str, Any]:
-        query = select(AIModerationFlag, User.username).join(User, User.id == AIModerationFlag.user_id)
-
-        count_query = select(func.count()).select_from(query.subquery())
-        total = await db.scalar(count_query)
-
-        query = query.order_by(AIModerationFlag.created_at.desc()).offset((page - 1) * size).limit(size)
-        rows = (await db.execute(query)).all()
-
-        items = [{
-            "id": flag.id,
-            "listing_id": flag.listing_id,
-            "user_id": flag.user_id,
-            "username": username,
-            "categories": flag.categories,
-            "field": flag.field,
-            "flagged_text": flag.flagged_text,
-            "reviewed": flag.reviewed,
-            "created_at": flag.created_at,
-        } for flag, username in rows]
 
         pages = (total + size - 1) // size if total else 0
         return {"items": items, "total": total, "page": page, "size": size, "pages": pages}
