@@ -54,10 +54,6 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 1
     EMAIL_VERIFICATION_TOKEN_TTL_HOURS: int = 24
 
-    # OpenAI Moderation API — secondary, non-blocking listing check (see app.core.ai_moderation).
-    # Genuinely optional: the check silently no-ops if unset, so the feature works without it.
-    OPENAI_API_KEY: str = ""
-
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]

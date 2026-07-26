@@ -17,7 +17,9 @@ document is the index and the narrative — the code is the source of truth.
 
 ## 1. Endpoint coverage matrix
 
-14 controllers, ~105 distinct endpoint operations. Ambiguity note: a few
+14 controllers, ~104 distinct endpoint operations (the OpenAI-based
+`GET /admin/ai-moderation-flags` review-queue endpoint was removed — see the
+note at the end of this section). A few
 operations that mutate shared, real-time state visible to actual users
 (marketing hero video), or that depend on data no endpoint in this API can
 produce (a finalized/ended auction, an accepted bid, a won `AuctionResult`),
@@ -29,7 +31,7 @@ are covered on their error/precondition paths only — see §3.
 | 2 | `auth.py` | `/auth` | 8 | `test_auth.py` | public + self |
 | 3 | `auctions.py` | `/auctions` | 10 | `test_auctions.py` | public reads, owner writes |
 | 4 | `users.py` | `/users/me/*` | 12 | `test_users_profile.py`, `test_users_wallet_subscription.py`, `test_users_watchlist.py` | self only |
-| 5 | `admin.py` | `/admin/*` | 24 | `test_admin_users.py`, `test_admin_categories.py`, `test_admin_listings_bids.py`, `test_admin_moderation.py` | admin only |
+| 5 | `admin.py` | `/admin/*` | 23 | `test_admin_users.py`, `test_admin_categories.py`, `test_admin_listings_bids.py`, `test_admin_moderation.py` | admin only |
 | 6 | `disputes.py` | `/disputes` | 4 | `test_disputes.py` | mixed |
 | 7 | `testimonials.py` | `/testimonials` | 6 | `test_testimonials.py` | mixed |
 | 8 | `subscriptions.py` | `/subscription-tiers` | 1 | `test_subscriptions.py` | public |
