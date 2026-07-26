@@ -692,6 +692,10 @@ class AdminService:
 
         entry = ProhibitedKeyword(keyword=keyword, category=category, added_by=admin.id)
         db.add(entry)
+        # id has a client-side default (uuid.uuid4) that SQLAlchemy only assigns at flush
+        # time — without this, entry.id is still None here and the log below would record
+        # a NULL target_id.
+        await db.flush()
         db.add(AdminLog(
             admin_id=admin.id, action="add_prohibited_keyword", target_id=entry.id,
             details=f"Added prohibited keyword '{keyword}' ({category})",
