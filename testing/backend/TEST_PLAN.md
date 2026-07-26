@@ -207,8 +207,11 @@ reported, not silently patched — see the project's commit history for what
   not a clear-cut bug, and changing it affects actual content-moderation
   behavior — flagging for the team to decide (e.g., raise the length/distance
   bar, or exclude common English dictionary words from the fuzzy path).
-  Test titles/descriptions in this suite were rewritten to avoid both
-  trigger words once discovered.
+  Test titles/descriptions in this suite were rewritten to avoid both known
+  trigger words, and `test_auctions.py`'s `_create()` helper additionally
+  retries with a freshly-generated random suffix if a "success" case still
+  hits a prohibited-term 400 by chance — belt-and-suspenders against the
+  residual randomness risk, not a workaround for the underlying finding.
 
 - **F7 — RESOLVED: the `2026_07_20_option_sets.sql` migration had never been
   applied to the shared VM's database**, even though the code that depends
