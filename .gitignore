@@ -48,6 +48,9 @@ recommendation-engine/ml/model_store/*.pkl
 
 logs
 
+# Generated per-run test reports (see testing/backend/report.py)
+testing/backend/reports/*.md
+
 # React
 node_modules
 /WireFrame/Kimi/node_modules

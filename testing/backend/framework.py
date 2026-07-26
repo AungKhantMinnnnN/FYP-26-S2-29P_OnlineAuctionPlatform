@@ -38,6 +38,7 @@ class SuiteResult:
         self.failed = 0
         self.skipped = 0
         self.failures = []  # list of (description, message)
+        self.cases = []  # list of dicts: description, status, elapsed_ms, message
 
     @property
     def total(self):
@@ -48,6 +49,7 @@ class SuiteResult:
         self.failed += other.failed
         self.skipped += other.skipped
         self.failures.extend(other.failures)
+        self.cases.extend(other.cases)
 
 
 class Suite:
@@ -71,22 +73,41 @@ class Suite:
                 func()
                 elapsed_ms = (time.time() - start) * 1000
                 result.passed += 1
+                result.cases.append({
+                    "description": description, "status": "PASS",
+                    "elapsed_ms": elapsed_ms, "message": None,
+                })
                 if verbose:
                     print(f"  [PASS] {description}  ({elapsed_ms:.0f}ms)")
             except Skip as exc:
+                elapsed_ms = (time.time() - start) * 1000
                 result.skipped += 1
+                result.cases.append({
+                    "description": description, "status": "SKIP",
+                    "elapsed_ms": elapsed_ms, "message": str(exc),
+                })
                 if verbose:
                     print(f"  [SKIP] {description} — {exc}")
             except AssertionError as exc:
+                elapsed_ms = (time.time() - start) * 1000
                 result.failed += 1
                 msg = str(exc) or "assertion failed"
                 result.failures.append((description, msg))
+                result.cases.append({
+                    "description": description, "status": "FAIL",
+                    "elapsed_ms": elapsed_ms, "message": msg,
+                })
                 if verbose:
                     print(f"  [FAIL] {description} — {msg}")
             except Exception as exc:  # noqa: BLE001 - QA runner must never crash mid-suite
+                elapsed_ms = (time.time() - start) * 1000
                 result.failed += 1
                 msg = f"{type(exc).__name__}: {exc}"
                 result.failures.append((description, msg))
+                result.cases.append({
+                    "description": description, "status": "ERROR",
+                    "elapsed_ms": elapsed_ms, "message": msg,
+                })
                 if verbose:
                     print(f"  [ERROR] {description} — {msg}")
                     print("    " + traceback.format_exc().replace("\n", "\n    "))

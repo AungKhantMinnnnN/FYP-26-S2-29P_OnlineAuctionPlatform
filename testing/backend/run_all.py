@@ -8,6 +8,11 @@ Usage:
     QA_BASE_URL=http://localhost/v1.0.0 python run_all.py
 
 Exit code is 0 iff every test case passed (skips don't count as failures).
+
+Every run also writes a Markdown report to reports/backend_test.<timestamp>.md
+(see report.py) — a full case-by-case record of that run, not just the
+console output. These are generated artifacts, gitignored, and accumulate
+locally; delete old ones freely.
 """
 import importlib
 import sys
@@ -20,6 +25,7 @@ if str(HERE) not in sys.path:
 
 import config  # noqa: E402
 from framework import SuiteResult  # noqa: E402
+import report  # noqa: E402
 
 
 def discover_modules(only=None):
@@ -83,6 +89,16 @@ def main():
         print(f"ALL PASSED ({overall.passed} passed, {overall.skipped} skipped)")
     else:
         print(f"{overall.failed} FAILURE(S) — see above")
+
+    report_path = report.write_report(
+        target=config.BASE_URL,
+        live_affecting=config.RUN_LIVE_AFFECTING_TESTS,
+        per_module=per_module,
+        overall=overall,
+        elapsed=elapsed,
+        module_names=module_names,
+    )
+    print(f"\nReport written to {report_path}")
 
     return 0 if overall.failed == 0 else 1
 
