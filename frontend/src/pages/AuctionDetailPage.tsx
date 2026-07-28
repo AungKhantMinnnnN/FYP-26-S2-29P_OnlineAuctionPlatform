@@ -123,7 +123,11 @@ export default function AuctionDetailPage() {
 
     let closedIntentionally = false
 
-    const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8001/v1.0.0/bids/ws'
+    // Falls back to the current origin (through nginx's /v1.0.0/bids/ws/ proxy) rather than a
+    // hardcoded host:port — required for any deployment whose public URL isn't known at build
+    // time (e.g. a Cloudflare tunnel), and still overridable via VITE_WS_URL for local dev.
+    const wsBaseUrl = import.meta.env.VITE_WS_URL
+      || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/v1.0.0/bids/ws`
     const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${id}?token=${token}`
     ws.current = new WebSocket(wsUrl)
 
