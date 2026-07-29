@@ -8,7 +8,8 @@ on:
 jobs:
   deploy:
     name: Deploy development to VM
-    runs-on: self-hosted
+    runs-on: [self-hosted, vm]
+    timeout-minutes: 15
     steps:
       - name: Run deploy script
         run: sudo /usr/local/bin/deploy_auction.sh
