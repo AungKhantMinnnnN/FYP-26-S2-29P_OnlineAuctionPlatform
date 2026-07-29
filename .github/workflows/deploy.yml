@@ -1,0 +1,14 @@
+name: Deploy to VM
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy development to VM
+    runs-on: self-hosted
+    steps:
+      - name: Run deploy script
+        run: sudo /usr/local/bin/deploy_auction.sh
