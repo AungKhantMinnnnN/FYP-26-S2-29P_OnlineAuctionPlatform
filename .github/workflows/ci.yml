@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [development, main]
   push:
-    branches: [develop]
+    branches: [development, main]
 
 jobs:
   lint-and-test:
@@ -74,6 +74,36 @@ jobs:
           pip install -r recommendation-engine/requirements.txt -r recommendation-engine/requirements-dev.txt
           cd recommendation-engine && pytest tests/ -v --tb=short
 
+  frontend-lint-and-build:
+    name: Frontend lint and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Non-blocking: the codebase currently has ~63 pre-existing lint errors (mostly
+      # no-explicit-any). Surface them without failing the build; flip to blocking
+      # once that backlog is cleared.
+      - name: Run linter
+        working-directory: frontend
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
   integration-tests:
     name: Integration tests (real DB + Redis)
     runs-on: ubuntu-latest
@@ -115,17 +145,16 @@ jobs:
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      # init.sql is the complete current schema (28 tables); the prohibited-keyword and
-      # AI-flag tables live only in these two IF-NOT-EXISTS migrations. Together they give
-      # the full schema the drift tests check against.
+      # init.sql is the base schema; scripts/apply_migrations.py then replays every file
+      # under scripts/migrations/ (each one is self-guarded to be safely re-runnable) so
+      # the drift tests check against the actual current schema, not a hand-picked subset.
       - name: Load schema
         env:
           PGPASSWORD: testpassword
+          DATABASE_URL: postgresql://auction_user:testpassword@localhost:5432/auction_test
         run: |
-          PSQL="psql -h localhost -U auction_user -d auction_test -v ON_ERROR_STOP=1"
-          $PSQL -f docker/postgres/init.sql
-          $PSQL -f scripts/migrations/2026_07_18_prohibited_keywords.sql
-          $PSQL -f scripts/migrations/2026_07_19_keyword_category_ai_flags.sql
+          psql -h localhost -U auction_user -d auction_test -v ON_ERROR_STOP=1 -f docker/postgres/init.sql
+          python3 scripts/apply_migrations.py
 
       - name: Install dependencies (all services)
         run: |
@@ -165,3 +194,49 @@ jobs:
           docker compose up -d --wait
           docker compose ps
           docker compose down
+
+  # Runs ON the target VM itself via a self-hosted runner — no SSH keys, no Tailscale
+  # bridging from GitHub-hosted runners, no secrets store for connectivity. The staging
+  # stack's real config lives in an env file OUTSIDE the git checkout (see
+  # .env.staging.example's header) so `actions/checkout`'s working-tree clean can never
+  # touch it. Adjust ENV_FILE below if you place it somewhere else.
+  #
+  # main is intentionally not deployed anywhere — CI still runs on it (see the `on:`
+  # triggers above) so PRs into main are still gated, it just never reaches a server.
+
+  deploy-staging:
+    name: Deploy to staging
+    runs-on: self-hosted
+    needs: [lint-and-test, frontend-lint-and-build, integration-tests, docker-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    env:
+      ENV_FILE: /opt/auctionhub/env/.env.staging
+      COMPOSE_PROJECT: auctionhub-staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and start staging stack
+        run: docker compose -p "$COMPOSE_PROJECT" --env-file "$ENV_FILE" up -d --build
+
+      - name: Apply pending migrations (staging DB)
+        run: |
+          set -a; source "$ENV_FILE"; set +a
+          DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}" \
+            python3 scripts/apply_migrations.py
+
+      - name: Smoke test
+        run: |
+          set -a; source "$ENV_FILE"; set +a
+          for i in $(seq 1 20); do
+            if curl -fsS "http://localhost:${NGINX_PORT}/health" > /dev/null; then
+              echo "staging up."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::staging never came up after deploy"
+          exit 1
+
+      - name: Prune old images
+        run: docker image prune -f
