@@ -20,6 +20,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 REMOTE_HOST="${REMOTE_HOST:-fyp}"
 REMOTE_DIR="${REMOTE_DIR:-/tmp/backend_qa_suite}"
 KEEP_REMOTE_DIR="${KEEP_REMOTE_DIR:-0}"
+QA_AUTO_CLEANUP="${QA_AUTO_CLEANUP:-1}"
+CLEANUP_DB_CONTAINER="${CLEANUP_DB_CONTAINER:-AuctionHub_PostgreSQL_DB}"
 
 echo "Target host: $REMOTE_HOST"
 echo "Remote dir : $REMOTE_DIR"
@@ -47,6 +49,24 @@ ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' && env ${env_forward[*]} python3 run_all.py
 echo "Fetching generated report(s)..."
 mkdir -p ./reports
 scp -q "$REMOTE_HOST:$REMOTE_DIR/reports/backend_test.*.md" ./reports/ 2>/dev/null || true
+
+if [[ "$QA_AUTO_CLEANUP" == "1" ]]; then
+    echo "Purging ephemeral QA accounts/listings from the database..."
+    scp -q ./cleanup_qa_data.sql "$REMOTE_HOST:$REMOTE_DIR/cleanup_qa_data.sql"
+    ssh "$REMOTE_HOST" "
+        set -e
+        if sudo docker inspect '$CLEANUP_DB_CONTAINER' >/dev/null 2>&1; then
+            sudo docker cp '$REMOTE_DIR/cleanup_qa_data.sql' '$CLEANUP_DB_CONTAINER:/tmp/cleanup_qa_data.sql'
+            db_user=\$(sudo docker exec '$CLEANUP_DB_CONTAINER' printenv POSTGRES_USER)
+            db_name=\$(sudo docker exec '$CLEANUP_DB_CONTAINER' printenv POSTGRES_DB)
+            sudo docker exec '$CLEANUP_DB_CONTAINER' psql -U \"\$db_user\" -d \"\$db_name\" -f /tmp/cleanup_qa_data.sql
+        else
+            echo 'Skipping cleanup: container $CLEANUP_DB_CONTAINER not found on this host.'
+        fi
+    " || echo "Cleanup pass failed (non-fatal) -- run cleanup_qa_data.sql manually if needed."
+else
+    echo "Skipping auto-cleanup (QA_AUTO_CLEANUP=$QA_AUTO_CLEANUP)."
+fi
 
 if [[ "$KEEP_REMOTE_DIR" != "1" ]]; then
     echo "Cleaning up remote scratch dir..."

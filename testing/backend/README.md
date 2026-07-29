@@ -52,6 +52,8 @@ as expected.
 | `REMOTE_HOST` | `fyp` | SSH host/alias to run the suite on |
 | `REMOTE_DIR` | `/tmp/backend_qa_suite` | Scratch dir to sync into on the remote host |
 | `KEEP_REMOTE_DIR` | `0` | Set to `1` to leave the synced copy in place instead of deleting it after the run |
+| `QA_AUTO_CLEANUP` | `1` | Set to `0` to skip the post-run database purge (see below) |
+| `CLEANUP_DB_CONTAINER` | `AuctionHub_PostgreSQL_DB` | Name of the Postgres container to purge test data from |
 
 ### Run reports
 
@@ -115,3 +117,28 @@ also means a handful of admin flows that depend on real bid data (restart a
 finalized auction, cancel a specific bid, buyer-role feedback, board items
 wrapping a won auction) can only be exercised on their error/precondition
 paths from this suite — see TEST_PLAN.md for exactly which cases and why.
+
+### Ephemeral accounts: why they need separate cleanup
+
+The isolation strategy above (every test registers its own user via
+`POST /auth/register`) is deliberate and good for safety, but it has a
+consequence worth knowing: **the API has no hard-delete for a user account.**
+The only delete path (`DELETE /admin/users/{id}`) is a *soft* delete — it
+flips `status` to `deleted`, sends the user an email, and writes an audit log
+row, but the row (and everything under it) stays in the database. Calling
+that per ephemeral test account would be slow, spam real inboxes/audit logs,
+and still not free up the row count.
+
+So instead, `run_remote.sh` runs [`cleanup_qa_data.sql`](cleanup_qa_data.sql)
+against the database directly after every remote run (`QA_AUTO_CLEANUP=1` by
+default) — a straight, FK-order-safe hard-delete of everything owned by a
+`qa_`-prefixed username, which is the prefix every ephemeral account this
+suite creates always uses (see `auth_helpers.random_registration_payload`).
+It's idempotent: re-running it when there's nothing left to clean is a no-op.
+
+This only runs from `run_remote.sh`, since only it has SSH/Docker access to
+the database host — a local `run_tests.sh`/`.ps1` run still creates real rows
+on the shared VM (it just talks to it over HTTP from wherever you are), so
+prefer `run_remote.sh` for anything beyond a quick one-off, or run
+`cleanup_qa_data.sql` by hand afterward (`ssh fyp`, then `docker exec -i
+AuctionHub_PostgreSQL_DB psql -U <user> -d <db> -f - < cleanup_qa_data.sql`).
