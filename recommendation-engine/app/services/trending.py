@@ -215,9 +215,6 @@ def cf_scores(user_id: uuid.UUID | None, interactions: pd.DataFrame, listing_ids
 
     Returns zero for all listings if the user is absent from the interaction window
     (cold start for CF — other signals still apply).
-
-    # ponytail: recomputed per request from the cached interactions_df.
-    # If the matrix grows large (10k+ users), precompute + cache the similarity matrix.
     """
     zero = pd.Series(0.0, index=listing_ids)
 

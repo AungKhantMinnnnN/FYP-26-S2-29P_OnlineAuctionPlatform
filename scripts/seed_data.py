@@ -29,7 +29,9 @@ from app.models.auction import (
     Testimonial,
     IssueType,
     Dispute, DisputeStatus,
-    SiteContent,
+    ProhibitedKeyword, FlaggedListingAttempt, AIModerationFlag,
+    FeedbackType, ItemFeedback,
+    OptionSet,
 )
 from app.core.security import get_password_hash
 from app.core.config import settings
@@ -265,7 +267,16 @@ async def seed_data():
                 )
                 db.add(user)
                 await db.flush()
-                db.add(UserProfiles(user_id=user.id, full_name=spec["full_name"], city=spec.get("city"), country=spec.get("country")))
+                db.add(UserProfiles(
+                    user_id=user.id, full_name=spec["full_name"],
+                    city=spec.get("city"), country=spec.get("country"),
+                    email_alerts_enabled=spec.get("email_alerts_enabled", True),
+                    # Premium users default to marketing opt-in — gives the two new
+                    # notification-preference columns some variety in the seed set.
+                    marketing_emails_enabled=spec.get(
+                        "marketing_emails_enabled", spec["tier"] == SubscriptionTier.premium
+                    ),
+                ))
                 created_count += 1
             all_users.append(user)
 
@@ -935,82 +946,147 @@ async def seed_data():
         await db.flush()
         print(f"Disputes: {len(dispute_specs)} created (open/in_review/resolved/closed mix).")
 
-        # ── 16. CMS default content (landing page) ─────────────────────────────
-        # Without a seeded row, a fresh DB's "/" would render through CmsPage as a
-        # blank page (CmsService returns an empty Data shape when no row exists).
-        # Mirrors puckConfig.tsx's defaultProps exactly so a new environment renders
-        # the same designed page an admin would see before making any edits.
-        existing_landing = await db.scalar(select(SiteContent).where(SiteContent.slug == "landing"))
-        if not existing_landing:
-            landing_content = {
-                "root": {"props": {}},
-                "zones": {},
-                "content": [
-                    {"type": "Hero", "props": {
-                        "id": "Hero-1",
-                        "heading": "The Premium Marketplace for Serious Collectors",
-                        "subheading": "Discover, bid, and win exclusive items in a high-trust, high-velocity environment. Join a community where authenticity and speed matter.",
-                        "primaryCtaLabel": "Start Bidding",
-                        "primaryCtaLink": "/register",
-                        "secondaryCtaLabel": "View Auctions",
-                        "secondaryCtaLink": "/browse",
-                    }},
-                    {"type": "Categories", "props": {"id": "Categories-1"}},
-                    {"type": "TrendingAuctions", "props": {"id": "TrendingAuctions-1"}},
-                    {"type": "FeatureGrid", "props": {
-                        "id": "FeatureGrid-1",
-                        "heading": "The AuctionHub Advantage",
-                        "subheading": "Built for high-stakes trading with enterprise-grade technology.",
-                        "features": [
-                            {"icon": "zap", "title": "Real-Time Sync", "text": "Low-latency WebSocket infrastructure ensures every bid is recorded instantly. No lag, no missed opportunities."},
-                            {"icon": "shield", "title": "Verified Listings", "text": "Multi-step verification process guarantees item authenticity and seller credibility for every listing."},
-                            {"icon": "trendingUp", "title": "AI Pricing Confidence", "text": "Advanced machine learning models analyse historical data to provide real-time valuation insights."},
-                        ],
-                    }},
-                    {"type": "TestimonialWall", "props": {"id": "TestimonialWall-1"}},
-                    {"type": "PricingBlock", "props": {
-                        "id": "PricingBlock-1",
-                        "heading": "Transparent Pricing",
-                        "subheading": "Scale your collecting hobby or business with ease",
-                        "freeName": "Free",
-                        "freeDescription": "For casual buyers and sellers starting out.",
-                        "freePrice": "$0",
-                        "freeBullets": [
-                            {"text": "Full marketplace browsing access"},
-                            {"text": "Up to 10 active bids per hour"},
-                            {"text": "Standard seller verification"},
-                        ],
-                        "premiumName": "Premium",
-                        "premiumDescription": "For professional traders and collectors.",
-                        "premiumPrice": "$49",
-                        "premiumBullets": [
-                            {"text": "No bidding or listing limits"},
-                            {"text": "Advanced Collector Dashboard"},
-                            {"text": "Priority Verification & Badging"},
-                            {"text": "24/7 VIP Concierge Support"},
-                        ],
-                    }},
-                    {"type": "ContactBlock", "props": {
-                        "id": "ContactBlock-1",
-                        "heading": "Get in Touch",
-                        "subtext": "Have a question, dispute, or partnership enquiry? Our team is here to help.",
-                        "email": "support@auctionhub.com",
-                    }},
-                    {"type": "Banner", "props": {
-                        "id": "Banner-1",
-                        "heading": "Ready to start bidding?",
-                        "body": "Join thousands of local buyers and sellers. Registration is free and PDPA-compliant.",
-                        "ctaLabel": "Register Now",
-                        "ctaLink": "/register",
-                        "hideWhenLoggedIn": True,
-                    }},
-                ],
-            }
-            db.add(SiteContent(slug="landing", content=landing_content))
+        # ── 16. Content moderation ─────────────────────────────────────────────
+        admin = next((u for u in all_users if u.role == UserRole.admin), None)
+
+        # Admin-managed prohibited keywords. category ∈ {illegal_item, profanity}.
+        keyword_defs = [
+            ("cocaine", "illegal_item"), ("firearm", "illegal_item"), ("counterfeit", "illegal_item"),
+            ("ivory", "illegal_item"), ("stolen goods", "illegal_item"),
+            ("damn", "profanity"), ("bastard", "profanity"),
+        ]
+        existing_kw = set((await db.execute(select(ProhibitedKeyword.keyword))).scalars().all())
+        new_kw = [
+            ProhibitedKeyword(keyword=k, category=c, added_by=admin.id if admin else None)
+            for k, c in keyword_defs if k not in existing_kw
+        ]
+        if new_kw:
+            db.add_all(new_kw)
             await db.flush()
-            print("CMS content: seeded default 'landing' page.")
-        else:
-            print("CMS content: 'landing' page already exists, skipped.")
+
+        # Blocked listing attempts that matched a keyword (powers the admin flagged view).
+        # Append-only log — only seed if empty so re-runs don't pile up duplicates.
+        attempt_count = 0
+        if not await db.scalar(select(func.count()).select_from(FlaggedListingAttempt)):
+            attempt_defs = [
+                (normal_users[0], "firearm", "title", "Rare antique firearm replica for collectors"),
+                (normal_users[2], "counterfeit", "description", "Not a counterfeit — 100% genuine leather"),
+                (normal_users[4], "stolen goods", "description", "Definitely not stolen goods, clean serial"),
+            ]
+            for u, kw, field, text in attempt_defs:
+                db.add(FlaggedListingAttempt(user_id=u.id, keyword_matched=kw, field=field, attempted_text=text))
+            attempt_count = len(attempt_defs)
+            await db.flush()
+
+        # AI-moderation review queue: non-blocking flags on real listings (admin reviews these).
+        ai_flag_count = 0
+        if active_listings and not await db.scalar(select(func.count()).select_from(AIModerationFlag)):
+            for lst in active_listings[:2]:
+                db.add(AIModerationFlag(
+                    listing_id=lst.id, user_id=lst.seller_id,
+                    categories="violence,weapons", field="description",
+                    flagged_text=lst.description or lst.title, reviewed=False,
+                ))
+            ai_flag_count = len(active_listings[:2])
+            await db.flush()
+        print(f"Content moderation: {len(new_kw)} keywords, {attempt_count} flagged attempts, {ai_flag_count} AI flags.")
+
+        # ── 17. Option sets (admin dropdown catalogue) ─────────────────────────
+        # One lookup table keyed by set_key backing every admin dropdown. Mirrors
+        # scripts/migrations/2026_07_20_option_sets.sql. Idempotent on (set_key, value).
+        option_defs = [
+            ("user_status", "active", "Active", 1),
+            ("user_status", "suspended", "Suspended", 2),
+            ("user_status", "deleted", "Deleted", 3),
+            ("user_role", "user", "Users", 1),
+            ("user_role", "admin", "Administrators", 2),
+            ("listing_status", "pending_review", "Needs review", 1),
+            ("listing_status", "active", "Live now", 2),
+            ("listing_status", "ended", "Ended", 3),
+            ("listing_status", "removed", "Removed", 4),
+            ("dispute_status", "open", "Open", 1),
+            ("dispute_status", "in_review", "In Review", 2),
+            ("dispute_status", "resolved", "Resolved", 3),
+            ("dispute_status", "closed", "Closed", 4),
+            ("audit_action", "suspend_user", "Suspend user", 1),
+            ("audit_action", "unsuspend_user", "Unsuspend user", 2),
+            ("audit_action", "delete_user", "Delete user", 3),
+            ("audit_action", "approve_listing", "Approve listing", 4),
+            ("audit_action", "remove_listing", "Remove listing", 5),
+            ("audit_action", "restart_auction", "Restart auction", 6),
+            ("audit_action", "cancel_bid", "Cancel bid", 7),
+            ("audit_action", "add_prohibited_keyword", "Add prohibited keyword", 8),
+            ("audit_action", "remove_prohibited_keyword", "Remove prohibited keyword", 9),
+            ("log_service", "backend", "Backend", 1),
+            ("log_service", "bidding-engine", "Bidding engine", 2),
+            ("log_service", "recommendation-engine", "Recommendation engine", 3),
+            ("log_level", "info", "Info", 1),
+            ("log_level", "warning", "Warning", 2),
+            ("log_level", "error", "Error", 3),
+            ("keyword_category", "illegal_item", "Illegal item", 1),
+            ("keyword_category", "profanity", "Profanity", 2),
+            ("feedback_role", "buyer", "Buyer", 1),
+            ("feedback_role", "seller", "Seller", 2),
+            ("item_condition", "new", "New", 1),
+            ("item_condition", "used", "Used", 2),
+            ("item_condition", "refurbished", "Refurbished", 3),
+        ]
+        existing_opts = set(
+            (await db.execute(select(OptionSet.set_key, OptionSet.value))).all()
+        )
+        new_opts = [
+            OptionSet(set_key=k, value=v, label=label, sort_order=order)
+            for k, v, label, order in option_defs if (k, v) not in existing_opts
+        ]
+        if new_opts:
+            db.add_all(new_opts)
+            await db.flush()
+        print(f"Option sets: {len(new_opts)} created ({len({k for k, *_ in option_defs})} sets).")
+
+        # ── 18. Feedback types + item feedback ─────────────────────────────────
+        feedback_type_defs = [
+            ("Buyer to Seller", "buyer"),
+            ("Buyer to Listing", "buyer"),
+            ("Seller to Buyer", "seller"),
+        ]
+        existing_ft = set((await db.execute(select(FeedbackType.name))).scalars().all())
+        for name, role in feedback_type_defs:
+            if name not in existing_ft:
+                db.add(FeedbackType(name=name, reviewer_role=role))
+        await db.flush()
+        ft_map = {ft.name: ft for ft in (await db.execute(select(FeedbackType))).scalars().all()}
+
+        # One review per type per ended auction: winner⇄seller. Winners bid on the
+        # listing, so this satisfies the app's eligibility rules. Append-only (UNIQUE
+        # on listing/reviewer/type) — seed only when empty so re-runs don't error.
+        fb_count = 0
+        if ended_results and not await db.scalar(select(func.count()).select_from(ItemFeedback)):
+            bts = ["Exactly as described, fast secure shipping. A pleasure to deal with.",
+                   "Great seller — responsive and professional. Item arrived well packed.",
+                   "Smooth transaction, honest condition notes. Would buy from again.",
+                   "Prompt dispatch and great communication throughout. Highly recommended."]
+            btl = ["Photos and description matched perfectly on arrival. No surprises.",
+                   "Accurate, detailed listing — every flaw and spec documented honestly.",
+                   "Listing was spot on. Condition exactly as represented.",
+                   "Clear photos and honest write-up. Fair and transparent listing."]
+            stb = ["Instant payment and polite communication. A model buyer.",
+                   "Smooth, professional deal. Confirmed receipt quickly. Five stars.",
+                   "Paid within minutes of close and stayed in touch. Perfect buyer.",
+                   "Great buyer — prompt, courteous, zero issues. Sell to again anytime."]
+            for i, (_result, lst, winner) in enumerate(ended_results):
+                seller_id = lst.seller_id
+                db.add(ItemFeedback(listing_id=lst.id, reviewer_id=winner.id, reviewee_id=seller_id,
+                                    feedback_type_id=ft_map["Buyer to Seller"].id,
+                                    rating=5 if i % 3 else 4, comment=bts[i % len(bts)]))
+                db.add(ItemFeedback(listing_id=lst.id, reviewer_id=winner.id, reviewee_id=seller_id,
+                                    feedback_type_id=ft_map["Buyer to Listing"].id,
+                                    rating=5 if i % 4 else 4, comment=btl[i % len(btl)]))
+                db.add(ItemFeedback(listing_id=lst.id, reviewer_id=seller_id, reviewee_id=winner.id,
+                                    feedback_type_id=ft_map["Seller to Buyer"].id,
+                                    rating=5 if i % 3 else 4, comment=stb[i % len(stb)]))
+                fb_count += 3
+            await db.flush()
+        print(f"Feedback: {len(feedback_type_defs)} types, {fb_count} item-feedback rows.")
 
         await db.commit()
         print(f"""
@@ -1023,6 +1099,10 @@ async def seed_data():
   Testimonials   : 6  (all featured)
   Issue types    : {len(issue_type_names)}
   Disputes       : {len(dispute_specs)}  (open / in_review / resolved / closed)
+  Prohibited kw  : {len(new_kw)}  (illegal_item + profanity)
+  Moderation     : {attempt_count} flagged attempts, {ai_flag_count} AI review flags
+  Option sets    : {len(new_opts)} options
+  Feedback       : {len(feedback_type_defs)} types, {fb_count} item-feedback rows
 
   Credentials (all users): password123
   New premium accounts : stewie, zixin, ethan, jn, wesley, gavrel

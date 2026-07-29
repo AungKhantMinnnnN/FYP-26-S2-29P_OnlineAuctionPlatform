@@ -16,8 +16,14 @@ BEGIN;
 -- 1. notifications: add title, drop legacy columns
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS title VARCHAR(255);
 
--- Backfill title from type before dropping type
-UPDATE notifications SET title = type WHERE title IS NULL AND type IS NOT NULL;
+-- Backfill title from type before dropping type (guarded: 'type' may already be gone on a re-run)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'notifications' AND column_name = 'type') THEN
+        UPDATE notifications SET title = type WHERE title IS NULL AND type IS NOT NULL;
+    END IF;
+END $$;
 UPDATE notifications SET title = 'Notification' WHERE title IS NULL;
 ALTER TABLE notifications ALTER COLUMN title SET NOT NULL;
 

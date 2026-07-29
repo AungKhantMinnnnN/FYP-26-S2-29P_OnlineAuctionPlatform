@@ -1,7 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm"; 
 
--- Enums
 CREATE TYPE user_role AS ENUM ('user', 'admin');
 CREATE TYPE user_status AS ENUM ('active', 'suspended', 'deleted');
 CREATE TYPE listing_status AS ENUM ('draft', 'pending_review', 'active', 'ended', 'removed');
@@ -13,7 +12,6 @@ CREATE TYPE dispute_status AS ENUM ('open', 'in_review', 'resolved', 'closed');
 CREATE TYPE interaction_action AS ENUM ('view', 'search', 'bid', 'watchlist');
 CREATE TYPE subscription_tier AS ENUM ('free', 'premium');
 
--- Users
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -40,11 +38,12 @@ CREATE TABLE user_profiles (
     country VARCHAR(100),
     dob DATE CHECK (dob < CURRENT_DATE),
     bio TEXT,
+    email_alerts_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    marketing_emails_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(user_id)
 );
 
--- Subscription tier pricing config
 CREATE TABLE subscription_tiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tier subscription_tier UNIQUE NOT NULL,
@@ -56,7 +55,6 @@ CREATE TABLE subscription_tiers (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Categories
 CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
@@ -65,7 +63,6 @@ CREATE TABLE categories (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- ML cold-start: categories a user picks during onboarding
 CREATE TABLE user_interests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -74,7 +71,6 @@ CREATE TABLE user_interests (
     UNIQUE(user_id, category_id)
 );
 
--- Listings
 CREATE TABLE listings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     seller_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -106,7 +102,6 @@ CREATE TABLE listing_images (
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Bids
 CREATE TABLE bids (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE RESTRICT,
@@ -125,7 +120,6 @@ CREATE TABLE auction_results (
     ended_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- User activity
 CREATE TABLE watchlist (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -190,7 +184,6 @@ CREATE TABLE user_interactions (
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Puck CMS: one JSON payload per editable page, swapped without a redeploy
 CREATE TABLE site_content (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug VARCHAR(100) UNIQUE NOT NULL,
@@ -200,7 +193,6 @@ CREATE TABLE site_content (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Append-only publish history for site_content — one row per publish/rollback, never mutated.
 CREATE TABLE site_content_versions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug VARCHAR(100) NOT NULL,
@@ -211,7 +203,6 @@ CREATE TABLE site_content_versions (
 );
 CREATE INDEX ix_site_content_versions_slug ON site_content_versions (slug, created_at DESC);
 
--- User-submitted platform testimonials; admin flags which ones show on the landing page
 CREATE TABLE testimonials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -221,7 +212,6 @@ CREATE TABLE testimonials (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Auth tokens
 CREATE TABLE password_reset_tokens (
     token VARCHAR PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -238,7 +228,6 @@ CREATE TABLE email_verification_tokens (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Premium: collector boards (showcase of won items)
 CREATE TABLE collector_boards (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -268,7 +257,6 @@ CREATE TABLE auction_durations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Admin-managed feedback type catalogue
 CREATE TABLE feedback_types (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name          VARCHAR(50) NOT NULL UNIQUE,
@@ -277,8 +265,6 @@ CREATE TABLE feedback_types (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Admin dropdown option catalogue: one lookup table keyed by set_key that backs every
--- admin dropdown. Seeded in scripts/migrations/2026_07_20_option_sets.sql.
 CREATE TABLE option_sets (
     id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     set_key    VARCHAR(50)  NOT NULL,
@@ -289,10 +275,7 @@ CREATE TABLE option_sets (
     created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     UNIQUE (set_key, value)
 );
-CREATE INDEX idx_option_sets_key ON option_sets(set_key) WHERE is_active = TRUE;
 
--- Marketing hero-video library: every upload keeps its own row/object key; exactly
--- one row is is_active = TRUE at a time (the video the public landing page shows).
 CREATE TABLE marketing_videos (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     s3_key            VARCHAR(255) NOT NULL UNIQUE,
@@ -304,7 +287,6 @@ CREATE TABLE marketing_videos (
 );
 CREATE INDEX idx_marketing_videos_active ON marketing_videos(is_active) WHERE is_active = TRUE;
 
--- Item-level feedback: any bidder can review; eligibility enforced at app layer
 CREATE TABLE item_feedback (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     listing_id       UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
@@ -316,6 +298,36 @@ CREATE TABLE item_feedback (
     is_public        BOOLEAN NOT NULL DEFAULT TRUE,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (listing_id, reviewer_id, feedback_type_id)
+);
+
+CREATE TABLE prohibited_keywords (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    keyword     VARCHAR(100) NOT NULL,
+    category    VARCHAR(20) NOT NULL DEFAULT 'illegal_item'
+                CHECK (category IN ('illegal_item', 'profanity')),
+    added_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_prohibited_keywords_keyword_ci ON prohibited_keywords (LOWER(keyword));
+
+CREATE TABLE flagged_listing_attempts (
+    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    keyword_matched  VARCHAR(100) NOT NULL,
+    field            VARCHAR(20) NOT NULL,
+    attempted_text   TEXT NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE ai_moderation_flags (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    listing_id    UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    categories    VARCHAR(200) NOT NULL,
+    field         VARCHAR(20) NOT NULL,
+    flagged_text  TEXT NOT NULL,
+    reviewed      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Indexes
@@ -342,3 +354,7 @@ CREATE INDEX ix_email_verification_tokens_user_id ON email_verification_tokens(u
 CREATE INDEX idx_item_feedback_listing ON item_feedback(listing_id);
 CREATE INDEX idx_item_feedback_reviewee ON item_feedback(reviewee_id);
 CREATE INDEX idx_item_feedback_public ON item_feedback(is_public, created_at DESC) WHERE is_public = TRUE;
+CREATE INDEX idx_option_sets_key ON option_sets(set_key) WHERE is_active = TRUE;
+CREATE INDEX idx_flagged_listing_attempts_user    ON flagged_listing_attempts(user_id);
+CREATE INDEX idx_flagged_listing_attempts_created ON flagged_listing_attempts(created_at DESC);
+CREATE INDEX idx_ai_moderation_flags_reviewed ON ai_moderation_flags(reviewed, created_at DESC);
