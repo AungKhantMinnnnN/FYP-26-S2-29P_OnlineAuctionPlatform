@@ -29,7 +29,7 @@ from app.models.auction import (
     Testimonial,
     IssueType,
     Dispute, DisputeStatus,
-    ProhibitedKeyword, FlaggedListingAttempt, AIModerationFlag,
+    ProhibitedKeyword, FlaggedListingAttempt,
     FeedbackType, ItemFeedback,
     OptionSet,
 )
@@ -978,18 +978,7 @@ async def seed_data():
             attempt_count = len(attempt_defs)
             await db.flush()
 
-        # AI-moderation review queue: non-blocking flags on real listings (admin reviews these).
-        ai_flag_count = 0
-        if active_listings and not await db.scalar(select(func.count()).select_from(AIModerationFlag)):
-            for lst in active_listings[:2]:
-                db.add(AIModerationFlag(
-                    listing_id=lst.id, user_id=lst.seller_id,
-                    categories="violence,weapons", field="description",
-                    flagged_text=lst.description or lst.title, reviewed=False,
-                ))
-            ai_flag_count = len(active_listings[:2])
-            await db.flush()
-        print(f"Content moderation: {len(new_kw)} keywords, {attempt_count} flagged attempts, {ai_flag_count} AI flags.")
+        print(f"Content moderation: {len(new_kw)} keywords, {attempt_count} flagged attempts.")
 
         # ── 17. Option sets (admin dropdown catalogue) ─────────────────────────
         # One lookup table keyed by set_key backing every admin dropdown. Mirrors
@@ -1100,7 +1089,7 @@ async def seed_data():
   Issue types    : {len(issue_type_names)}
   Disputes       : {len(dispute_specs)}  (open / in_review / resolved / closed)
   Prohibited kw  : {len(new_kw)}  (illegal_item + profanity)
-  Moderation     : {attempt_count} flagged attempts, {ai_flag_count} AI review flags
+  Moderation     : {attempt_count} flagged attempts
   Option sets    : {len(new_opts)} options
   Feedback       : {len(feedback_type_defs)} types, {fb_count} item-feedback rows
 
