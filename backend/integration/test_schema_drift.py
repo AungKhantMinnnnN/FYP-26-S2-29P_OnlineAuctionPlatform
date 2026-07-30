@@ -13,7 +13,7 @@ from app.models.auction import (
     ListingImages, Bid, AuctionResult, Watchlist, WalletTransaction, PasswordResetToken,
     EmailVerificationToken, Notification, IssueType, Dispute, Testimonial, AdminLog,
     UserInteraction, CollectorBoard, BoardItem, AuctionDuration, OptionSet, FeedbackType,
-    ItemFeedback, ProhibitedKeyword, FlaggedListingAttempt, AIModerationFlag, MarketingVideo,
+    ItemFeedback, ProhibitedKeyword, FlaggedListingAttempt, MarketingVideo,
     SiteContent, SiteContentVersion,
 )
 
@@ -22,7 +22,7 @@ MODELS = [
     ListingImages, Bid, AuctionResult, Watchlist, WalletTransaction, PasswordResetToken,
     EmailVerificationToken, Notification, IssueType, Dispute, Testimonial, AdminLog,
     UserInteraction, CollectorBoard, BoardItem, AuctionDuration, OptionSet, FeedbackType,
-    ItemFeedback, ProhibitedKeyword, FlaggedListingAttempt, AIModerationFlag, MarketingVideo,
+    ItemFeedback, ProhibitedKeyword, FlaggedListingAttempt, MarketingVideo,
     SiteContent, SiteContentVersion,
 ]
 
