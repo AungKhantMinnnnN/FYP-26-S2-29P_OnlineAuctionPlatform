@@ -59,9 +59,9 @@ export default function AuctionDetailPage() {
       return Number((currentBid + 1.0).toFixed(2));
     }
     if (auction.bidding_type === 'low_start' && bidsPlaced === 0) {
-      return Number(auction.starting_price.toFixed(2));
+      return Number((auction.starting_price ?? 0).toFixed(2));
     }
-    return bidsPlaced === 0 ? Number(auction.starting_price.toFixed(2)) : Number((currentBid + (auction.minIncrement || 1)).toFixed(2));
+    return bidsPlaced === 0 ? Number((auction.starting_price ?? 0).toFixed(2)) : Number((currentBid + (auction.minIncrement || 1)).toFixed(2));
   }, [auction, currentBid, bidsPlaced])
   const balance = user?.balance ?? 0
 
@@ -101,7 +101,7 @@ export default function AuctionDetailPage() {
           endTime: data.end_time,
           seller: { name: data.seller?.username || 'Unknown', rating: '5.0' }
         })
-        setCurrentBid(data.current_price || data.starting_price)
+        setCurrentBid(data.current_price || data.starting_price || 0)
         setBidsPlaced(bidsData.length)
         setBidHistory(bidsData.map((b) => ({
           bidder: b.bidder?.username || 'Anonymous',

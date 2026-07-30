@@ -28,8 +28,18 @@ export default function RegisterPage() {
       return
     }
 
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match')
+      return
+    }
+
+    if (!agreed) {
+      setError('Please agree to the Terms of Service and Privacy Policy.')
       return
     }
 

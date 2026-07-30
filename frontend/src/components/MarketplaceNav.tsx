@@ -14,16 +14,16 @@ interface MarketplaceNavProps {
   onNavigate?: () => void
 }
 
-export default function MarketplaceNav({ onNavigate }: MarketplaceNavProps) {
+export default function MarketplaceNav({ compact = false, onNavigate }: MarketplaceNavProps) {
   return (
-    <nav className="flex items-center gap-8">
+    <nav className={`flex items-center ${compact ? 'gap-5' : 'gap-8'}`}>
       {marketplaceLinks.map(({ to, label, badge }) => (
         <NavLink
           key={to}
           to={to}
           onClick={onNavigate}
           className={({ isActive }) =>
-            `relative flex items-center gap-1 pb-2 text-sm font-medium transition-colors ${
+            `relative flex items-center gap-1 pb-2 font-medium transition-colors ${compact ? 'text-xs' : 'text-sm'} ${
               isActive
                 ? 'text-accent-700 after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-accent-600'
                 : 'text-slate-600 hover:text-accent-700'

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Generated per-run test reports (see report.mjs)
+reports/*.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId } from 'react'
 
 interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -6,13 +6,16 @@ interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ComponentType<any>
 }
 
-export default function FormInput({ label, type = 'text', placeholder, value, onChange, error, icon: Icon, className = '', ...props }: FormInputProps) {
+export default function FormInput({ label, type = 'text', placeholder, value, onChange, error, icon: Icon, className = '', id, ...props }: FormInputProps) {
+  const generatedId = useId()
+  const inputId = id ?? generatedId
   return (
     <div>
-      {label && <label className="mb-1.5 block text-sm font-medium text-slate-700">{label}</label>}
+      {label && <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-slate-700">{label}</label>}
       <div className="relative">
         {Icon && <Icon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />}
         <input
+          id={inputId}
           type={type}
           value={value}
           onChange={onChange}

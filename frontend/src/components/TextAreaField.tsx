@@ -1,14 +1,17 @@
-import React from 'react'
+import React, { useId } from 'react'
 
 interface TextAreaFieldProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
 }
 
-export default function TextAreaField({ label, placeholder, value, onChange, rows = 4, className = '', ...props }: TextAreaFieldProps) {
+export default function TextAreaField({ label, placeholder, value, onChange, rows = 4, className = '', id, ...props }: TextAreaFieldProps) {
+  const generatedId = useId()
+  const textareaId = id ?? generatedId
   return (
     <div>
-      {label && <label className="mb-1.5 block text-sm font-medium text-slate-700">{label}</label>}
+      {label && <label htmlFor={textareaId} className="mb-1.5 block text-sm font-medium text-slate-700">{label}</label>}
       <textarea
+        id={textareaId}
         value={value}
         onChange={onChange}
         rows={rows}
