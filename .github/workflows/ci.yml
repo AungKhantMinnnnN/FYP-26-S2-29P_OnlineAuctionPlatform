@@ -236,52 +236,5 @@ jobs:
           docker compose --env-file .env.local ps
           docker compose --env-file .env.local down
 
-  # Runs ON the target VM itself via a self-hosted runner — no SSH keys, no Tailscale
-  # bridging from GitHub-hosted runners, no secrets store for connectivity. The staging
-  # stack's real config lives in an env file OUTSIDE the git checkout (see
-  # .env.staging.example's header) so `actions/checkout`'s working-tree clean can never
-  # touch it. Adjust ENV_FILE below if you place it somewhere else.
-  #
-  # main is intentionally not deployed anywhere — CI still runs on it (see the `on:`
-  # triggers above) so PRs into main are still gated, it just never reaches a server.
-
-  deploy-staging:
-    name: Deploy to staging
-    runs-on: self-hosted
-    needs: [lint-and-test, frontend-lint-and-build, integration-tests, docker-build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
-    timeout-minutes: 15
-    concurrency:
-      group: deploy-staging-${{ github.ref }}
-      cancel-in-progress: false
-    env:
-      ENV_FILE: /opt/auctionhub/env/.env.staging
-      COMPOSE_PROJECT: auctionhub-staging
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build and start staging stack
-        run: docker compose -p "$COMPOSE_PROJECT" --env-file "$ENV_FILE" up -d --build
-
-      - name: Apply pending migrations (staging DB)
-        run: |
-          set -a; source "$ENV_FILE"; set +a
-          DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}" \
-            python3 scripts/apply_migrations.py
-
-      - name: Smoke test
-        run: |
-          set -a; source "$ENV_FILE"; set +a
-          for i in $(seq 1 20); do
-            if curl -fsS "http://localhost:${NGINX_PORT}/health" > /dev/null; then
-              echo "staging up."
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::staging never came up after deploy"
-          exit 1
-
-      - name: Prune old images
-        run: docker image prune -f
+  # Deployment to the VM lives in deploy.yml (triggers on the same push-to-development
+  # event, runs deploy_auction.sh on the self-hosted runner) — not duplicated here.
