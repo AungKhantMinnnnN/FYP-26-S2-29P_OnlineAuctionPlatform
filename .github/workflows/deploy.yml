@@ -5,6 +5,13 @@ on:
     branches: [development]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-development
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy development to VM

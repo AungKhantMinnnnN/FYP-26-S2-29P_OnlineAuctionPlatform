@@ -10,3 +10,6 @@ git fetch origin
 git reset --hard origin/development
 docker compose --project-directory /root/apps/auction-dev -f /root/apps/auction-dev/docker-compose.yml up -d --build
 docker image prune -f
+# Builder cache grows unbounded with --build on every deploy (this is what filled the
+# VM disk to 85% before); keep the last week of cache and drop anything older.
+docker builder prune -f --filter "until=168h"
