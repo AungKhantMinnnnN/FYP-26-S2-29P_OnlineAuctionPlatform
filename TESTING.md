@@ -5,11 +5,11 @@ Two independent, code-based test suites. Neither depends on the other.
 | | Backend QA suite | Frontend test suite |
 |---|---|---|
 | **What** | Black-box HTTP tests against a *running* backend | Unit/component tests, jsdom + mocked HTTP |
-| **Location** | [`testing/backend/`](testing/backend/) | colocated `*.test.ts(x)` files under [`frontend/src/`](frontend/src/) |
+| **Location** | [`testing/backend/`](testing/backend/) | test files colocated as `*.test.ts(x)` under [`frontend/src/`](frontend/src/); suite entry point/config in [`testing/frontend/`](testing/frontend/) |
 | **Needs a live backend?** | Yes — talks to a real API over HTTP | No — every HTTP client is mocked |
 | **Writes real test data?** | Yes, ephemerally (see below) | No, never |
-| **Run it** | `testing/backend/run_tests.sh` / `.ps1` | `frontend/run_tests.sh` / `.ps1` |
-| **Output** | `testing/backend/reports/backend_test.<timestamp>.md` | `frontend/reports/frontend_test.<timestamp>.md` |
+| **Run it** | `testing/backend/run_tests.sh` / `.ps1` | `testing/frontend/run_tests.sh` / `.ps1` |
+| **Output** | `testing/backend/reports/backend_test.<timestamp>.md` | `testing/frontend/reports/frontend_test.<timestamp>.md` |
 
 Both report files are Markdown, gitignored, and share the same shape: a
 metadata table, a per-file/per-module pass/fail summary, and a full
@@ -66,14 +66,20 @@ nothing analogous to the backend suite's `qa_`-account problem to reproduce
 here.
 
 ```bash
-cd frontend
+cd testing/frontend
 ./run_tests.sh                       # everything
 ./run_tests.sh src/api/authApi.test.ts   # just one file
 ```
 ```powershell
-cd frontend
+cd testing/frontend
 .\run_tests.ps1
 ```
+
+The scripts `cd` into `frontend/` themselves to install deps and run Vitest,
+then write the report back to `testing/frontend/reports/`. (`vitest.config.ts`
+stays inside `frontend/` — it has to live alongside `frontend/node_modules`
+for its own plugin imports to resolve; only the run scripts, report
+generator, and output live under `testing/frontend/`.)
 
 Or run Vitest directly without the report step: `npm test` (single run) /
 `npm run test:watch` (watch mode) / `npm run test:coverage` (with coverage)

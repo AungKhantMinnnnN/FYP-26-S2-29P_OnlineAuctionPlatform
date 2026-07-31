@@ -7,6 +7,7 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
+const FRONTEND_DIR = join(HERE, '..', '..', 'frontend')
 const REPORTS_DIR = join(HERE, 'reports')
 const STATUS_ICON = { passed: '✅', failed: '❌', pending: '⏭️', skipped: '⏭️', todo: '⏭️' }
 
@@ -33,7 +34,7 @@ function main() {
     const passed = assertions.filter((a) => a.status === 'passed').length
     const failed = assertions.filter((a) => a.status === 'failed').length
     const skipped = assertions.length - passed - failed
-    return { name: relative(HERE, f.name).replace(/\\/g, '/'), passed, failed, skipped, assertions }
+    return { name: relative(FRONTEND_DIR, f.name).replace(/\\/g, '/'), passed, failed, skipped, assertions }
   })
 
   const overallPassed = raw.numPassedTests ?? 0
