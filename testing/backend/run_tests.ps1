@@ -35,10 +35,25 @@ if (-not $python) {
 }
 
 Write-Host "Using $python"
+
+# Some Python installs (e.g. Debian/Ubuntu-based, PEP 668) refuse a bare
+# pip install. Use an isolated venv instead -- works everywhere, never
+# touches system packages.
+$venvDir = ".venv"
+if (-not (Test-Path $venvDir)) {
+    Write-Host "Creating virtual environment..."
+    & $python -m venv $venvDir
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+$venvPython = Join-Path $venvDir "Scripts\python.exe"
+if (-not (Test-Path $venvPython)) {
+    $venvPython = Join-Path $venvDir "bin/python"
+}
+
 Write-Host "Installing dependencies..."
-& $python -m pip install --quiet -r requirements.txt
+& $venvPython -m pip install --quiet -r requirements.txt
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Running backend QA suite..."
-& $python run_all.py @args
+& $venvPython run_all.py @args
 exit $LASTEXITCODE

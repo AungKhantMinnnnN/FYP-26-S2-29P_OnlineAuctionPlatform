@@ -32,7 +32,9 @@ echo "Syncing test suite..."
 scp -q ./*.py requirements.txt "$REMOTE_HOST:$REMOTE_DIR/"
 
 echo "Ensuring dependencies are installed remotely..."
-ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' && python3 -m pip install --quiet -r requirements.txt"
+# Some hosts (Debian/Ubuntu, PEP 668) refuse a bare pip install against the
+# system Python -- use an isolated venv instead, same as run_tests.sh.
+ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' && [ -d .venv ] || python3 -m venv .venv && .venv/bin/python -m pip install --quiet -r requirements.txt"
 
 # Forward any QA_* env vars set locally (e.g. QA_RUN_LIVE_AFFECTING_TESTS, QA_BASE_URL)
 # so `FOO=bar ./run_remote.sh` behaves the same as it would running locally.
@@ -44,7 +46,7 @@ done < <(env)
 
 echo "Running suite on $REMOTE_HOST..."
 exit_code=0
-ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' && env ${env_forward[*]} python3 run_all.py $*" || exit_code=$?
+ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' && env ${env_forward[*]} .venv/bin/python run_all.py $*" || exit_code=$?
 
 echo "Fetching generated report(s)..."
 mkdir -p ./reports
