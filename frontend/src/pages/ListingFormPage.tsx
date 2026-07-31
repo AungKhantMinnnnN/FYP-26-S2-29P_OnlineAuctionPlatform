@@ -47,6 +47,10 @@ export default function ListingFormPage() {
   const [isLoadingListing, setIsLoadingListing] = useState(isEditMode)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  // Preserves the listing's current status across an edit-mode save, so
+  // "Save Changes" on an already-active listing doesn't silently revert it
+  // to a draft (only "Publish Auction" should ever force status to active).
+  const [originalStatus, setOriginalStatus] = useState<'draft' | 'active'>('draft')
 
   useEffect(() => {
     getFormMetadata()
@@ -78,6 +82,7 @@ export default function ListingFormPage() {
           bidding_type: listing.bidding_type || 'price_up',
         }))
         setExistingImages(listing.images || [])
+        setOriginalStatus(listing.status === 'active' ? 'active' : 'draft')
       })
       .catch(err => {
         console.error('Failed to load listing', err)
@@ -447,7 +452,7 @@ export default function ListingFormPage() {
 
       {/* Actions */}
       <div className="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end">
-        <SecondaryButton onClick={() => submit('draft')} disabled={isSubmitting}>
+        <SecondaryButton onClick={() => submit(isEditMode ? originalStatus : 'draft')} disabled={isSubmitting}>
           {isSubmitting ? 'Saving…' : isEditMode ? 'Save Changes' : 'Save as Draft'}
         </SecondaryButton>
         <PrimaryButton onClick={() => submit('active')} disabled={isSubmitting}>

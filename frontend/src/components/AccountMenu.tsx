@@ -24,7 +24,7 @@ export default function AccountMenu() {
   return (
     <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800"
       >
         <span>{displayName}</span>

@@ -5,10 +5,18 @@ on:
     branches: [development]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-development
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy development to VM
     runs-on: self-hosted
+    timeout-minutes: 15
     steps:
       - name: Run deploy script
         run: sudo /usr/local/bin/deploy_auction.sh

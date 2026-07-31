@@ -37,7 +37,7 @@ export default function Navbar() {
             {user ? (
               role === 'admin' ? (
                 <div className="relative" onMouseEnter={() => setAccountOpen(true)} onMouseLeave={() => setAccountOpen(false)}>
-                  <button onClick={() => setAccountOpen(!accountOpen)} className="ml-2 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
+                  <button onClick={() => setAccountOpen(true)} className="ml-2 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110">
                     <span>Admin</span>
                     <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white/80">ADMIN</span>
                     <ChevronDown size={15} />

@@ -6,10 +6,17 @@ on:
   push:
     branches: [development, main]
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     name: Lint and test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ci-lint-and-test-${{ github.ref }}
+      cancel-in-progress: true
 
     services:
       postgres:
@@ -91,6 +98,10 @@ jobs:
   frontend-lint-and-build:
     name: Frontend lint and build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ci-frontend-lint-and-build-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -114,6 +125,10 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
+
       - name: Build
         working-directory: frontend
         run: npm run build
@@ -121,6 +136,10 @@ jobs:
   integration-tests:
     name: Integration tests (real DB + Redis)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ci-integration-tests-${{ github.ref }}
+      cancel-in-progress: true
 
     services:
       postgres:
@@ -198,6 +217,10 @@ jobs:
   docker-build:
     name: Docker build check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ci-docker-build-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - name: Build Postgres image
@@ -227,6 +250,10 @@ jobs:
     runs-on: self-hosted
     needs: [lint-and-test, frontend-lint-and-build, integration-tests, docker-build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-staging-${{ github.ref }}
+      cancel-in-progress: false
     env:
       ENV_FILE: /opt/auctionhub/env/.env.staging
       COMPOSE_PROJECT: auctionhub-staging

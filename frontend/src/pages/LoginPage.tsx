@@ -20,7 +20,7 @@ export default function LoginPage() {
     }
     setLocalLoading(true)
     try {
-      await login(usernameOrEmail, password)
+      await login(usernameOrEmail.trim(), password)
     } catch (err) {
       console.error(err)
       setError(err.response?.data?.detail || 'Invalid username/email or password')
