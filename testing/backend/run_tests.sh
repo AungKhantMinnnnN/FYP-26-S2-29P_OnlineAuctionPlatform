@@ -22,8 +22,30 @@ if ! command -v "$PYTHON" >/dev/null 2>&1; then
 fi
 
 echo "Using $("$PYTHON" --version 2>&1) at $(command -v "$PYTHON")"
+
+# Debian/Ubuntu 23.04+ (and derivatives) mark the system Python as
+# externally managed (PEP 668) and refuse a bare `pip install`. Use an
+# isolated venv instead -- works everywhere, never touches system packages.
+VENV_DIR=".venv"
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating virtual environment..."
+    VENV_ERR="$(mktemp)"
+    if ! "$PYTHON" -m venv "$VENV_DIR" 2>"$VENV_ERR"; then
+        cat "$VENV_ERR" >&2
+        rm -f "$VENV_ERR"
+        echo >&2
+        echo "Failed to create a virtual environment. On Debian/Ubuntu this usually" >&2
+        echo "means the venv module needs its own package:" >&2
+        echo "  sudo apt install python3-venv" >&2
+        echo "(or python3.<X>-venv for your specific version, per the error above)." >&2
+        exit 1
+    fi
+    rm -f "$VENV_ERR"
+fi
+VENV_PYTHON="$VENV_DIR/bin/python"
+
 echo "Installing dependencies..."
-"$PYTHON" -m pip install --quiet -r requirements.txt
+"$VENV_PYTHON" -m pip install --quiet -r requirements.txt
 
 echo "Running backend QA suite..."
-exec "$PYTHON" run_all.py "$@"
+exec "$VENV_PYTHON" run_all.py "$@"
