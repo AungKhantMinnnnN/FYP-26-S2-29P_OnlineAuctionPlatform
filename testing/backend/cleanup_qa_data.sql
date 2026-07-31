@@ -24,4 +24,12 @@ DELETE FROM wallet_transactions WHERE user_id IN (SELECT id FROM users WHERE use
 DELETE FROM listings WHERE seller_id IN (SELECT id FROM users WHERE username LIKE 'qa\_%');
 DELETE FROM users WHERE username LIKE 'qa\_%';
 
+-- Categories/feedback types aren't owned by a qa_ user, so they survive the cleanup
+-- above -- catch them separately, by the fixed naming/slug convention every QA test
+-- uses (test_admin_categories._unique_slug(), test_feedback._unique_name()). Placed
+-- after the deletes above so any qa_-owned listings/item_feedback rows that
+-- referenced them (RESTRICT FKs) are already gone.
+DELETE FROM categories WHERE slug LIKE 'qa-test-cat-%';
+DELETE FROM feedback_types WHERE name LIKE 'QA Feedback Type %';
+
 COMMIT;
