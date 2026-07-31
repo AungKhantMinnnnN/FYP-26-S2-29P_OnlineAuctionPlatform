@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.teammate
+!.env.staging.example
 
 # Python
 __pycache__/

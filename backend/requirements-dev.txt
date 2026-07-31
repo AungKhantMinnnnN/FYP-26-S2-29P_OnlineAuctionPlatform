@@ -1,0 +1,9 @@
+# Test dependencies. Phase 1 (pure-function unit tests) needs only pytest.
+# Later phases add: pytest-mock, fakeredis, respx (see the unit-test plan).
+pytest==8.3.4
+pytest-asyncio==0.25.2
+
+# Lint/type-check — ci.yml's "Run linter"/"Run type checker" steps need these on PATH.
+# Previously undeclared: those steps failed with "command not found" on every run.
+ruff
+mypy

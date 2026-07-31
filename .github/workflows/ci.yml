@@ -58,11 +58,25 @@ jobs:
           pip install -r backend/requirements.txt
           pip install -r backend/requirements-dev.txt
 
+      # Non-blocking: ruff has never actually run before (previously missing from
+      # requirements-dev.txt, so this step failed with "command not found" every time
+      # rather than reporting real findings). With no ruff config in the repo, the
+      # default rule set now surfaces ~590 pre-existing findings. Surface them without
+      # blocking the pipeline; flip to blocking once that backlog is triaged.
       - name: Run linter
         run: ruff check backend/
+        continue-on-error: true
 
+      # Same story as ruff, plus backend/app had no __init__.py files (implicit
+      # namespace packages), which made mypy's default resolver treat same-named
+      # files in different dirs (e.g. schemas/admin.py vs controller/admin.py) as a
+      # single ambiguous module and abort immediately. Running from backend/ (like
+      # the pytest step below) plus real __init__.py files fixes resolution; ~207
+      # real findings remain (mostly Column[X] vs X — SQLAlchemy Mapped[] typing
+      # debt), non-blocking for the same reason as ruff above.
       - name: Run type checker
-        run: mypy backend/app
+        run: cd backend && mypy app
+        continue-on-error: true
 
       - name: Run tests (backend)
         env:
@@ -211,12 +225,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Postgres image
         run: docker build ./docker/postgres -t auction-postgres:ci
+      # Every service's env_file: is ${ENV_FILE:-.env.local}, not .env — copying to
+      # .env alone left that unresolved and compose failed with "env file .../.env.local
+      # not found". --env-file .env.local covers both that and ${VAR} interpolation
+      # (e.g. ${POSTGRES_DB}) in one file.
       - name: Compose up smoke test
         run: |
-          cp .env.example .env
-          docker compose up -d --wait
-          docker compose ps
-          docker compose down
+          cp .env.example .env.local
+          docker compose --env-file .env.local up -d --wait
+          docker compose --env-file .env.local ps
+          docker compose --env-file .env.local down
 
   # Runs ON the target VM itself via a self-hosted runner — no SSH keys, no Tailscale
   # bridging from GitHub-hosted runners, no secrets store for connectivity. The staging

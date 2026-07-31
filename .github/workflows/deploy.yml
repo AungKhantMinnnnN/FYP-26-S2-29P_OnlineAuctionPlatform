@@ -15,7 +15,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy development to VM
-    runs-on: [self-hosted, vm]
+    runs-on: self-hosted
     timeout-minutes: 15
     steps:
       - name: Run deploy script
