@@ -8,12 +8,15 @@
 #   ./run_tests.sh                          # run everything
 #   ./run_tests.sh src/api/authApi.test.ts   # run just one file
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FRONTEND_DIR="$HERE/../../frontend"
 
 if ! command -v npm >/dev/null 2>&1; then
     echo "npm not found -- install Node.js 20+ first." >&2
     exit 1
 fi
+
+cd "$FRONTEND_DIR"
 
 echo "Using $(node --version) / $(npm --version)"
 echo "Installing dependencies..."
@@ -28,5 +31,5 @@ npx vitest run --reporter=default --reporter=json --outputFile.json="$RAW_JSON" 
 STATUS=$?
 set -e
 
-node report.mjs "$RAW_JSON"
+node "$HERE/report.mjs" "$RAW_JSON"
 exit "$STATUS"

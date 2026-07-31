@@ -15,12 +15,15 @@
     Runs just one file.
 #>
 $ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
+$here = $PSScriptRoot
+$frontendDir = Join-Path $here "..\..\frontend"
 
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     Write-Error "npm not found -- install Node.js 20+ first."
     exit 1
 }
+
+Set-Location $frontendDir
 
 Write-Host "Using $(node --version) / $(npm --version)"
 Write-Host "Installing dependencies..."
@@ -33,7 +36,7 @@ try {
     npx vitest run --reporter=default --reporter=json --outputFile.json=$rawJson @args
     $status = $LASTEXITCODE
 
-    node report.mjs $rawJson
+    node (Join-Path $here "report.mjs") $rawJson
 }
 finally {
     Remove-Item -Path $rawJson -Force -ErrorAction SilentlyContinue
