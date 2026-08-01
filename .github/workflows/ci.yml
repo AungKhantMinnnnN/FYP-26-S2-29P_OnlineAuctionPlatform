@@ -240,6 +240,8 @@ jobs:
   # /opt/auctionhub/env/.env.staging). That path was never actually provisioned on the
   # VM, so the job failed on every push to development without protecting a real staging
   # environment. Removed rather than left dead; .env.staging.example still documents the
-  # env shape for whoever stands staging up for real. main is intentionally not deployed
+  # env shape for whoever stands staging up for real. Deployment to the VM lives in
+  # deploy.yml (triggers on the same push-to-development event, runs deploy_auction.sh on
+  # the self-hosted runner) — not duplicated here. main is intentionally not deployed
   # anywhere — CI still runs on it (see the `on:` triggers above) so PRs into main are
   # still gated, it just never reaches a server.

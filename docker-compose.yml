@@ -134,8 +134,10 @@ services:
       S3_ENDPOINT: http://minio:9000
       LOG_DIR: /logs
       ALL_LOGS_DIR: /all-logs
-    ports:
-      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
+      # No host port published: nginx already proxies every /v1.0.0/* browser request to this
+      # service (see docker/nginx/default.conf) — there is no legitimate reason for it to be
+      # reachable directly, and leaving it open bypassed nginx's own internal-route block
+      # (see docker/nginx/default.conf's /v1.0.0/internal/ 404, and TEST_PLAN.md Finding F1).
     volumes:
       - ./logs/backend:/logs
       - ./logs:/all-logs:ro   # read-only view of every service's logs for the admin System Logs view
@@ -163,8 +165,8 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       BACKEND_URL: http://backend:8000
       LOG_DIR: /logs
-    ports:
-      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${BIDDING_PORT:-8001}:8001"   # health check + WebSocket
+    # No host port published — nginx proxies /v1.0.0/bids/* (REST) and /v1.0.0/bids/ws/*
+    # (WebSocket upgrade) to this service already; see docker/nginx/default.conf
     volumes:
       - ./logs/bidding-engine:/logs
     depends_on:
@@ -189,8 +191,8 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       BACKEND_URL: http://backend:8000
       LOG_DIR: /logs
-    ports:
-      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${RECS_PORT:-8002}:8002"   # health check endpoint
+    # No host port published — nginx proxies /v1.0.0/recs/* and /v1.0.0/trending to this
+    # service already; see docker/nginx/default.conf.
     volumes:
       - ./logs/recommendation-engine:/logs
     depends_on:
