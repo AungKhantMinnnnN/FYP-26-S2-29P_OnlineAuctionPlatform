@@ -118,17 +118,19 @@ export default function AuctionDetailPage() {
   }, [id])
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token')
-    if (!token) return
+    if (!user) return
 
     let closedIntentionally = false
 
     // Falls back to the current origin (through nginx's /v1.0.0/bids/ws/ proxy) rather than a
     // hardcoded host:port — required for any deployment whose public URL isn't known at build
     // time (e.g. a Cloudflare tunnel), and still overridable via VITE_WS_URL for local dev.
+    // The session's httpOnly cookie rides along with the handshake automatically (same-origin
+    // request) -- the bidding-engine reads it from there now instead of a "?token=" query param,
+    // which would otherwise be the one place still exposing the raw JWT in a URL.
     const wsBaseUrl = import.meta.env.VITE_WS_URL
       || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/v1.0.0/bids/ws`
-    const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${id}?token=${token}`
+    const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${id}`
     ws.current = new WebSocket(wsUrl)
 
     ws.current.onmessage = (event) => {

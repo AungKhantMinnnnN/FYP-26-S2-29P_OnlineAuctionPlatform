@@ -17,8 +17,8 @@ describe('recommendationsApi', () => {
   })
 
   it('getTrending calls the recommendation-engine client, not the main apiClient', async () => {
-    await getTrending({ user_id: 'u-1', limit: 5 })
-    expect(recsGet).toHaveBeenCalledWith('/recs/trending', { params: { user_id: 'u-1', limit: 5 } })
+    await getTrending({ limit: 5 })
+    expect(recsGet).toHaveBeenCalledWith('/recs/trending', { params: { limit: 5 } })
   })
 
   it('getTrending works with no params', async () => {

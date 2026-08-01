@@ -15,7 +15,7 @@ connect_args = {}
 if "neon.tech" in database_url:
     connect_args["ssl"] = "require"
 
-engine = create_async_engine(database_url, echo=True, connect_args=connect_args)
+engine = create_async_engine(database_url, echo=settings.DB_ECHO, connect_args=connect_args)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

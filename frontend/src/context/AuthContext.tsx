@@ -27,12 +27,11 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   loading: boolean;
   isAuthenticated: boolean;
   role: string | undefined;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   register: (
     fullName: string,
     username: string,
@@ -52,66 +51,51 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(sessionStorage.getItem('token'));
-  const [loading, setLoading] = useState<boolean>(() => !!sessionStorage.getItem('token'));
+  const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const logout = useCallback(() => {
-    sessionStorage.removeItem('token');
-    setToken(null);
+  const logout = useCallback(async () => {
     setUser(null);
     queryClient.clear();
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (error) {
+      // Clearing local state is what actually matters for the UI; a failed logout
+      // call just leaves a cookie the server will reject as expired anyway.
+      console.error('Logout request failed:', error);
+    }
   }, [queryClient]);
 
   useEffect(() => {
+    // The session lives in an httpOnly cookie (unreadable by JS), so the only way to find
+    // out whether anyone is logged in is to ask the server -- there's no local token to
+    // check anymore. A 401 here just means "not logged in," not an error to surface.
     let isMounted = true;
-    if (token) {
-      apiClient.get<User>('/auth/get_current_user', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+    apiClient.get<User>('/auth/get_current_user')
       .then((response) => {
-        if (isMounted) {
-          setUser(response.data);
-          setLoading(false);
-        }
+        if (isMounted) setUser(response.data);
       })
-      .catch((error) => {
-        console.error('Failed to fetch user profile:', error);
-        if (isMounted) {
-          logout();
-          setLoading(false);
-        }
+      .catch(() => {
+        if (isMounted) setUser(null);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
       });
-    } else {
-      Promise.resolve().then(() => {
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
-    }
     return () => {
       isMounted = false;
     };
-  }, [token, logout]);
+  }, []);
 
   const login = useCallback(async (usernameOrEmail: string, password: string) => {
     setLoading(true);
     try {
-      const response = await apiClient.post<{ access_token: string; token_type: string }>('/auth/login', {
+      // The response also sets the httpOnly session cookie -- nothing to store client-side.
+      await apiClient.post('/auth/login', {
         username_or_email: usernameOrEmail,
         password: password,
       });
-      const newToken = response.data.access_token;
-      sessionStorage.setItem('token', newToken);
-      setToken(newToken);
-      const profileResponse = await apiClient.get<User>('/auth/get_current_user', {
-        headers: {
-          Authorization: `Bearer ${newToken}`
-        }
-      });
+      const profileResponse = await apiClient.get<User>('/auth/get_current_user');
       queryClient.clear();
       setUser(profileResponse.data);
       setLoading(false);
@@ -120,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       throw error;
     }
-  }, [navigate]);
+  }, [navigate, queryClient]);
 
   const register = useCallback(async (
     fullName: string,
@@ -154,15 +138,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const refreshUser = useCallback(async () => {
-    if (token) {
-      try {
-        const response = await apiClient.get<User>('/auth/get_current_user');
-        setUser(response.data);
-      } catch (error) {
-        console.error('Failed to refresh user profile:', error);
-      }
+    if (!user) return;
+    try {
+      const response = await apiClient.get<User>('/auth/get_current_user');
+      setUser(response.data);
+    } catch (error) {
+      console.error('Failed to refresh user profile:', error);
     }
-  }, [token]);
+  }, [user]);
 
   const adjustBalance = useCallback((amount: number) => {
     setUser((current) => {
@@ -173,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAuthenticated: !!user, role: user?.role, login, logout, register, refreshUser, adjustBalance }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, role: user?.role, login, logout, register, refreshUser, adjustBalance }}>
       {children}
     </AuthContext.Provider>
   );

@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # Database and Redis
     DATABASE_URL: str
     REDIS_URL: str
+    # Logs every query + bound params (including password hashes, tokens, PII) to
+    # stdout. Off by default -- opt in only for local query debugging.
+    DB_ECHO: bool = False
 
     # S3 / MinIO
     S3_ENDPOINT: str
@@ -24,6 +27,10 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
+    # Shared secret checked on /internal/* calls (see internal.py). Optional so
+    # deployments that haven't set it yet keep working; the check only activates
+    # once both this and the bidding-engine's copy are configured with the same value.
+    INTERNAL_API_KEY: str = ""
 
     # Logging
     LOG_DIR: str

@@ -11,8 +11,6 @@ from app.core.security import get_password_hash, verify_password, create_access_
 class AuthService:
     @staticmethod
     async def register_user(db: AsyncSession, request: RegisterRequest) -> User:
-
-        print(request)
         stmt = select(User).where((User.username == request.username) | (User.email == request.email))
         result = await db.execute(stmt)
         existing_user = result.scalars().first()

@@ -9,7 +9,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     REDIS_URL: str
     BACKEND_URL: str
+    DB_ECHO: bool = False
     JWT_SECRET: str
+    # Shared secret sent on /internal/* calls to the backend (see backend's internal.py).
+    INTERNAL_API_KEY: str = ""
 
     LOG_DIR: str
 

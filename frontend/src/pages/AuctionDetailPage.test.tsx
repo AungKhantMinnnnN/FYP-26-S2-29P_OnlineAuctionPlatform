@@ -104,7 +104,6 @@ describe('AuctionDetailPage', () => {
   beforeEach(() => {
     vi.stubGlobal('WebSocket', MockWebSocket)
     MockWebSocket.instances = []
-    sessionStorage.clear()
     mockUseAuth.mockReturnValue({ user: null, refreshUser: mockRefreshUser })
     vi.mocked(getMyWatchlist).mockResolvedValue({ items: [], listing_ids: [] })
     vi.mocked(getAuctions).mockResolvedValue({ items: [], total: 0, page: 1, size: 7, pages: 0 })
@@ -179,7 +178,6 @@ describe('AuctionDetailPage', () => {
 
   describe('handleBid validation', () => {
     async function setUpActiveAuctionWithUser(balance = 1000) {
-      sessionStorage.setItem('token', 'test-token')
       mockUseAuth.mockReturnValue({ user: { id: 'u1', balance }, refreshUser: mockRefreshUser })
       mockAuctionFetch({ bidding_type: 'price_up', current_price: 150, min_increment: 5 }, [])
       renderPage()
@@ -231,7 +229,6 @@ describe('AuctionDetailPage', () => {
 
   describe('websocket message handling', () => {
     it('applies an incoming new_bid message: updates current bid, bid count, and history', async () => {
-      sessionStorage.setItem('token', 'test-token')
       mockUseAuth.mockReturnValue({ user: { id: 'u2', balance: 1000 }, refreshUser: mockRefreshUser })
       mockAuctionFetch({ bidding_type: 'price_up', current_price: 150 }, [])
       renderPage()
@@ -247,7 +244,6 @@ describe('AuctionDetailPage', () => {
     })
 
     it('calls refreshUser only when the incoming bid belongs to the current user', async () => {
-      sessionStorage.setItem('token', 'test-token')
       mockUseAuth.mockReturnValue({ user: { id: 'u1', balance: 1000 }, refreshUser: mockRefreshUser })
       mockAuctionFetch({ bidding_type: 'price_up' }, [])
       renderPage()
@@ -261,7 +257,6 @@ describe('AuctionDetailPage', () => {
     })
 
     it('applies an incoming error message as bidError and clears pending state', async () => {
-      sessionStorage.setItem('token', 'test-token')
       mockUseAuth.mockReturnValue({ user: { id: 'u1', balance: 1000 }, refreshUser: mockRefreshUser })
       mockAuctionFetch({ bidding_type: 'price_up' }, [])
       renderPage()

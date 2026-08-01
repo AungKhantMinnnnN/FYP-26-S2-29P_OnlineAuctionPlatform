@@ -36,9 +36,10 @@ async def notify_auction_ended(
 
 
 async def _post(url: str, payload: dict) -> None:
+    headers = {"X-Internal-Api-Key": settings.INTERNAL_API_KEY} if settings.INTERNAL_API_KEY else {}
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            r = await client.post(url, json=payload)
+            r = await client.post(url, json=payload, headers=headers)
             r.raise_for_status()
     except Exception as e:
         # Fire-and-forget: log but never let notification failure crash the caller

@@ -1,7 +1,8 @@
 import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, status
-from jose import jwt, JWTError
+import jwt
+from jwt import PyJWTError
 from app.core.config import settings
 from app.services.bidding_service import BiddingService
 from app.core.connection_manager import manager
@@ -11,6 +12,8 @@ logger = logging.getLogger("BiddingEngine")
 router = APIRouter()
 
 ALGORITHM = "HS256"
+# Same cookie name the backend's login sets (see backend/app/api/deps.py).
+ACCESS_TOKEN_COOKIE_NAME = "access_token"
 
 async def get_user_id_from_token(token: str) -> str:
     """Validate JWT token and return user ID"""
@@ -22,7 +25,7 @@ async def get_user_id_from_token(token: str) -> str:
             logger.error("UserID missing in token.")
             raise ValueError("Token missing subject")
         return user_id
-    except JWTError as e:
+    except PyJWTError as e:
         logger.error(f"JWT Validation error: {e}")
         raise ValueError("Invalid token")
 
@@ -32,10 +35,18 @@ async def health_check():
 
 @router.websocket("/ws/{listing_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, 
+    websocket: WebSocket,
     listing_id: str,
     token: str = Query(None)
 ):
+    # Browsers can't attach custom headers to a WS handshake, so the frontend used to pass
+    # the JWT as a "?token=" query param (which meant sessionStorage had to hold a
+    # JS-readable copy of it). Now that login sets an httpOnly cookie instead, fall back to
+    # reading it from the handshake's Cookie header -- same-origin WS upgrade requests
+    # carry cookies automatically, same as any other same-origin request.
+    if not token:
+        token = websocket.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+
     if not token:
         logger.error("Missing token")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
@@ -55,7 +66,7 @@ async def websocket_endpoint(
             data = await websocket.receive_text()
 
             # Throttle message floods before touching the DB or Redis lock.
-            if not manager.allow_message(websocket):
+            if not manager.allow_message(user_id):
                 logger.warning(f"ListingId: [{listing_id}] UserId: [{user_id}] rate limited")
                 await websocket.send_text(json.dumps({
                     "type": "error",

@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     BACKEND_URL: str
     REDIS_URL: str
     S3_PUBLIC_URL: str
+    JWT_SECRET: str
+    ALGORITHM: str = "HS256"
+    DB_ECHO: bool = False
 
     LOG_DIR: str
 

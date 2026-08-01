@@ -15,6 +15,16 @@ import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
 import EmptyState from '../components/EmptyState'
 
+// CMS link fields (Hero/Banner CTAs) are free text set by whoever has admin access to
+// the page editor. Restrict what actually renders as a Link target to same-site relative
+// paths or explicit https:// URLs -- blocks a `javascript:`/`data:` URL or a bare
+// protocol-relative "//evil.com" from ever reaching every visitor of the landing page.
+const safeCtaLink = (link: string): string => {
+  if (/^\/(?!\/)/.test(link)) return link // relative path, not protocol-relative "//"
+  if (/^https:\/\//i.test(link)) return link
+  return '/'
+}
+
 // Icons available to the FeatureGrid block's admin-facing icon picker. Kept as a
 // closed set (rather than a free-text field) since Puck has no icon-picker field
 // type — admins choose from this list, editors add new ones here as needed.
@@ -41,10 +51,10 @@ const Hero = ({ heading, subheading, primaryCtaLabel, primaryCtaLink, secondaryC
         <p className="text-base text-slate-500 max-w-2xl mx-auto leading-relaxed">{subheading}</p>
       </div>
       <div className="flex flex-wrap justify-center gap-4 mt-2">
-        <Link to={primaryCtaLink} className="bg-accent-600 text-white text-base font-medium px-8 py-3.5 rounded-lg hover:brightness-110 transition-all shadow-md">
+        <Link to={safeCtaLink(primaryCtaLink)} className="bg-accent-600 text-white text-base font-medium px-8 py-3.5 rounded-lg hover:brightness-110 transition-all shadow-md">
           {primaryCtaLabel}
         </Link>
-        <Link to={secondaryCtaLink} className="bg-white border border-slate-300 text-slate-950 text-base font-medium px-8 py-3.5 rounded-lg hover:bg-slate-50 transition-all">
+        <Link to={safeCtaLink(secondaryCtaLink)} className="bg-white border border-slate-300 text-slate-950 text-base font-medium px-8 py-3.5 rounded-lg hover:bg-slate-50 transition-all">
           {secondaryCtaLabel}
         </Link>
       </div>
@@ -382,7 +392,7 @@ const Banner = ({ heading, body, ctaLabel, ctaLink, hideWhenLoggedIn }: BannerPr
       <h2 className="text-2xl font-bold text-white mb-3">{heading}</h2>
       <p className="text-accent-100 text-sm mb-8 max-w-lg mx-auto leading-relaxed">{body}</p>
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <Link to={ctaLink} className="inline-flex w-full sm:w-auto items-center justify-center bg-white text-accent-700 font-semibold text-sm px-7 py-3 rounded-lg shadow-md hover:bg-accent-50 transition-all">
+        <Link to={safeCtaLink(ctaLink)} className="inline-flex w-full sm:w-auto items-center justify-center bg-white text-accent-700 font-semibold text-sm px-7 py-3 rounded-lg shadow-md hover:bg-accent-50 transition-all">
           {ctaLabel}
         </Link>
         <Link to="/login" className="inline-flex w-full sm:w-auto items-center justify-center border border-white/30 text-white font-semibold text-sm px-7 py-3 rounded-lg hover:bg-white/10 transition-all">

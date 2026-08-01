@@ -1,9 +1,10 @@
 from typing import Optional
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -17,15 +18,26 @@ from app.models.auction import (
 )
 from app.schemas.auth import TokenPayload
 
+ACCESS_TOKEN_COOKIE_NAME = "access_token"
 
+# auto_error=False on both: a missing/absent Authorization header is not itself a 401 --
+# the browser client authenticates via the httpOnly cookie instead (see auth.py's
+# login/logout), while API clients (the QA suite, external integrations) keep using the
+# Bearer header exactly as before. _extract_token below tries the header first, then
+# falls back to the cookie, and only get_current_user itself raises for "neither present".
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"/{settings.API_VERSION}/auth/login"
-)
-
-reusable_oauth2_optional = OAuth2PasswordBearer(
     tokenUrl=f"/{settings.API_VERSION}/auth/login",
     auto_error=False,
 )
+
+reusable_oauth2_optional = reusable_oauth2
+
+
+async def _extract_token(
+    request: Request,
+    header_token: Optional[str] = Depends(reusable_oauth2),
+) -> Optional[str]:
+    return header_token or request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
 
 
 def get_credentials_exception() -> HTTPException:
@@ -38,9 +50,12 @@ def get_credentials_exception() -> HTTPException:
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
-    token: str = Depends(reusable_oauth2),
+    token: Optional[str] = Depends(_extract_token),
 ) -> User:
     credentials_exception = get_credentials_exception()
+
+    if not token:
+        raise credentials_exception
 
     try:
         payload = jwt.decode(
@@ -56,7 +71,7 @@ async def get_current_user(
 
         token_data = TokenPayload(sub=user_id)
 
-    except JWTError:
+    except PyJWTError:
         raise credentials_exception
 
     try:
@@ -121,9 +136,7 @@ async def get_premium_user(
 
 async def get_optional_user(
     db: AsyncSession = Depends(get_db),
-    token: Optional[str] = Depends(
-        reusable_oauth2_optional
-    ),
+    token: Optional[str] = Depends(_extract_token),
 ) -> Optional[User]:
     if not token:
         return None
@@ -156,5 +169,5 @@ async def get_optional_user(
 
         return user
 
-    except (JWTError, ValueError, TypeError):
+    except (PyJWTError, ValueError, TypeError):
         return None

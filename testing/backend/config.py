@@ -33,6 +33,11 @@ SEEDED_USER_2_PASSWORD = os.environ.get("QA_SEEDED_USER_2_PASSWORD", "password12
 # internet/Tailscale network and the unauthenticated /internal/* routes.
 INTERNAL_DIRECT_BASE_URL = os.environ.get("QA_INTERNAL_DIRECT_BASE_URL", "http://100.75.75.48:8000/v1.0.0")
 
+# Shared secret /internal/* now checks (see backend/app/api/deps.py's require_internal_key
+# and H1 in the security audit). Empty by default -- the check is a no-op until both the
+# backend and bidding-engine are actually configured with a matching value.
+INTERNAL_API_KEY = os.environ.get("QA_INTERNAL_API_KEY", "")
+
 # Gate for the handful of tests whose side effects are visible to real visitors
 # of the target environment (currently: uploading/activating a marketing hero
 # video). Off by default. Everything else in this suite only ever touches data

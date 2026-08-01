@@ -28,18 +28,28 @@ def _():
     assert body["transactions"]["total"] == 0
 
 
-@suite.case("topup_wallet rejects a zero amount with 400")
+@suite.case("topup_wallet rejects a zero amount with 422")
 def _():
+    # amount now carries a schema-level gt=0/le=10000 cap (see H2 in the security audit),
+    # so an out-of-range value fails Pydantic validation (422) before the service's own
+    # `amount <= 0` check (400) is ever reached.
     client, user, payload = auth.register_new_user()
     resp = client.post("/users/me/wallet/topup", json={"amount": 0})
-    assert resp.status_code == 400, resp.text
+    assert resp.status_code == 422, resp.text
 
 
-@suite.case("topup_wallet rejects a negative amount with 400")
+@suite.case("topup_wallet rejects a negative amount with 422")
 def _():
     client, user, payload = auth.register_new_user()
     resp = client.post("/users/me/wallet/topup", json={"amount": -50})
-    assert resp.status_code == 400, resp.text
+    assert resp.status_code == 422, resp.text
+
+
+@suite.case("topup_wallet rejects an amount over the 10000 cap with 422")
+def _():
+    client, user, payload = auth.register_new_user()
+    resp = client.post("/users/me/wallet/topup", json={"amount": 50000})
+    assert resp.status_code == 422, resp.text
 
 
 @suite.case("topup_wallet happy path increases balance and records a transaction")
