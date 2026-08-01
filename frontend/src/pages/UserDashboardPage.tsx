@@ -66,7 +66,7 @@ export default function UserDashboardPage() {
 
   const { data: recommendedData } = useQuery({
     queryKey: ['recs', 'trending', 'personal', user?.id],
-    queryFn: () => getTrending({ user_id: user?.id, limit: 3 }),
+    queryFn: () => getTrending({ limit: 3 }),
     enabled: !!user?.id,
   })
 

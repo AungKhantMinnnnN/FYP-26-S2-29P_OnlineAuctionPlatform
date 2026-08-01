@@ -61,7 +61,7 @@ export default function BrowseAuctionsPage() {
     isError: trendingError
   } = useQuery({
     queryKey: ['trending', user?.id ?? null],
-    queryFn: () => getTrending({ user_id: user?.id, limit: 8 })
+    queryFn: () => getTrending({ limit: 8 })
   })
 
   const { data: watchlistData } = useQuery({

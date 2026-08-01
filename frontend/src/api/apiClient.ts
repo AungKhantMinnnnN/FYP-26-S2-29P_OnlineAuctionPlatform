@@ -4,20 +4,23 @@ function createClient(baseURL: string): AxiosInstance {
   const client = axios.create({
     baseURL,
     headers: { 'Content-Type': 'application/json' },
-  });
-
-  client.interceptors.request.use((config) => {
-    const token = sessionStorage.getItem('token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
+    // The session lives in an httpOnly cookie now (see AuthContext) -- unreadable by JS,
+    // so it can't be attached as an Authorization header manually. withCredentials makes
+    // the browser send/accept it automatically on every request to this origin instead.
+    withCredentials: true,
   });
 
   client.interceptors.response.use(
     (response) => response,
     (error) => {
-      const isLoginRequest = error.config?.url?.includes('/auth/login');
-      if (error.response?.status === 401 && !isLoginRequest) {
-        sessionStorage.removeItem('token');
+      const url: string = error.config?.url ?? '';
+      // /auth/login's own failure shouldn't bounce the login page itself, and
+      // /auth/get_current_user is what AuthContext now polls on every page load (it can
+      // no longer just check "is there a token in storage" -- the cookie isn't readable)
+      // to find out whether anyone is logged in at all, so a 401 there is the expected,
+      // normal shape of "not logged in," not a session that just expired.
+      const isExemptRequest = url.includes('/auth/login') || url.includes('/auth/get_current_user');
+      if (error.response?.status === 401 && !isExemptRequest) {
         window.location.href = '/login';
       }
       return Promise.reject(error);

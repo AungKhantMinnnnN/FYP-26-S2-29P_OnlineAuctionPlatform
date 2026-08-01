@@ -344,7 +344,6 @@ async def get_trending(
             "seller": {
                 "id": listing.seller.id,
                 "username": listing.seller.username,
-                "email": listing.seller.email,
             } if listing.seller else None,
             "score": float(score),
         })

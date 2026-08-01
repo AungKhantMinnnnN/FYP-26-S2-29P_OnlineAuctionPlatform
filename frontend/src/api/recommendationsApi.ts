@@ -11,7 +11,6 @@ export interface ListingImageItem {
 export interface SellerItem {
   id: string;
   username: string;
-  email: string;
 }
 
 export interface TrendingListing {
@@ -45,7 +44,9 @@ export interface TrendingResponse {
   type: string;
 }
 
-export const getTrending = async (params?: { user_id?: string; limit?: number }): Promise<TrendingResponse> => {
+export const getTrending = async (params?: { limit?: number }): Promise<TrendingResponse> => {
+  // Personalization is derived server-side from the caller's own auth token (if any) --
+  // it's never something the client can request on someone else's behalf.
   const response = await recsClient.get<TrendingResponse>('/recs/trending', { params });
   return response.data;
 };

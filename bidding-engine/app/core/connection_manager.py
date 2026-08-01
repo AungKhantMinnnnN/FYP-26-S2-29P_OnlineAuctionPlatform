@@ -16,15 +16,18 @@ class ConnectionManager:
     def __init__(self):
         # Maps listing_id to a list of active WebSocket connections
         self.active_connections: Dict[str, List[WebSocket]] = {}
-        # Per-connection sliding window of recent message timestamps (monotonic seconds).
-        # ponytail: in-memory per-process — fine for single-worker FYP scope. A multi-worker
+        # Per-user (not per-socket) sliding window of recent message timestamps (monotonic
+        # seconds) -- keying by socket let a client trivially reset its own cap by just
+        # opening a new connection. Not proactively cleared on disconnect since a user can
+        # hold more than one connection at once; entries just age out via the window.
+        # in-memory per-process — fine for single-worker FYP scope. A multi-worker
         # deploy would need Redis-backed counters, same as the horizontal-scaling note on broadcast.
-        self.message_log: Dict[WebSocket, Deque[float]] = {}
+        self.message_log: Dict[str, Deque[float]] = {}
 
-    def allow_message(self, websocket: WebSocket) -> bool:
+    def allow_message(self, user_id: str) -> bool:
         """Sliding-window rate check. Records the message and returns False if over the cap."""
         now = monotonic()
-        log = self.message_log.setdefault(websocket, deque())
+        log = self.message_log.setdefault(user_id, deque())
         while log and now - log[0] > RATE_LIMIT_WINDOW_SECONDS:
             log.popleft()
         if len(log) >= RATE_LIMIT_MAX_MESSAGES:
@@ -40,7 +43,6 @@ class ConnectionManager:
         logger.info(f"Client connected to listing {listing_id}. Total active: {len(self.active_connections[listing_id])}")
 
     def disconnect(self, websocket: WebSocket, listing_id: str):
-        self.message_log.pop(websocket, None)
         if listing_id in self.active_connections:
             try:
                 self.active_connections[listing_id].remove(websocket)

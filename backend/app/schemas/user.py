@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Literal, List
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PaginationMeta(BaseModel):
@@ -100,7 +100,9 @@ class WalletResponse(BaseModel):
 
 
 class TopUpRequest(BaseModel):
-    amount: float
+    # No real payment provider is wired up -- this is a simulated top-up, so the only
+    # practical guard against unlimited self-credit is a hard per-request cap.
+    amount: float = Field(..., gt=0, le=10000)
 
 
 class TopUpResponse(BaseModel):

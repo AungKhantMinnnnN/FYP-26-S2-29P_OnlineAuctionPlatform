@@ -8,15 +8,26 @@ from unittest.mock import AsyncMock
 from app.core.connection_manager import ConnectionManager
 
 
-def test_disconnect_removes_socket_and_clears_rate_log():
+def test_disconnect_removes_socket():
     m = ConnectionManager()
     s1, s2 = object(), object()  # sockets are only used as identities/dict keys
     m.active_connections["L"] = [s1, s2]
-    m.message_log[s1] = "sentinel"
 
     m.disconnect(s1, "L")
     assert m.active_connections["L"] == [s2]
-    assert s1 not in m.message_log
+
+
+def test_disconnect_does_not_touch_message_log():
+    # message_log is keyed by user_id (M7 fix), not by socket -- a user can hold more
+    # than one connection at once, so closing one socket must not wipe their rate-limit
+    # state out from under a still-open connection.
+    m = ConnectionManager()
+    s1 = object()
+    m.active_connections["L"] = [s1]
+    m.message_log["user-1"] = "sentinel"
+
+    m.disconnect(s1, "L")
+    assert m.message_log["user-1"] == "sentinel"
 
 
 def test_disconnect_last_socket_deletes_listing_key():

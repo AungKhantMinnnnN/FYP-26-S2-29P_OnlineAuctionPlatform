@@ -13,7 +13,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -37,7 +37,7 @@ services:
       --maxmemory 512mb
       --maxmemory-policy allkeys-lru
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -60,12 +60,12 @@ services:
     restart: "no"
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: AuctionHub_MinIO_DB${STACK_SUFFIX:-}
     env_file: ${ENV_FILE:-.env.local}
     command: server /data --console-address ":9001"
     ports:
-      - "${MINIO_PORT:-9000}:9000"
+      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${MINIO_PORT:-9000}:9000"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -76,7 +76,7 @@ services:
     restart: unless-stopped
 
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     container_name: AuctionHub_MinIO_Init${STACK_SUFFIX:-}
     env_file: ${ENV_FILE:-.env.local}
     depends_on:
@@ -97,7 +97,7 @@ services:
     image: auction-nginx:local
     container_name: AuctionHub_Nginx${STACK_SUFFIX:-}
     ports:
-      - "${NGINX_PORT:-80}:80"   # all browser traffic enters here — the only port published to the host
+      - "${NGINX_PORT:-80}:80"   # all browser traffic enters here — the only port meant to be reachable from outside the Tailscale network
     depends_on:
       - backend
       - bidding-engine
@@ -112,8 +112,8 @@ services:
   # permanent hostname, swap this for a named tunnel against a domain added to Cloudflare
   # (`cloudflared tunnel create` + `cloudflared tunnel route dns`) instead.
   cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: AuctionHub_CloudflareTunnel
+    image: cloudflare/cloudflared@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf
+    container_name: AuctionHub_CloudflareTunnel${STACK_SUFFIX:-}
     command: tunnel --no-autoupdate --url http://nginx:80
     depends_on:
       - nginx
@@ -135,7 +135,7 @@ services:
       LOG_DIR: /logs
       ALL_LOGS_DIR: /all-logs
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./logs/backend:/logs
       - ./logs:/all-logs:ro   # read-only view of every service's logs for the admin System Logs view
@@ -164,7 +164,7 @@ services:
       BACKEND_URL: http://backend:8000
       LOG_DIR: /logs
     ports:
-      - "${BIDDING_PORT:-8001}:8001"   # health check + WebSocket
+      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${BIDDING_PORT:-8001}:8001"   # health check + WebSocket
     volumes:
       - ./logs/bidding-engine:/logs
     depends_on:
@@ -190,7 +190,7 @@ services:
       BACKEND_URL: http://backend:8000
       LOG_DIR: /logs
     ports:
-      - "${RECS_PORT:-8002}:8002"   # health check endpoint
+      - "${DOCKER_BIND_ADDR:-127.0.0.1}:${RECS_PORT:-8002}:8002"   # health check endpoint
     volumes:
       - ./logs/recommendation-engine:/logs
     depends_on:

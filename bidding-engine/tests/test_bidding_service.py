@@ -168,13 +168,19 @@ async def test_execute_insufficient_balance():
     assert out["error"] == "Insufficient wallet balance"
 
 
-async def test_execute_free_tier_hourly_limit():
+async def test_execute_free_tier_hourly_limit(monkeypatch):
     db = make_db()
     db.execute.side_effect = [exec_result(first=_listing()), exec_result(first=None),
                               exec_result(first=_user(subscription_tier=SubscriptionTier.free))]
-    db.scalar.side_effect = [mod.FREE_BID_HOURLY_LIMIT]  # already at the cap
+    # Cap is enforced via an atomic Redis counter (see M8 fix), not a DB row count --
+    # simulate the counter already being one over the cap.
+    monkeypatch.setattr(mod.redis_client, "incr", AsyncMock(return_value=mod.FREE_BID_HOURLY_LIMIT + 1))
+    monkeypatch.setattr(mod.redis_client, "expire", AsyncMock())
+    decr = AsyncMock()
+    monkeypatch.setattr(mod.redis_client, "decr", decr)
     out = await BiddingService._execute_bid(db, str(LISTING), str(USER), 200.0)
     assert "Free tier limit" in out["error"]
+    decr.assert_awaited_once()  # the rejected attempt gives its quota back
 
 
 # --- _execute_bid: happy path (outbid a previous bidder, anti-snipe extension) ---

@@ -78,8 +78,13 @@ async def _settle_listing(db: AsyncSession, listing: Listing) -> None:
         async with redis_client.lock(lock_key, timeout=10.0, blocking_timeout=2.0):
             await _execute_settlement(db, listing)
     except Exception as exc:
-        # Lock not acquired or settlement failed — log and move on.
-        # The scheduler will retry this listing on the next tick.
+        # Lock not acquired or settlement failed — log and move on. The rollback matters
+        # because `db` is reused across every listing in this batch (see
+        # settle_ended_auctions): without it, pending/dirty state left over from this
+        # failed settlement would carry into the next listing's session and could get
+        # flushed/committed alongside it. The scheduler will retry this listing on the
+        # next tick.
+        await db.rollback()
         logger.warning("settlement: could not settle listing %s: %s", listing_id_str, exc)
 
 

@@ -16,9 +16,10 @@ class ListingImageItem(BaseModel):
 
 
 class SellerItem(BaseModel):
+    # No email here -- this is a public-facing response (personalized or not), and the
+    # seller's email is not something every viewer of a listing should be able to read.
     id: uuid.UUID
     username: str
-    email: str
 
     class Config:
         from_attributes = True

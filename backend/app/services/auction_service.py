@@ -17,6 +17,20 @@ from app.core.text_matching import keyword_matches
 from fastapi import UploadFile
 import uuid
 
+_EXTENSION_BY_CONTENT_TYPE = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
+
+
+def _sniff_image_type(file_bytes: bytes) -> Optional[str]:
+    """Identify PNG/JPEG/WEBP from magic bytes, ignoring whatever the client claimed."""
+    if file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if file_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if file_bytes[:4] == b"RIFF" and file_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 class AuctionService:
     @staticmethod
     async def get_auctions(
@@ -282,16 +296,28 @@ class AuctionService:
         current_images_count = len(listing.images)
         
         for index, file in enumerate(files):
-            # Generate unique object name
-            ext = file.filename.split('.')[-1] if '.' in file.filename else ''
-            unique_filename = f"{uuid.uuid4()}.{ext}"
-            s3_key = f"listings/{auction_id}/{unique_filename}"
-            
             # Read file bytes
             file_bytes = await file.read()
-            
+
+            # The controller already checked the client-sent Content-Type header, but
+            # that header is just a client claim -- sniff the actual bytes so a
+            # relabeled non-image file can't ride through as one.
+            sniffed_type = _sniff_image_type(file_bytes)
+            if sniffed_type is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File '{file.filename}' does not look like a valid PNG, JPEG, or WEBP image.",
+                )
+
+            # Extension is derived from the verified content, never from the client-
+            # supplied filename -- a crafted filename (e.g. containing "/" or "..")
+            # could otherwise inject a path into the generated S3 object key.
+            ext = _EXTENSION_BY_CONTENT_TYPE[sniffed_type]
+            unique_filename = f"{uuid.uuid4()}.{ext}"
+            s3_key = f"listings/{auction_id}/{unique_filename}"
+
             # Upload to MinIO
-            storage_service.upload_file(file_bytes, s3_key, file.content_type)
+            storage_service.upload_file(file_bytes, s3_key, sniffed_type)
             
             # Create DB record
             is_primary = (current_images_count == 0 and index == 0)

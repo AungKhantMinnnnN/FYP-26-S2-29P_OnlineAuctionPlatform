@@ -5,7 +5,7 @@ Pins the deliberate SHA-256 pre-hash flow that bypasses bcrypt's 72-byte limit
 """
 import datetime
 
-from jose import jwt
+import jwt
 
 from app.core.security import create_access_token, verify_password, get_password_hash
 from app.core.config import settings

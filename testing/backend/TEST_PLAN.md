@@ -40,7 +40,7 @@ are covered on their error/precondition paths only — see §3.
 | 11 | `marketing.py` | `/marketing-video*` | 5 | `test_marketing.py` | public read, admin write |
 | 12 | `feedback.py` | `/feedback` | 11 | `test_feedback.py` | mixed |
 | 13 | `cms.py` | `/cms` | 7 | `test_cms.py` | public read, admin write |
-| 14 | `internal.py` | `/internal/notifications` | 2 | `test_internal.py` | **none — see Finding F1** |
+| 14 | `internal.py` | `/internal/notifications` | 2 | `test_internal.py` | shared-secret header, opt-in — see Finding F1 |
 
 Every endpoint listed in a controller's docstring has at least one test case;
 most have 3–6 covering the happy path, the primary validation/permission
@@ -120,34 +120,30 @@ pass since they were unambiguous bugs, not judgment calls; the rest are
 reported, not silently patched — see the project's commit history for what
 (if anything) was done about them afterward.
 
-- **F1 — `POST /internal/notifications/outbid` and `/auction-ended` have no
-  authentication, and the only thing stopping public access is nginx, not
-  the app.** `app/api/v1/controller/internal.py` has no
-  `Depends(get_current_user)`, no shared-secret header, nothing. On the
-  target VM, `docker/nginx/default.conf` does block the public path
-  (`location /v1.0.0/internal/ { return 404; }`) — confirmed working. But the
-  backend container's port is **also published directly on the VM host**
-  (`0.0.0.0:8000->8000/tcp` per `docker ps`) and is reachable from outside the
-  VM over the Tailscale network, bypassing nginx entirely. Verified live:
-  `curl -X POST http://100.75.75.48:8000/v1.0.0/internal/notifications/outbid
-  ...` (no auth header) returns `200 {"ok": true}` and creates a real
-  `Notification` row for an arbitrary user id, from a machine that is not the
-  VM itself. `test_internal.py` proves both halves — the nginx block on port
-  80, and the bypass on port 8000. **Recommended fix:** add a shared-secret
-  header check in `internal.py` (cheap, works regardless of network
-  topology) rather than relying solely on nginx/firewall config to be
-  correct forever. Not fixed in this pass — it's a design decision (shared
-  secret vs. removing the host port publish vs. both) worth confirming with
-  the team before touching a live auth boundary.
+- **F1 — FIXED.** `POST /internal/notifications/outbid` and `/auction-ended`
+  had no authentication, and the only thing stopping public access was
+  nginx, not the app; the backend container's port is also published
+  directly on the VM host, bypassing nginx entirely over Tailscale. Fixed by
+  adding `require_internal_key` (`app/api/deps.py`), a shared-secret
+  `X-Internal-Api-Key` header checked against `settings.INTERNAL_API_KEY`,
+  on both internal routes; the bidding-engine's `notification_client.py`
+  sends the same value from its own `INTERNAL_API_KEY` setting. The check is
+  a no-op until that setting is actually configured on both services (so
+  rollout can't accidentally lock out notifications before both sides have
+  the value), and nginx's `location /v1.0.0/internal/ { return 404; }` block
+  still stands as the first line of defense either way.
+  `test_internal.py` now exercises the authenticated happy path plus a
+  key-required rejection case (gated on `QA_INTERNAL_API_KEY` being set for
+  the run, since the check itself is opt-in per environment).
 
-- **F2 — `outbid_user_id` (and the other id fields) on `OutbidPayload` /
-  `AuctionEndedPayload` are typed `str`, not a UUID type.** A non-UUID string
-  passes Pydantic validation, then reaches
+- **F2 — FIXED.** `outbid_user_id` (and the other id fields) on
+  `OutbidPayload` / `AuctionEndedPayload` were typed `str`, not a UUID type,
+  so a non-UUID string passed Pydantic validation and then reached
   `notification_service._get_user()`'s bare `uuid.UUID(user_id)` call with no
-  try/except, producing an **unhandled `ValueError` → bare 500** instead of a
-  clean 4xx. `test_internal.py` documents this as the current behavior
-  (asserts 500) rather than silently expecting 4xx; the assertion has a
-  comment pointing at itself for whoever fixes it.
+  try/except, producing an unhandled `ValueError` → bare 500. Fixed by typing
+  those fields `uuid.UUID` on the schemas, so FastAPI/Pydantic now rejects a
+  non-UUID value with a clean 422 before the handler ever runs.
+  `test_internal.py` asserts the 422.
 
 - **F3 — `RegisterRequest.role` is accepted by the schema but silently
   discarded by `AuthService.register_user`** (always hardcodes

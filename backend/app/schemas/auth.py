@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID
 
 class Token(BaseModel):
@@ -27,7 +27,7 @@ class RegisterRequest(BaseModel):
     full_name: str
     username: str
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=8)
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
@@ -67,7 +67,7 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordResetConfirm(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(..., min_length=8)
 
 
 class EmailVerificationConfirm(BaseModel):
@@ -76,7 +76,7 @@ class EmailVerificationConfirm(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
-    new_password: str
+    new_password: str = Field(..., min_length=8)
 
 
 class GenericMessageResponse(BaseModel):

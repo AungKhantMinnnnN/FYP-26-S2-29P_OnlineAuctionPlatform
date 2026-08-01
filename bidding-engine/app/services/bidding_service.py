@@ -2,8 +2,9 @@ import json
 import logging
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
+from redis.exceptions import LockError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 
 from app.models.auction import Listing, User, Bid, WalletTransaction, UserInteraction, ListingStatus, BidStatus, TransactionType, BiddingType, SubscriptionTier, InteractionAction, UserStatus
 from app.core.redis import redis_client
@@ -46,8 +47,15 @@ class BiddingService:
         lock_key = f"lock:bid:{listing_id}"
         # Lock for up to 5 seconds. If blocked, wait for it.
         logger.info(f"ListingId: [{listing_id}] Locking listing for 5 sec. Block will be finished after 3 sec.")
-        async with redis_client.lock(lock_key, timeout=5.0, blocking_timeout=3.0):
-            return await BiddingService._execute_bid(db, listing_id, user_id, amount)
+        try:
+            async with redis_client.lock(lock_key, timeout=5.0, blocking_timeout=3.0):
+                return await BiddingService._execute_bid(db, listing_id, user_id, amount)
+        except LockError:
+            # blocking_timeout elapsed without acquiring the lock (a hot listing).
+            # A retryable error the client can act on, not a reason to drop the socket
+            # (the bare except in the websocket loop would otherwise disconnect the user).
+            logger.warning(f"ListingId: [{listing_id}] Could not acquire bid lock in time")
+            return {"success": False, "error": "This listing is busy right now. Please try your bid again."}
 
     @staticmethod
     async def _execute_bid(db: AsyncSession, listing_id: str, user_id: str, amount: float) -> dict:
@@ -117,14 +125,17 @@ class BiddingService:
             logger.error("Insufficient wallet balance")
             return {"success": False, "error": "Insufficient wallet balance"}
 
-        # Free tier: max 10 bids per hour
+        # Free tier: max 10 bids per hour. Counted via an atomic Redis counter keyed by
+        # user (not a DB count guarded by the per-listing lock above) -- that per-listing
+        # lock doesn't stop the same user from racing this check across two DIFFERENT
+        # listings at once, each under its own lock, and slipping past the cap.
         if current_user.subscription_tier == SubscriptionTier.free:
-            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-            recent_bids = await db.scalar(
-                select(func.count()).select_from(Bid)
-                .where(Bid.bidder_id == user_uuid, Bid.placed_at >= one_hour_ago)
-            )
-            if recent_bids >= FREE_BID_HOURLY_LIMIT:
+            bid_count_key = f"bidcount:free_tier:{user_id}"
+            bid_count = await redis_client.incr(bid_count_key)
+            if bid_count == 1:
+                await redis_client.expire(bid_count_key, 3600)
+            if bid_count > FREE_BID_HOURLY_LIMIT:
+                await redis_client.decr(bid_count_key)  # this attempt didn't consume quota
                 logger.warning(f"User [{user_id}] hit free tier bid limit")
                 return {"success": False, "error": f"Free tier limit: you can place at most {FREE_BID_HOURLY_LIMIT} bids per hour. Upgrade to Premium for unlimited bidding."}
 
