@@ -130,7 +130,7 @@ def _():
     assert not any(c["id"] == category["id"] for c in admin.get("/admin/categories").json())
 
 
-@suite.case("delete_category still referenced by a listing deactivates instead of deleting (action='deactivated')")
+@suite.case("delete_category still referenced by a listing deactivates instead of deleting (action='deactivated'), then hard-deletes once that listing is soft-removed")
 def _():
     admin = auth.admin_client()
     seller, _, _ = auth.register_new_user()
@@ -161,8 +161,15 @@ def _():
         assert match["is_active"] is False
     finally:
         seller.delete(f"/auctions/{listing['id']}")
-        # Now unreferenced — this completes cleanup by actually removing the row.
-        admin.delete(f"/admin/categories/{category['id']}")
+        # Now unreferenced -- this completes cleanup by actually removing the row.
+        final = admin.delete(f"/admin/categories/{category['id']}")
+
+    # DELETE /auctions/{id} only soft-deletes (status='removed', row survives) --
+    # a category must still become hard-deletable once its only reference is a
+    # soft-removed listing, not stay permanently stuck deactivating forever.
+    assert final.status_code == 200, final.text
+    assert final.json()["action"] == "deleted", \
+        "a soft-removed listing should no longer block a category's hard delete"
 
 
 @suite.case("delete_category for an unknown id returns 404")

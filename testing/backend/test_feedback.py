@@ -131,31 +131,36 @@ def _():
         "status": "active",
     }).json()
 
-    eligibility = seller.get(f"/feedback/me/eligibility/{listing['id']}")
-    assert eligibility.status_code == 200, eligibility.text
-    assert ft["id"] in eligibility.json()["eligible_type_ids"]
-    assert eligibility.json()["seller_id"] == seller_user["id"]
+    try:
+        eligibility = seller.get(f"/feedback/me/eligibility/{listing['id']}")
+        assert eligibility.status_code == 200, eligibility.text
+        assert ft["id"] in eligibility.json()["eligible_type_ids"]
+        assert eligibility.json()["seller_id"] == seller_user["id"]
 
-    submitted = seller.post("/feedback/", json={
-        "listing_id": listing["id"],
-        "reviewee_id": buyer_user["id"],
-        "feedback_type_id": ft["id"],
-        "rating": 5,
-        "comment": "Submitted by the automated backend QA suite.",
-    })
-    assert submitted.status_code == 201, submitted.text
-    feedback = submitted.json()
+        submitted = seller.post("/feedback/", json={
+            "listing_id": listing["id"],
+            "reviewee_id": buyer_user["id"],
+            "feedback_type_id": ft["id"],
+            "rating": 5,
+            "comment": "Submitted by the automated backend QA suite.",
+        })
+        assert submitted.status_code == 201, submitted.text
+        feedback = submitted.json()
 
-    dup = seller.post("/feedback/", json={
-        "listing_id": listing["id"], "reviewee_id": buyer_user["id"],
-        "feedback_type_id": ft["id"], "rating": 4,
-    })
-    assert dup.status_code == 409, dup.text
+        dup = seller.post("/feedback/", json={
+            "listing_id": listing["id"], "reviewee_id": buyer_user["id"],
+            "feedback_type_id": ft["id"], "rating": 4,
+        })
+        assert dup.status_code == 409, dup.text
 
-    mine = seller.get("/feedback/me/submitted")
-    assert any(f["id"] == feedback["id"] for f in mine.json())
-
-    seller.delete(f"/auctions/{listing['id']}")
+        mine = seller.get("/feedback/me/submitted")
+        assert any(f["id"] == feedback["id"] for f in mine.json())
+    finally:
+        seller.delete(f"/auctions/{listing['id']}")
+        # A real ItemFeedback row now references this type, so hard-delete would 409
+        # (no delete endpoint for ItemFeedback, per TESTING.md) -- deactivate instead so
+        # it at least drops out of the public/active feedback-types list.
+        admin.patch(f"/feedback/types/{ft['id']}", json={"is_active": False})
 
 
 @suite.case("submit_feedback for a buyer-role type without ever bidding is rejected with 403")

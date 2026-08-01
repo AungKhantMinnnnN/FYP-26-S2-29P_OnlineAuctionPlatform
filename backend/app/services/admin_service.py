@@ -480,8 +480,13 @@ class AdminService:
             raise HTTPException(status_code=404, detail="Category not found")
         category_name = category.name
 
+        # Excludes removed (soft-deleted) listings -- their row survives the delete but
+        # they're gone from the user's perspective, so they shouldn't keep a category
+        # permanently un-hard-deletable.
         in_use = await db.scalar(
-            select(func.count()).select_from(Listing).where(Listing.category_id == category_id)
+            select(func.count()).select_from(Listing).where(
+                Listing.category_id == category_id, Listing.status != ListingStatus.removed
+            )
         ) or 0
         has_interest_refs = await db.scalar(
             select(func.count()).select_from(UserInterest).where(UserInterest.category_id == category_id)
