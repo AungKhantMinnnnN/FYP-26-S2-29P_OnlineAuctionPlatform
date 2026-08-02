@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str
     S3_PUBLIC_URL: str
 
+    # Rate limiting toggle — set RATE_LIMIT_ENABLED=false to disable per-IP
+    # rate limiting (e.g. during integration/QA testing).
+    RATE_LIMIT_ENABLED: bool = True
+
     # Caching — set RECS_CACHE_ENABLED=false to always compute from DB
     RECS_CACHE_ENABLED: bool = True
     RECS_LISTINGS_CACHE_TTL: int = 300       # 5 min  — active listings snapshot

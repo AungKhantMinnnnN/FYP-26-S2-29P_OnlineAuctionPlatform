@@ -5,6 +5,8 @@ from uuid import UUID
 from app.db.session import get_db
 from app.models.auction import ListingStatus, User, InteractionAction
 from app.api.deps import get_current_user, get_optional_user
+from app.core.config import settings
+from app.core.rate_limit import rate_limiter
 from app.schemas.auction import PaginatedAuctionResponse, AuctionListingResponse, BidResponse, ListingCreate, ListingUpdate, ListingImageResponse, MetadataResponse, ListingStatusUpdate
 from app.services.auction_service import AuctionService
 from app.services.interaction_service import log_interaction, log_search_interactions
@@ -45,7 +47,8 @@ async def get_auctions(
         background_tasks.add_task(log_search_interactions, current_user.id, listing_ids)
     return result
 
-@router.post("/create_listing", response_model=AuctionListingResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/create_listing", response_model=AuctionListingResponse, status_code=status.HTTP_201_CREATED,
+              dependencies=[Depends(rate_limiter("create-listing", limit=settings.RATE_LIMIT_CREATE_LISTING, window_seconds=60))])
 async def create_listing(
     listing_in: ListingCreate,
     db: AsyncSession = Depends(get_db),

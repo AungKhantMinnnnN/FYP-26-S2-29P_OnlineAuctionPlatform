@@ -3,27 +3,18 @@ import redis.asyncio as aioredis
 from fastapi import HTTPException, Request, status
 
 from app.core.config import settings
-from app.core.logger import setup_logging
-
-logger = setup_logging("RateLimit")
 
 _redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-
-
-def _client_ip(request: Request) -> str:
-    return request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
 
 
 def rate_limiter(key_prefix: str, limit: int, window_seconds: int):
     """
     Sliding-window per-IP rate limit dependency backed by Redis sorted sets.
-    Tracks request timestamps per IP within the window for accurate rate counting
-    without the boundary spikes that fixed-window INCR/EXPIRE exhibits.
     """
     async def _check(request: Request) -> None:
         if not settings.RATE_LIMIT_ENABLED:
             return
-        ip = _client_ip(request)
+        ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
         key = f"ratelimit:{key_prefix}:{ip}"
         now = time.time()
         window_start = now - window_seconds
@@ -35,8 +26,7 @@ def rate_limiter(key_prefix: str, limit: int, window_seconds: int):
             pipe.expire(key, window_seconds * 2)
             results = await pipe.execute()
             count = results[1]
-        except Exception as e:
-            logger.warning(f"rate limiter: Redis unavailable, allowing request: {e}")
+        except Exception:
             return
         if count > limit:
             raise HTTPException(

@@ -5,7 +5,10 @@ from typing import List, Optional
 from app.db.session import get_db
 from app.models.auction import User, DisputeStatus
 from app.api.deps import get_current_user, get_admin_user
+from app.core.config import settings
+from app.core.rate_limit import rate_limiter
 from uuid import UUID
+from app.core.rate_limit import rate_limiter
 from app.schemas.disputes import DisputeCreate, DisputeResolveRequest, DisputeResponse
 from app.services.dispute_service import DisputeService
 
@@ -44,7 +47,8 @@ async def respond_to_dispute(
     )
 
 
-@router.post("/", response_model=DisputeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DisputeResponse, status_code=status.HTTP_201_CREATED,
+              dependencies=[Depends(rate_limiter("create-dispute", limit=settings.RATE_LIMIT_CREATE_DISPUTE, window_seconds=60))])
 async def create_dispute(
     data: DisputeCreate,
     db: AsyncSession = Depends(get_db),

@@ -61,6 +61,19 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 1
     EMAIL_VERIFICATION_TOKEN_TTL_HOURS: int = 24
 
+    # Rate limiting (per-IP sliding window). Override in .env.local for tighter
+    # production defaults or looser dev values that don't break the QA suite.
+    # Set RATE_LIMIT_ENABLED=false to disable all rate limiting (e.g. during
+    # integration/QA testing).
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REGISTER: int = 300
+    RATE_LIMIT_LOGIN: int = 300
+    RATE_LIMIT_PASSWORD_RESET: int = 10
+    RATE_LIMIT_EMAIL_VERIFICATION: int = 10
+    RATE_LIMIT_CREATE_LISTING: int = 10
+    RATE_LIMIT_CREATE_DISPUTE: int = 5
+    RATE_LIMIT_CREATE_FEEDBACK: int = 20
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]

@@ -24,6 +24,7 @@ _TEST_ENV = {
     "RECOMMENDATION_SERVICE_URL": "http://localhost:8002",
     "BACKEND_URL": "http://localhost:8000",
     "ALLOWED_ORIGINS": "http://localhost:3000",
+    "RATE_LIMIT_ENABLED": "false",
 }
 for _k, _v in _TEST_ENV.items():
     os.environ.setdefault(_k, _v)

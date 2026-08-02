@@ -32,6 +32,8 @@ from app.models.auction import (
     ProhibitedKeyword, FlaggedListingAttempt,
     FeedbackType, ItemFeedback,
     OptionSet,
+    MarketingVideo,
+    SiteContent,
 )
 from app.core.security import get_password_hash
 from app.core.config import settings
@@ -842,7 +844,40 @@ async def seed_data():
         await db.flush()
         print(f"Testimonials: {len(testimonial_data)} created.")
 
-        # ── 14. Issue types ────────────────────────────────────────────────────
+# ── 14. Marketing video (landing page hero) ────────────────────────────
+        existing_video = await db.scalar(select(MarketingVideo).limit(1))
+        if not existing_video:
+            mk_admin = next((u for u in all_users if u.role == UserRole.admin), None)
+            sample_videos_dir = os.path.join(parent_dir, "sample images")
+            video_keys = []
+            if minio_client and os.path.exists(sample_videos_dir):
+                video_files = [
+                    f for f in os.listdir(sample_videos_dir)
+                    if f.lower().endswith((".mp4", ".webm", ".mov")) and os.path.isfile(os.path.join(sample_videos_dir, f))
+                ]
+                for vf in video_files[:1]:
+                    vp = os.path.join(sample_videos_dir, vf)
+                    ext = os.path.splitext(vf)[1]
+                    s3_key = f"seed/marketing/{uuid.uuid4()}{ext}"
+                    ct, _ = mimetypes.guess_type(vp)
+                    try:
+                        minio_client.fput_object(settings.S3_BUCKET_VIDEOS, s3_key, vp, content_type=ct or "video/mp4")
+                        video_keys.append(s3_key)
+                    except Exception as e:
+                        print(f"  Warning: marketing video upload failed: {e}")
+            if video_keys:
+                db.add(MarketingVideo(
+                    s3_key=video_keys[0], original_filename="seed_hero_video.mp4",
+                    content_type="video/mp4", is_active=True,
+                    uploaded_by=mk_admin.id if mk_admin else None,
+                ))
+                print("Marketing video: seeded with uploaded file.")
+            else:
+                print("  No sample video found — skipping marketing video seed. Upload one via admin UI.")
+        else:
+            print("Marketing video: already exists, skipped.")
+
+        # ── 15. Issue types ────────────────────────────────────────────────────────────
         issue_type_names = [
             "Item Not Received",
             "Item Not as Described",
@@ -868,7 +903,7 @@ async def seed_data():
         issue_type_map = {it.name: it for it in all_issue_types_rows}
         print(f"Issue types: {len(new_issue_types)} created, {len(issue_type_names) - len(new_issue_types)} already existed.")
 
-        # ── 15. Disputes ──────────────────────────────────────────────────────
+        # ── 16. Disputes ──────────────────────────────────────────────────────
         # Mix of statuses to test the full admin dispute workflow.
         dispute_specs = [
             # (reporter_idx, listing (None or active), issue_type_name, subject, category, description, status, resolution_note)
@@ -946,7 +981,7 @@ async def seed_data():
         await db.flush()
         print(f"Disputes: {len(dispute_specs)} created (open/in_review/resolved/closed mix).")
 
-        # ── 16. Content moderation ─────────────────────────────────────────────
+        # ── 17. Content moderation ─────────────────────────────────────────────
         admin = next((u for u in all_users if u.role == UserRole.admin), None)
 
         # Admin-managed prohibited keywords. category ∈ {illegal_item, profanity}.
@@ -980,7 +1015,7 @@ async def seed_data():
 
         print(f"Content moderation: {len(new_kw)} keywords, {attempt_count} flagged attempts.")
 
-        # ── 17. Option sets (admin dropdown catalogue) ─────────────────────────
+        # ── 18. Option sets (admin dropdown catalogue) ─────────────────────────
         # One lookup table keyed by set_key backing every admin dropdown. Mirrors
         # scripts/migrations/2026_07_20_option_sets.sql. Idempotent on (set_key, value).
         option_defs = [
@@ -1032,7 +1067,7 @@ async def seed_data():
             await db.flush()
         print(f"Option sets: {len(new_opts)} created ({len({k for k, *_ in option_defs})} sets).")
 
-        # ── 18. Feedback types + item feedback ─────────────────────────────────
+        # ── 19. Feedback types + item feedback ─────────────────────────────────
         feedback_type_defs = [
             ("Buyer to Seller", "buyer"),
             ("Buyer to Listing", "buyer"),
@@ -1066,16 +1101,118 @@ async def seed_data():
                 seller_id = lst.seller_id
                 db.add(ItemFeedback(listing_id=lst.id, reviewer_id=winner.id, reviewee_id=seller_id,
                                     feedback_type_id=ft_map["Buyer to Seller"].id,
+                                    is_public=True,
                                     rating=5 if i % 3 else 4, comment=bts[i % len(bts)]))
                 db.add(ItemFeedback(listing_id=lst.id, reviewer_id=winner.id, reviewee_id=seller_id,
                                     feedback_type_id=ft_map["Buyer to Listing"].id,
+                                    is_public=True,
                                     rating=5 if i % 4 else 4, comment=btl[i % len(btl)]))
                 db.add(ItemFeedback(listing_id=lst.id, reviewer_id=seller_id, reviewee_id=winner.id,
                                     feedback_type_id=ft_map["Seller to Buyer"].id,
+                                    is_public=True,
                                     rating=5 if i % 3 else 4, comment=stb[i % len(stb)]))
                 fb_count += 3
             await db.flush()
         print(f"Feedback: {len(feedback_type_defs)} types, {fb_count} item-feedback rows.")
+
+        # ── 20. Landing page content (CMS / Puck editor) ───────────────────────
+        existing_landing = await db.scalar(select(SiteContent).where(SiteContent.slug == "landing"))
+        if not existing_landing:
+            landing_content = {
+                "root": {"props": {}},
+                "content": [
+                    {
+                        "type": "Hero",
+                        "props": {
+                            "heading": "The Premium Marketplace for Serious Collectors",
+                            "subheading": "Discover, bid, and win exclusive items in a high-trust, high-velocity environment. Join a community where authenticity and speed matter.",
+                            "primaryCtaLabel": "Start Bidding",
+                            "primaryCtaLink": "/register",
+                            "secondaryCtaLabel": "View Auctions",
+                            "secondaryCtaLink": "/browse",
+                        },
+                    },
+                    {"type": "Categories", "props": {}},
+                    {"type": "TrendingAuctions", "props": {}},
+                    {
+                        "type": "FeatureGrid",
+                        "props": {
+                            "heading": "The AuctionHub Advantage",
+                            "subheading": "Built for high-stakes trading with enterprise-grade technology.",
+                            "features": [
+                                {
+                                    "icon": "zap",
+                                    "title": "Real-Time Sync",
+                                    "text": "Low-latency WebSocket infrastructure ensures every bid is recorded instantly. No lag, no missed opportunities.",
+                                },
+                                {
+                                    "icon": "shield",
+                                    "title": "Verified Listings",
+                                    "text": "Multi-step verification process guarantees item authenticity and seller credibility for every listing.",
+                                },
+                                {
+                                    "icon": "trendingUp",
+                                    "title": "AI Pricing Confidence",
+                                    "text": "Advanced machine learning models analyse historical data to provide real-time valuation insights.",
+                                },
+                            ],
+                        },
+                    },
+                    {"type": "TestimonialWall", "props": {}},
+                    {
+                        "type": "PricingBlock",
+                        "props": {
+                            "heading": "Transparent Pricing",
+                            "subheading": "Scale your collecting hobby or business with ease",
+                            "freeName": "Free",
+                            "freeDescription": "For casual buyers and sellers starting out.",
+                            "freePrice": "$0",
+                            "freeBullets": [
+                                {"text": "Full marketplace browsing access"},
+                                {"text": "Up to 10 active bids per hour"},
+                                {"text": "Standard seller verification"},
+                            ],
+                            "premiumName": "Premium",
+                            "premiumDescription": "For professional traders and collectors.",
+                            "premiumPrice": "$49",
+                            "premiumBullets": [
+                                {"text": "No bidding or listing limits"},
+                                {"text": "Advanced Collector Dashboard"},
+                                {"text": "Priority Verification & Badging"},
+                                {"text": "24/7 VIP Concierge Support"},
+                            ],
+                        },
+                    },
+                    {
+                        "type": "ContactBlock",
+                        "props": {
+                            "heading": "Get in Touch",
+                            "subtext": "Have a question, dispute, or partnership enquiry? Our team is here to help.",
+                            "email": "support@auctionhub.com",
+                        },
+                    },
+                    {
+                        "type": "Banner",
+                        "props": {
+                            "heading": "Ready to start bidding?",
+                            "body": "Join thousands of local buyers and sellers. Registration is free and PDPA-compliant.",
+                            "ctaLabel": "Register Now",
+                            "ctaLink": "/register",
+                            "hideWhenLoggedIn": True,
+                        },
+                    },
+                ],
+                "zones": {},
+            }
+            cms_admin = next((u for u in all_users if u.role == UserRole.admin), None)
+            db.add(SiteContent(
+                slug="landing",
+                content=landing_content,
+                updated_by=cms_admin.id if cms_admin else None,
+            ))
+            print("Landing page content: seeded with full 8-section layout.")
+        else:
+            print("Landing page content: already exists, skipped.")
 
         await db.commit()
         print(f"""
@@ -1092,6 +1229,7 @@ async def seed_data():
   Moderation     : {attempt_count} flagged attempts
   Option sets    : {len(new_opts)} options
   Feedback       : {len(feedback_type_defs)} types, {fb_count} item-feedback rows
+  Landing page   : \"landing\" slug — 8 Puck blocks (Hero, Categories, Trending, Features, Testimonials, Pricing, Contact, Banner)
 
   Credentials (all users): password123
   New premium accounts : stewie, zixin, ethan, jn, wesley, gavrel

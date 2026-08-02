@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Response, status
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -10,7 +11,7 @@ from app.schemas.auth import (
     PasswordResetRequest, PasswordResetConfirm,
     EmailVerificationConfirm, ChangePasswordRequest, GenericMessageResponse,
 )
-from app.api.deps import ACCESS_TOKEN_COOKIE_NAME, get_current_user
+from app.api.deps import ACCESS_TOKEN_COOKIE_NAME, get_current_user, get_optional_user
 from app.core.rate_limit import rate_limiter
 from app.services.auth_service import AuthService
 from app.services.password_reset_service import PasswordResetService
@@ -22,11 +23,7 @@ router = APIRouter()
 
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED,
-    # Generous on purpose: this project's own QA suite registers a fresh ephemeral
-    # account per test case, well over a hundred per run, from a single IP -- a limit
-    # tight enough to matter against real credential stuffing (which fires far faster
-    # than this) still needs to sit comfortably above that.
-    dependencies=[Depends(rate_limiter("register", limit=300, window_seconds=60))],
+    dependencies=[Depends(rate_limiter("register", limit=settings.RATE_LIMIT_REGISTER, window_seconds=60))],
 )
 async def register(
     request: RegisterRequest,
@@ -43,9 +40,7 @@ async def register(
 
 @router.post(
     "/login", response_model=Token,
-    # Same reasoning as /register's limit -- every ephemeral account the QA suite
-    # creates immediately logs in with it too.
-    dependencies=[Depends(rate_limiter("login", limit=300, window_seconds=60))],
+    dependencies=[Depends(rate_limiter("login", limit=settings.RATE_LIMIT_LOGIN, window_seconds=60))],
 )
 async def login(
     request: LoginRequest,
@@ -76,16 +71,18 @@ async def logout(response: Response):
     response.delete_cookie(key=ACCESS_TOKEN_COOKIE_NAME, path="/")
     return GenericMessageResponse(message="Logged out.")
 
-@router.get("/get_current_user", response_model=UserResponse)
+@router.get("/get_current_user", response_model=Optional[UserResponse])
 async def get_me(
-    current_user: User = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_optional_user)
 ):
+    if current_user is None:
+        return None
     return current_user
 
 
 @router.post(
     "/password-reset/request", response_model=GenericMessageResponse,
-    dependencies=[Depends(rate_limiter("password-reset-request", limit=10, window_seconds=60))],
+    dependencies=[Depends(rate_limiter("password-reset-request", limit=settings.RATE_LIMIT_PASSWORD_RESET, window_seconds=60))],
 )
 async def password_reset_request(
     request: PasswordResetRequest,
@@ -109,7 +106,7 @@ async def password_reset_confirm(
 
 @router.post(
     "/email-verification/send", response_model=GenericMessageResponse,
-    dependencies=[Depends(rate_limiter("email-verification-send", limit=10, window_seconds=60))],
+    dependencies=[Depends(rate_limiter("email-verification-send", limit=settings.RATE_LIMIT_EMAIL_VERIFICATION, window_seconds=60))],
 )
 async def email_verification_send(
     db: AsyncSession = Depends(get_db),

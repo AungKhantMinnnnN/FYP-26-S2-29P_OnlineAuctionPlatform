@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     LOG_DIR: str
 
     ALLOWED_ORIGINS: str
+
+    # Rate limiting toggle — set RATE_LIMIT_ENABLED=false to disable per-user
+    # WebSocket message rate limiting (e.g. during integration/QA testing).
+    RATE_LIMIT_ENABLED: bool = True
     
     @property
     def cors_origins(self) -> list[str]:

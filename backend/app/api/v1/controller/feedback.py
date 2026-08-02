@@ -6,6 +6,8 @@ from uuid import UUID
 from app.db.session import get_db
 from app.models.auction import User
 from app.api.deps import get_current_user, get_admin_user
+from app.core.config import settings
+from app.core.rate_limit import rate_limiter
 from app.schemas.feedback import (
     FeedbackCreate, FeedbackResponse,
     FeedbackTypeCreate, FeedbackTypeUpdate, FeedbackTypeResponse,
@@ -107,7 +109,8 @@ async def get_my_submitted_feedback(
     return await FeedbackService.get_submitted_by_user(db, current_user.id)
 
 
-@router.post("/", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED,
+              dependencies=[Depends(rate_limiter("create-feedback", limit=settings.RATE_LIMIT_CREATE_FEEDBACK, window_seconds=60))])
 async def submit_feedback(
     data: FeedbackCreate,
     db: AsyncSession = Depends(get_db),
