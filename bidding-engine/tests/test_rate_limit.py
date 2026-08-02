@@ -1,38 +1,52 @@
-"""Self-check for ConnectionManager.allow_message sliding window. Run: python -m tests.test_rate_limit"""
-import time
+"""Unit tests for ConnectionManager.allow_message's Redis-backed sliding window.
+
+allow_message is async and reads the current window count from a Redis sorted set
+(see app.core.connection_manager). These tests mock the Redis pipeline response
+(results[1] is the zcard count) so the throttling logic is exercised without a live
+Redis, following the mocked-boundary convention used across this suite.
+"""
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from app.core import connection_manager as cm
 
 
-def test_allow_message():
+def _manager_with_count(count: int) -> cm.ConnectionManager:
     mgr = cm.ConnectionManager()
-    sock = object()  # allow_message only uses the socket as a dict key
-
-    # First RATE_LIMIT_MAX_MESSAGES are allowed, the next is throttled.
-    for _ in range(cm.RATE_LIMIT_MAX_MESSAGES):
-        assert mgr.allow_message(sock) is True
-    assert mgr.allow_message(sock) is False
-
-    # Window slides: after it elapses, the socket is allowed again.
-    mgr.message_log[sock].clear()  # simulate window expiry without sleeping the full window
-    assert mgr.allow_message(sock) is True
-
-    # Independent sockets have independent budgets.
-    other = object()
-    for _ in range(cm.RATE_LIMIT_MAX_MESSAGES):
-        assert mgr.allow_message(other) is True
-    assert mgr.allow_message(other) is False
-    assert mgr.allow_message(sock) is True  # sock still has budget
-
-    # Real expiry path with a tiny window.
-    cm.RATE_LIMIT_WINDOW_SECONDS = 0.05
-    fresh = object()
-    assert all(mgr.allow_message(fresh) for _ in range(cm.RATE_LIMIT_MAX_MESSAGES))
-    assert mgr.allow_message(fresh) is False
-    time.sleep(0.06)
-    assert mgr.allow_message(fresh) is True
-
-    print("test_allow_message passed")
+    pipe = MagicMock()
+    pipe.execute = AsyncMock(return_value=[0, count, 1, 1])
+    mgr._redis = MagicMock()
+    mgr._redis.pipeline.return_value = pipe
+    return mgr
 
 
-if __name__ == "__main__":
-    test_allow_message()
+async def test_allow_message_when_under_limit():
+    mgr = _manager_with_count(cm.RATE_LIMIT_MAX_MESSAGES - 1)
+    assert await mgr.allow_message("user-1") is True
+
+
+async def test_allow_message_throttled_at_limit():
+    mgr = _manager_with_count(cm.RATE_LIMIT_MAX_MESSAGES)
+    assert await mgr.allow_message("user-1") is False
+
+
+async def test_allow_message_uses_user_scoped_key():
+    mgr = _manager_with_count(0)
+    await mgr.allow_message("1234-5678")
+    key = mgr._redis.pipeline.return_value.zadd.call_args.args[0]
+    assert key == "ratelimit:ws:1234-5678"
+
+
+async def test_allow_message_fails_open_when_redis_unavailable():
+    mgr = cm.ConnectionManager()
+    mgr._redis = MagicMock()
+    mgr._redis.pipeline.side_effect = RuntimeError("redis down")
+    assert await mgr.allow_message("user-1") is True
+
+
+async def test_allow_message_disabled_when_rate_limit_off(monkeypatch):
+    mgr = _manager_with_count(cm.RATE_LIMIT_MAX_MESSAGES)
+    monkeypatch.setattr(cm.settings, "RATE_LIMIT_ENABLED", False)
+    assert await mgr.allow_message("user-1") is True
+    mgr._redis.pipeline.assert_not_called()
