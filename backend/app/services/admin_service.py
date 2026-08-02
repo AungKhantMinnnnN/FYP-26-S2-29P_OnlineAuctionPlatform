@@ -33,8 +33,8 @@ _LOG_LINE_RE = re.compile(
 # The matching -error.log (and any rotated .YYYY-MM-DD files) are skipped as dupes.
 _GENERAL_LOG_FILES = {
     "APIGateWay.log": "backend",
-    "bidding-engine.log": "bidding-engine",
-    "recommendation-engine.log": "recommendation-engine",
+    "BiddingEngine.log": "bidding-engine",
+    "RecommendationEngine.log": "recommendation-engine",
 }
 
 

@@ -53,9 +53,10 @@ export interface AdminStatsResponse {
 }
 
 // ── System Logs ─────────────────────────────────────────────────────────────────
-// Tails the API Gateway's own rotating log file (see backend app.core.logger); the
-// bidding-engine and recommendation-engine run in separate containers with no shared
-// log volume, so their activity isn't included here.
+// Reads each service's rotating log file via GET /admin/system-logs (see backend
+// app.core.logger + admin_service.get_system_logs). In Docker a read-only mount of all
+// three services' log dirs (ALL_LOGS_DIR -> ./logs) backs this; locally it falls back to
+// LOG_DIR. Logs are flat files parsed server-side — not written to a database.
 
 export interface SystemLogEntry {
   id: string

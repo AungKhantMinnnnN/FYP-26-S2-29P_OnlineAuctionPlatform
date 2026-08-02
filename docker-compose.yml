@@ -94,6 +94,7 @@ services:
       args:
         VITE_API_URL: /v1.0.0
         VITE_RECS_URL: /v1.0.0
+        VITE_BIDDING_URL: /v1.0.0
     image: auction-nginx:local
     container_name: AuctionHub_Nginx${STACK_SUFFIX:-}
     ports:
