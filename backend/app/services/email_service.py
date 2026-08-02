@@ -4,9 +4,9 @@ from typing import Optional
 from fastapi_mail import FastMail, MessageSchema, MessageType, ConnectionConfig
 
 from app.core.config import settings
-from app.core.logger import setup_logging
+from app.core.logger import get_logger
 
-logger = setup_logging("EmailService")
+logger = get_logger("email_service")
 
 TEMPLATE_FOLDER = Path(__file__).resolve().parent.parent / "templates" / "email"
 

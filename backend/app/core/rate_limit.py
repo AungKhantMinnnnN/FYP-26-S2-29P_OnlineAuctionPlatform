@@ -3,9 +3,9 @@ import redis.asyncio as aioredis
 from fastapi import HTTPException, Request, status
 
 from app.core.config import settings
-from app.core.logger import setup_logging
+from app.core.logger import get_logger
 
-logger = setup_logging("RateLimit")
+logger = get_logger("rate_limit")
 
 _redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
 

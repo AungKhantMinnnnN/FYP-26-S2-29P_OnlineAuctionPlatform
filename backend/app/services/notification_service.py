@@ -3,11 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.core.config import settings
-from app.core.logger import setup_logging
+from app.core.logger import get_logger
 from app.models.auction import Notification, User
 from app.services.email_service import EmailService
 
-logger = setup_logging("NotificationService")
+logger = get_logger("notification_service")
 
 
 def _listing_url(listing_id: str) -> str:

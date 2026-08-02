@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.logger import setup_logging
+from app.core.logger import get_logger
 from app.db.session import get_db
 from app.models.auction import User
 from app.schemas.auth import (
@@ -17,7 +17,7 @@ from app.services.auth_service import AuthService
 from app.services.password_reset_service import PasswordResetService
 from app.services.email_verification_service import EmailVerificationService
 
-logger = setup_logging("AuthController")
+logger = get_logger("auth_controller")
 
 router = APIRouter()
 

@@ -1,10 +1,10 @@
-import logging
 from uuid import UUID
 
 from app.db.session import AsyncSessionLocal
 from app.models.auction import UserInteraction, InteractionAction
+from app.core.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("interaction_service")
 
 
 async def log_interaction(user_id: UUID, listing_id: UUID, action: InteractionAction) -> None:
