@@ -105,17 +105,19 @@ services:
       - recommendation-engine
     restart: unless-stopped
 
-  # Public hosting: a Cloudflare Quick Tunnel — no account, no domain, no inbound firewall
-  # rule needed (outbound-only connection to Cloudflare's edge). Reaches nginx over the
-  # internal Docker network, not the host's published port. Trade-off: the assigned
-  # *.trycloudflare.com hostname changes every time this container restarts — check its
-  # logs (`docker logs AuctionHub_CloudflareTunnel`) for the current URL. For a stable,
-  # permanent hostname, swap this for a named tunnel against a domain added to Cloudflare
-  # (`cloudflared tunnel create` + `cloudflared tunnel route dns`) instead.
+  # Public hosting: a named Cloudflare Tunnel bound to auction-pros.org (created and routed
+  # via the Zero Trust dashboard — Public Hostname config there maps the domain to
+  # http://nginx:80 inside this tunnel). Outbound-only connection to Cloudflare's edge, no
+  # inbound firewall rule needed. Reaches nginx over the internal Docker network, not the
+  # host's published port. Token stays out of this file — CLOUDFLARE_TUNNEL_TOKEN lives in
+  # .env.local only.
   cloudflared:
     image: cloudflare/cloudflared@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf
     container_name: AuctionHub_CloudflareTunnel${STACK_SUFFIX:-}
-    command: tunnel --no-autoupdate --url http://nginx:80
+    # --protocol http2 forces TCP instead of QUIC/UDP for the edge connection — this VM's
+    # network path had intermittent UDP timeouts ("no recent network activity") that caused
+    # the tunnel to flap and serve Cloudflare error 1033. HTTP/2 has been stable since.
+    command: tunnel --no-autoupdate --protocol http2 run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - nginx
     restart: unless-stopped
