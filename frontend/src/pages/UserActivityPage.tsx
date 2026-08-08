@@ -163,7 +163,6 @@ export default function UserActivityPage() {
                       : 'border-slate-200 bg-slate-50/50'
                   }`}
                 >
-                  {/* Status badge */}
                   <div className="mb-3 flex items-center justify-between">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
                       isLeading
@@ -180,7 +179,6 @@ export default function UserActivityPage() {
                     </span>
                   </div>
 
-                  {/* Listing title */}
                   <button
                     onClick={() => navigate(`/auction/${b.listing_id}`)}
                     className="mb-3 line-clamp-2 text-left text-sm font-semibold text-slate-900 hover:text-accent-600"
@@ -188,7 +186,6 @@ export default function UserActivityPage() {
                     {b.listing_title}
                   </button>
 
-                  {/* Bid info */}
                   <div className="mb-3 flex items-end justify-between">
                     <div>
                       <p className="text-xs text-slate-500">My bid</p>

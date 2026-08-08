@@ -47,9 +47,8 @@ export default function ListingFormPage() {
   const [isLoadingListing, setIsLoadingListing] = useState(isEditMode)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  // Preserves the listing's current status across an edit-mode save, so
-  // "Save Changes" on an already-active listing doesn't silently revert it
-  // to a draft (only "Publish Auction" should ever force status to active).
+  // So "Save Changes" on an active listing doesn't silently revert it to a draft —
+  // only "Publish Auction" should ever force status to active.
   const [originalStatus, setOriginalStatus] = useState<'draft' | 'active'>('draft')
 
   useEffect(() => {

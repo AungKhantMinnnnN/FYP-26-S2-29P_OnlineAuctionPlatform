@@ -20,11 +20,8 @@ from app.schemas.auth import TokenPayload
 
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
 
-# auto_error=False on both: a missing/absent Authorization header is not itself a 401 --
-# the browser client authenticates via the httpOnly cookie instead (see auth.py's
-# login/logout), while API clients (the QA suite, external integrations) keep using the
-# Bearer header exactly as before. _extract_token below tries the header first, then
-# falls back to the cookie, and only get_current_user itself raises for "neither present".
+# auto_error=False: browser clients auth via httpOnly cookie, API clients via Bearer header;
+# _extract_token tries the header then falls back to the cookie.
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"/{settings.API_VERSION}/auth/login",
     auto_error=False,

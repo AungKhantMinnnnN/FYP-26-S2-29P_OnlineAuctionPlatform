@@ -18,12 +18,9 @@ describe('StatusBadge', () => {
     expect(screen.getByText('totally-unknown')).toHaveClass('bg-amber-50')
   })
 
-  // Bug: the badge looks up styling by lowercased status but renders the RAW
-  // (un-normalized) text with a CSS `capitalize` class. `text-transform:
-  // capitalize` only uppercases the first letter of each word -- it does not
-  // lowercase the rest -- so an all-caps status like "ACTIVE" renders as
-  // "ACTIVE", not "Active", even though a caller might reasonably expect the
-  // component to normalize it the way it normalizes the style lookup.
+  // CSS `capitalize` only uppercases the first letter, it doesn't lowercase the rest,
+  // so an all-caps status like "ACTIVE" renders as "ACTIVE" even though the style
+  // lookup normalizes it.
   it('does not actually normalize the displayed casing despite the "capitalize" class (known cosmetic bug)', () => {
     render(<StatusBadge status="ACTIVE" />)
     expect(screen.getByText('ACTIVE')).toBeInTheDocument()

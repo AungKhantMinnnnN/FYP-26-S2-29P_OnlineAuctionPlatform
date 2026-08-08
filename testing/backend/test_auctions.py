@@ -28,26 +28,22 @@ from qa_ids import unique_tag
 
 suite = Suite("Auctions / Listings")
 
-# A real, minimal 1x1 transparent PNG (well-known test fixture) — the backend never
-# parses image bytes itself (just streams them to MinIO), so validity only matters
-# for readability/documentation, not for the test to function.
+# A real 1x1 transparent PNG -- the backend just streams bytes to MinIO without
+# parsing them, so validity isn't load-bearing here, only readability.
 TINY_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 )
 
 
 def _unique_title():
-    # Deliberately avoids the word "listing" and uses a letters-only random suffix (not
-    # hex): "fisting" (a seeded prohibited keyword) is one substitution from "listing",
-    # and leetspeak-normalized hex digits ("b0b0" -> "bobo") coincidentally matched
-    # another seeded keyword during earlier test runs. See TEST_PLAN.md Finding F6.
+    # Avoids "listing" (one substitution from the seeded keyword "fisting") and uses a
+    # letters-only suffix, not hex, to dodge leetspeak-normalized collisions. See
+    # TEST_PLAN.md Finding F6.
     return f"QA Test Item {unique_tag()}"
 
 
 def _listing_payload(category_id=None, **overrides):
-    # Description deliberately avoids the word "suite": it's one substitution away from
-    # another seeded prohibited keyword, "shite" — a second real instance of Finding F6,
-    # discovered by this very test data. See TEST_PLAN.md.
+    # Avoids "suite" too: one substitution from the seeded keyword "shite" (Finding F6).
     now = datetime.now(timezone.utc)
     payload = {
         "title": _unique_title(),
@@ -73,12 +69,9 @@ def _cleanup(client, listing_id):
 
 
 def _create(client, **overrides):
-    """POST /auctions/create_listing for a case that's expected to succeed, retrying
-    with a freshly-generated random title on the rare chance a random suffix
-    coincidentally trips the fuzzy prohibited-keyword matcher (Finding F6) — observed
-    in practice even after the letters-only fix in qa_ids.py, just far less often.
-    Returns the created listing dict; raises the original assertion-style error if
-    every attempt fails for a reason other than a prohibited-term collision."""
+    """Creates a listing expected to succeed, retrying with a fresh random title if the
+    prohibited-keyword matcher fuzzy-matches by chance (Finding F6 -- rare but still
+    happens with letters-only suffixes). Re-raises on any other failure."""
     resp = None
     for _ in range(4):
         body = _listing_payload(**overrides)

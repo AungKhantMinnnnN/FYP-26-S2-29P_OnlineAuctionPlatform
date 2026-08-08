@@ -6,8 +6,7 @@ import { getPublished } from '../api/cmsApi'
 
 vi.mock('../api/cmsApi', () => ({ getPublished: vi.fn() }))
 
-// Puck's <Render> does real DOM work tied to its own component tree; stub it so
-// this test targets CmsPage's own loading/error/success branching only.
+// Stub Puck's <Render> (it does real DOM work) so tests target only CmsPage's own branching.
 vi.mock('@puckeditor/core', () => ({
   Render: ({ data }: { data: unknown }) => <div data-testid="puck-render">{JSON.stringify(data)}</div>,
 }))

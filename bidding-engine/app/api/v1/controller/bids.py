@@ -16,7 +16,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
 
 async def get_user_id_from_token(token: str) -> str:
-    """Validate JWT token and return user ID"""
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
@@ -39,11 +38,8 @@ async def websocket_endpoint(
     listing_id: str,
     token: str = Query(None)
 ):
-    # Browsers can't attach custom headers to a WS handshake, so the frontend used to pass
-    # the JWT as a "?token=" query param (which meant sessionStorage had to hold a
-    # JS-readable copy of it). Now that login sets an httpOnly cookie instead, fall back to
-    # reading it from the handshake's Cookie header -- same-origin WS upgrade requests
-    # carry cookies automatically, same as any other same-origin request.
+    # Browsers can't attach custom headers to a WS handshake, so fall back to reading the
+    # JWT from the handshake's Cookie header (same-origin WS requests carry cookies too).
     if not token:
         token = websocket.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
 
@@ -79,10 +75,8 @@ async def websocket_endpoint(
                 result = await BiddingService.process_bid_message(db, listing_id, user_id, data)
                 
             if result.get("success"):
-                # Broadcast the successful bid to everyone in the room
                 await manager.broadcast(json.dumps(result["data"]), listing_id)
             else:
-                # Send error only to the user who attempted the bid
                 await websocket.send_text(json.dumps({
                     "type": "error", 
                     "message": result.get("error", "Unknown error")

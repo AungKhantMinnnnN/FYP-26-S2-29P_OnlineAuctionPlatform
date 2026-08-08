@@ -105,18 +105,14 @@ services:
       - recommendation-engine
     restart: unless-stopped
 
-  # Public hosting: a named Cloudflare Tunnel bound to auction-pros.org (created and routed
-  # via the Zero Trust dashboard — Public Hostname config there maps the domain to
-  # http://nginx:80 inside this tunnel). Outbound-only connection to Cloudflare's edge, no
-  # inbound firewall rule needed. Reaches nginx over the internal Docker network, not the
-  # host's published port. Token stays out of this file — CLOUDFLARE_TUNNEL_TOKEN lives in
+  # Named Cloudflare Tunnel bound to auction-pros.org (routed to http://nginx:80 via the
+  # Zero Trust dashboard). Outbound-only, so no inbound firewall rule needed. Token lives in
   # .env.local only.
   cloudflared:
     image: cloudflare/cloudflared@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf
     container_name: AuctionHub_CloudflareTunnel${STACK_SUFFIX:-}
-    # --protocol http2 forces TCP instead of QUIC/UDP for the edge connection — this VM's
-    # network path had intermittent UDP timeouts ("no recent network activity") that caused
-    # the tunnel to flap and serve Cloudflare error 1033. HTTP/2 has been stable since.
+    # --protocol http2 forces TCP instead of QUIC/UDP — this VM had intermittent UDP timeouts
+    # that flapped the tunnel with Cloudflare error 1033. HTTP/2 has been stable since.
     command: tunnel --no-autoupdate --protocol http2 run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - nginx
@@ -137,10 +133,8 @@ services:
       S3_ENDPOINT: http://minio:9000
       LOG_DIR: /logs
       ALL_LOGS_DIR: /all-logs
-      # No host port published: nginx already proxies every /v1.0.0/* browser request to this
-      # service (see docker/nginx/default.conf) — there is no legitimate reason for it to be
-      # reachable directly, and leaving it open bypassed nginx's own internal-route block
-      # (see docker/nginx/default.conf's /v1.0.0/internal/ 404, and TEST_PLAN.md Finding F1).
+      # No host port published — nginx already proxies every /v1.0.0/* request here and
+      # enforces the /v1.0.0/internal/ block; exposing it directly would bypass that.
     volumes:
       - ./logs/backend:/logs
       - ./logs:/all-logs:ro   # read-only view of every service's logs for the admin System Logs view

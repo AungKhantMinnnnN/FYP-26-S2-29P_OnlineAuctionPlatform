@@ -1,13 +1,4 @@
--- Migration: Sprint 2 SMTP token tables
--- Date: 2026-06-30
--- Sprint: 2 (US #102 - Password reset, US #103 - Email verification)
---
--- Changes:
---   1. Create password_reset_tokens table
---   2. Create email_verification_tokens table
---
--- Apply once on each environment's Postgres instance.
--- Safe to re-run: uses IF NOT EXISTS guards.
+-- Password reset and email verification token tables.
 
 BEGIN;
 

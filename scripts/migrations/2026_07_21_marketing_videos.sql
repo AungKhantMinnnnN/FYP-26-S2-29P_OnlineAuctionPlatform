@@ -1,17 +1,11 @@
--- Migration: Marketing video library
--- Date: 2026-07-21
+-- Marketing video library: every hero-video upload keeps its own row (and its
+-- own MinIO object key) instead of overwriting a single fixed key with no
+-- history. Exactly one row has is_active = TRUE at a time — that's the video
+-- the public landing page shows.
 --
--- Changes:
---   1. Create marketing_videos table: every hero-video upload keeps its own row
---      (and its own MinIO object key) instead of the old behaviour of silently
---      overwriting a single fixed key with no history. Exactly one row is
---      is_active = TRUE at a time; that's the video the public landing page shows.
---
--- NOTE: the video previously uploaded under the old fixed key ("hero-video") has
--- no row here and won't appear in the library. Re-upload it once after this ships
--- if it should be kept.
---
--- Apply once on each environment's Postgres instance. Safe to re-run (idempotent).
+-- NOTE: the video previously uploaded under the old fixed key ("hero-video")
+-- has no row here and won't appear in the library; re-upload it if it should
+-- be kept.
 
 BEGIN;
 

@@ -1,10 +1,7 @@
 """
-scheduler.py — APScheduler setup for the bidding engine.
+APScheduler setup for the bidding engine. Runs auction settlement every 60 seconds.
 
-Runs one job every 60 seconds to settle ended auctions. The interval is intentionally
-short so winners and sellers know the result quickly after an auction closes.
-
-AsyncIOScheduler is used (not BackgroundScheduler) because the settlement service
+Uses AsyncIOScheduler (not BackgroundScheduler) because the settlement service
 uses async DB sessions — mixing sync scheduler threads with async sessions causes
 greenlet/event-loop conflicts.
 """
@@ -31,7 +28,6 @@ async def _run_settlement() -> None:
 
 
 def start_scheduler() -> None:
-    """Register the settlement job and start the scheduler. Called at app startup."""
     scheduler.add_job(
         _run_settlement,
         trigger="interval",
@@ -45,7 +41,6 @@ def start_scheduler() -> None:
 
 
 def stop_scheduler() -> None:
-    """Gracefully shut down the scheduler. Called at app shutdown."""
     if scheduler.running:
         scheduler.shutdown(wait=False)
         logger.info("scheduler: stopped")

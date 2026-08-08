@@ -57,14 +57,11 @@ class Settings(BaseSettings):
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
 
-    # Token TTL (in hours)
     PASSWORD_RESET_TOKEN_TTL_HOURS: int = 1
     EMAIL_VERIFICATION_TOKEN_TTL_HOURS: int = 24
 
-    # Rate limiting (per-IP sliding window). Override in .env.local for tighter
-    # production defaults or looser dev values that don't break the QA suite.
-    # Set RATE_LIMIT_ENABLED=false to disable all rate limiting (e.g. during
-    # integration/QA testing).
+    # Per-IP sliding window; override in .env.local per environment, or set
+    # RATE_LIMIT_ENABLED=false to disable entirely (e.g. QA testing).
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REGISTER: int = 300
     RATE_LIMIT_LOGIN: int = 300
@@ -78,7 +75,6 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
 
-    # Load from environment file
     model_config = SettingsConfigDict(
         env_file=(env_file_name, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), env_file_name)),
         env_file_encoding="utf-8",

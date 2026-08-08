@@ -123,16 +123,18 @@ def _():
     assert resp.status_code == 401, resp.text
 
 
-@suite.case("get_current_user without a token returns 401")
+@suite.case("get_current_user without a token returns 200 with a null body (not 401 — the frontend polls this on every page load to silently check auth state)")
 def _():
     resp = ApiClient().get("/auth/get_current_user")
-    assert resp.status_code == 401, resp.text
+    assert resp.status_code == 200, resp.text
+    assert resp.json() is None
 
 
-@suite.case("get_current_user with an invalid token returns 401")
+@suite.case("get_current_user with an invalid token returns 200 with a null body, same as no token")
 def _():
     resp = ApiClient(token="not-a-real-jwt").get("/auth/get_current_user")
-    assert resp.status_code == 401, resp.text
+    assert resp.status_code == 200, resp.text
+    assert resp.json() is None
 
 
 @suite.case("get_current_user with a valid token returns the matching account")

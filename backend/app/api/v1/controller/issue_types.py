@@ -14,7 +14,6 @@ router = APIRouter()
 
 @router.get("/", response_model=List[IssueTypeResponse])
 async def get_issue_types(db: AsyncSession = Depends(get_db)):
-    """Public: list all issue types for the support page form."""
     return await IssueTypeService.get_all(db=db)
 
 

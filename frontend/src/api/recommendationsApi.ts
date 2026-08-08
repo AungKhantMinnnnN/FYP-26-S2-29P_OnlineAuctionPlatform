@@ -45,8 +45,7 @@ export interface TrendingResponse {
 }
 
 export const getTrending = async (params?: { limit?: number }): Promise<TrendingResponse> => {
-  // Personalization is derived server-side from the caller's own auth token (if any) --
-  // it's never something the client can request on someone else's behalf.
+  // Personalization is derived server-side from the caller's auth token, not requestable for another user.
   const response = await recsClient.get<TrendingResponse>('/recs/trending', { params });
   return response.data;
 };

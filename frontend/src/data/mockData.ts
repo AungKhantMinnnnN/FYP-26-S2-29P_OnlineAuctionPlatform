@@ -1,1 +1,1 @@
-// This file was deliberately left empty as part of the migration away from hardcoded mock data.
+// Intentionally empty -- mock data has been replaced by real API calls throughout.

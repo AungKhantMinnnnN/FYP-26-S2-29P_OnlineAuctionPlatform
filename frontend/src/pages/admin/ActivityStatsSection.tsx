@@ -68,5 +68,3 @@ export default function ActivityStatsSection() {
     </div>
   )
 }
-
-// System Monitoring — live up/down status for each backend microservice, pinged directly from the browser.

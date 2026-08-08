@@ -1,16 +1,15 @@
 """
 trending.py — Pure scoring functions for the recommendation pipeline.
 
-All functions here are stateless and side-effect-free: they take DataFrames and
-return DataFrames or Series. No DB access, no caching. This keeps them fast,
-testable, and reusable across different call paths.
+Stateless and side-effect-free: DataFrames/Series in, DataFrames/Series out. No DB
+access or caching, so these stay fast and testable independent of the rest of the app.
 
 Scoring pipeline applied in rank_listings():
   popularity × (1 + 0.5·urgency) × (1 + 0.5·segment) × (1 + 0.5·category)
             × (1 + 0.5·cf) × (1 + 0.4·brand) × (1 + 0.3·price) × (1 + 0.2·condition)
 
-Each multiplier is additive on top of the base score, so a listing needs real
-popularity before any personalisation boost matters much.
+Multiplicative, not additive — a listing needs real popularity before any
+personalisation boost matters much.
 """
 
 import datetime
@@ -64,11 +63,8 @@ def age_group(dob: datetime.date | None, today: datetime.date | None = None) -> 
     """
     Map a date of birth to a demographic age bucket.
 
-    The explicit birthday comparison (month, day) correctly handles the case where
-    the birthday hasn't occurred yet this calendar year — avoids off-by-one errors
-    in the first few months after a birthday boundary.
-
-    Returns None if dob is None so callers can skip segment matching gracefully.
+    The (month, day) comparison handles the case where the birthday hasn't occurred
+    yet this calendar year, avoiding an off-by-one before the birthday boundary.
     """
     if dob is None:
         return None
@@ -89,14 +85,10 @@ def age_group(dob: datetime.date | None, today: datetime.date | None = None) -> 
 
 def popularity_scores(interactions: pd.DataFrame) -> pd.Series:
     """
-    Compute a raw popularity score per listing by summing weighted interaction counts.
+    Sum weighted interaction counts (ACTION_WEIGHTS) per listing_id.
 
-    Each row in interactions is one user event. The weight depends on the action type
-    (see ACTION_WEIGHTS). Summing across all users gives a listing-level signal:
-    a listing that many users bid on scores much higher than one that was only viewed.
-
-    Returns a Series indexed by listing_id. Listings with zero interactions are absent
-    (not 0.0) — callers must use .reindex(...).fillna(0) to align with the full listing set.
+    Listings with zero interactions are absent from the result (not 0.0) — callers
+    must .reindex(...).fillna(0) to align with the full listing set.
     """
     if interactions.empty:
         logger.debug("popularity_scores: no interactions → returning empty series")
@@ -109,14 +101,9 @@ def popularity_scores(interactions: pd.DataFrame) -> pd.Series:
 
 def urgency_scores(listings: pd.DataFrame, now: datetime.datetime) -> pd.Series:
     """
-    Compute an urgency score (0..1) per listing based on how close it is to ending.
-
-    Formula: (ENDING_SOON_WINDOW_HOURS - hours_remaining) / ENDING_SOON_WINDOW_HOURS,
-    clipped to [0, 1]. A listing ending in 1 hour scores ~0.986; one ending in 72h
-    scores 0.0. Listings that have already ended get 0.
-
-    The score is intentionally linear (not exponential) to avoid a single ending-soon
-    listing dominating the entire feed regardless of popularity.
+    Urgency score (0..1): (ENDING_SOON_WINDOW_HOURS - hours_remaining) / WINDOW, clipped
+    to [0, 1]. Linear rather than exponential so a single ending-soon listing can't
+    dominate the feed regardless of popularity. Already-ended listings score 0.
     """
     if listings.empty:
         logger.debug("urgency_scores: no listings → returning empty series")
@@ -134,12 +121,8 @@ def urgency_scores(listings: pd.DataFrame, now: datetime.datetime) -> pd.Series:
 def brand_affinity_scores(listing_ids: pd.Index, listings: pd.DataFrame, user_brands: set) -> pd.Series:
     """
     Binary match: 1.0 if the listing's brand is in the user's brand history, else 0.0.
-
-    Binary is intentional here — we don't have enough signal to rank brands relative
-    to each other (a user who bid on 5 Nike items vs 1 is not meaningfully different
-    from the perspective of "does this listing appeal to them").
-
-    user_brands is built from: window interactions + all-time bids + wins + board items.
+    Binary because there isn't enough signal to rank brands relative to each other
+    (5 Nike bids vs 1 isn't meaningfully different appeal-wise).
     """
     if not user_brands or "brand" not in listings.columns:
         logger.debug("brand_affinity_scores: no user brands or missing column → all 0.0")
@@ -153,14 +136,9 @@ def brand_affinity_scores(listing_ids: pd.Index, listings: pd.DataFrame, user_br
 
 def price_affinity_scores(listing_ids: pd.Index, listings: pd.DataFrame, user_median_price: float | None) -> pd.Series:
     """
-    Score listings by how close their current price is to the user's median bid price.
-
-    Formula: 1 - |listing_price - median| / (2 * median), clipped to [0, 1].
-    A listing priced at exactly the user's median scores 1.0; one priced at 3× the
-    median scores 0.0. The denominator (2 * median) creates a ±100% tolerance band.
-
-    Defaults to 0.5 neutral when user has no price history, so unpriced users get a
-    small non-zero price boost rather than being excluded entirely.
+    Score by proximity to the user's median bid price: 1 - |price - median| / (2 * median),
+    clipped to [0, 1] — a ±100% tolerance band around the median. Defaults to 0.5 neutral
+    when the user has no price history.
     """
     if user_median_price is None or user_median_price <= 0 or "current_price" not in listings.columns:
         logger.debug("price_affinity_scores: no median price → all 0.5 neutral")
@@ -177,14 +155,9 @@ def price_affinity_scores(listing_ids: pd.Index, listings: pd.DataFrame, user_me
 
 def condition_quality_scores(listing_ids: pd.Index, listings: pd.DataFrame) -> pd.Series:
     """
-    Score listings by the AI-generated condition confidence score (0–100 → 0.0–1.0).
-
-    condition_confidence is set by the intelligence-engine's vision model when listing
-    images are uploaded. It's an objective quality signal that acts as a tie-breaker:
-    among equally popular listings, better-condition items rank higher.
-
-    Defaults to 0.5 neutral for listings without an AI assessment, so unscored items
-    are not penalised — just not boosted.
+    Score by AI-generated condition_confidence (0-100 -> 0.0-1.0), set by the
+    intelligence-engine's vision model on image upload. Acts as a tie-breaker among
+    equally popular listings. Defaults to 0.5 neutral when unscored.
     """
     if "condition_confidence" not in listings.columns:
         logger.debug("condition_quality_scores: no condition_confidence column → all 0.5 neutral")
@@ -199,22 +172,14 @@ def cf_scores(user_id: uuid.UUID | None, interactions: pd.DataFrame, listing_ids
     """
     User-based Collaborative Filtering: surface listings that similar users engaged with.
 
-    Algorithm:
-      1. Build a user × listing weight matrix from the interaction window.
-         Each cell = sum of ACTION_WEIGHTS for that (user, listing) pair.
-      2. Compute cosine similarity between the requesting user's row and all peer rows.
-         Cosine is chosen over dot-product because it normalises for activity level —
-         a highly active user doesn't dominate similarity just because they interact more.
-      3. Clip similarities to [0, ∞) — negative cosine (opposite taste) should not
-         subtract from a listing's score.
-      4. Weighted sum: each peer's listing weights are multiplied by their similarity
-         to the requesting user, then summed. This propagates engagement from
-         taste-similar peers to listings the requesting user hasn't seen yet.
-      5. Normalise to [0, 1] by dividing by the max raw score so the CF signal
-         stays proportionate with the other boosts in rank_listings().
+    Builds a user x listing weight matrix from the interaction window, computes cosine
+    similarity between the requesting user and all peers (cosine over dot-product so a
+    highly active user doesn't dominate just by interacting more), clips negative
+    similarities to 0, then propagates each peer's listing weights scaled by their
+    similarity and normalises to [0, 1].
 
     Returns zero for all listings if the user is absent from the interaction window
-    (cold start for CF — other signals still apply).
+    (cold start — other signals still apply).
     """
     zero = pd.Series(0.0, index=listing_ids)
 
@@ -268,15 +233,9 @@ def cf_scores(user_id: uuid.UUID | None, interactions: pd.DataFrame, listing_ids
 
 def _relative_boost(index: pd.Index, subset: pd.DataFrame | None) -> pd.Series:
     """
-    Convert a subset of interactions into a normalised boost signal (0..1) per listing.
-
-    Used for segment and category boosts. The subset is a filtered slice of the full
-    interactions_df (e.g. only rows from users in the same age group/city, or only
-    rows for listings in the user's preferred categories).
-
-    Normalising by the subset's max popularity ensures the boost is always relative —
-    the most popular listing in the subset scores 1.0 regardless of absolute volume,
-    so this works consistently even in low-traffic periods.
+    Convert a subset of interactions (e.g. same-segment or same-category rows) into a
+    normalised 0..1 boost per listing. Normalising by the subset's own max popularity
+    keeps the boost relative, so it stays meaningful even in low-traffic periods.
     """
     if subset is None or subset.empty:
         return pd.Series(0.0, index=index)
@@ -298,17 +257,13 @@ def rank_listings(
     """
     Apply the full 8-factor scoring pipeline and return listings sorted by final score.
 
-    Each factor multiplies the running score by (1 + weight × signal), so the
-    pipeline is purely multiplicative. A listing must have baseline popularity before
-    personalisation boosts matter — a listing with 0 interactions scores 0 regardless
-    of how well it matches the user's profile.
+    Purely multiplicative (1 + weight × signal) per factor, so a listing with zero
+    interactions scores 0 regardless of how well it matches the user's profile. Order
+    is urgency first, then personalisation signals in decreasing specificity (segment
+    → category → CF → brand → price → condition).
 
-    Factor application order matters: urgency is applied first (time pressure should
-    amplify popular items early), then personalisation signals in decreasing
-    specificity (segment → category → CF → brand → price → condition).
-
-    Returns a DataFrame with an added 'score' column, sorted descending.
-    Callers should .head(limit) to get the top N results.
+    Returns a DataFrame with an added 'score' column, sorted descending; callers
+    should .head(limit) for the top N.
     """
     logger.info(
         "rank_listings: scoring %d listings against %d interaction rows (user_id=%s)",

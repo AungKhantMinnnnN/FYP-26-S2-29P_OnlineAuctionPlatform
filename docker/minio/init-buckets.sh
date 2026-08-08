@@ -1,5 +1,5 @@
 #!/bin/sh
-# Waits for MinIO then creates the auction-assets bucket
+# Wait for MinIO, then create and configure the buckets
 
 sleep 5
 

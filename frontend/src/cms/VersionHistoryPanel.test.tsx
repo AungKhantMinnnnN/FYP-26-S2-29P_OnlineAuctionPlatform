@@ -127,8 +127,7 @@ describe('VersionHistoryPanel', () => {
     const { props } = renderPanel()
     await waitFor(() => expect(screen.getAllByText('Restore')).toHaveLength(2))
     await userEvent.click(screen.getAllByText('Restore')[0]) // v2
-    // The remaining row's Restore button is still in the DOM alongside the
-    // modal's confirm button, so disambiguate: the modal's is rendered last.
+    // Modal's confirm button is rendered last, after the remaining row's Restore button.
     const restoreButtons = screen.getAllByRole('button', { name: 'Restore' })
     await userEvent.click(restoreButtons[restoreButtons.length - 1])
     await waitFor(() => expect(rollback).toHaveBeenCalledWith('landing', 'v2'))

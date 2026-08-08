@@ -1,22 +1,13 @@
 """
 cache_service.py — Redis cache helpers for the recommendation pipeline.
 
-All functions swallow exceptions and return None on failure. This means Redis
-being down or unreachable is treated as a cache miss — the pipeline falls back
-to a DB fetch automatically. The recommendation engine never crashes because
-of a cache layer problem.
+All functions swallow exceptions and return None on failure, so a Redis outage is
+treated as a cache miss and the pipeline falls back to a DB fetch instead of crashing.
 
-Two storage formats:
-  - DataFrames (listings_df, interactions_df): serialised with orient="split" which
-    preserves column names and produces more compact JSON than orient="records".
-    Dates are written as ISO strings and must be explicitly re-cast on read
-    (see _cast_listings_df / _cast_interactions_df in recommendation_service.py).
-  - JSON (user signals, anonymous result): standard json.dumps with a custom
-    default handler for numpy scalars (score values are numpy.float64 and would
-    raise TypeError with the default serialiser).
-
-RECS_CACHE_ENABLED=false bypasses all reads and writes, letting you test the
-pipeline with fresh DB hits on every request without flushing Redis.
+DataFrames are serialised with orient="split" (more compact than "records") and dates
+are re-cast explicitly on read (see _cast_listings_df / _cast_interactions_df in
+recommendation_service.py). Plain JSON values use a custom default handler since score
+values are numpy.float64, which json.dumps can't serialise natively.
 """
 
 import json
@@ -33,14 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def _json_default(obj):
-    """
-    Custom JSON serialiser for types that json.dumps can't handle by default.
-
-    numpy.float64 / numpy.int64 values appear in the score map because pandas
-    arithmetic produces numpy scalars. Calling .item() converts them to native
-    Python floats/ints which json.dumps can serialise. Everything else falls back
-    to str() — this is a last resort for unexpected types and avoids hard crashes.
-    """
+    """Fallback for numpy scalars (pandas arithmetic produces these) and anything else."""
     if isinstance(obj, np.floating):
         return float(obj)
     if isinstance(obj, np.integer):
@@ -50,16 +34,10 @@ def _json_default(obj):
 
 async def set_df(key: str, df: pd.DataFrame, ttl: int) -> None:
     """
-    Serialise a DataFrame to JSON and store it in Redis with a TTL. (Time to live)
+    Serialise a DataFrame to JSON (orient="split", dates as ISO strings) and cache it.
 
-    orient="split" format: {"columns": [...], "index": [...], "data": [[...], ...]}.
-    More compact than orient="records" for wide DataFrames (column names written once).
-    convert_dates=False on read (in get_df) is paired with date_format="iso" here —
-    dates are stored as strings and re-parsed explicitly to avoid pandas auto-detection
-    converting them to Timestamps when we need datetime.date objects.
-
-    Skipped silently if caching is disabled or the DataFrame is empty — no point
-    caching an empty result that would just mask a real DB problem.
+    Skipped if caching is disabled or the DataFrame is empty — an empty result would
+    just mask a real DB problem if cached.
     """
     if not settings.RECS_CACHE_ENABLED or df.empty:
         return
@@ -76,11 +54,9 @@ async def get_df(key: str) -> pd.DataFrame | None:
     Retrieve and deserialise a DataFrame from Redis.
 
     convert_dates=False prevents pandas from auto-converting ISO date strings to
-    Timestamps — we need datetime.date objects for age_group() calculations, and
-    the explicit cast in _cast_interactions_df handles this correctly.
-
-    Returns None on miss, disabled cache, or any exception (treated as cache miss
-    by all callers — triggers a DB fetch instead).
+    Timestamps -- we need datetime.date objects for age_group(), and the explicit
+    cast in _cast_interactions_df handles that. Returns None on miss, disabled
+    cache, or any exception, which all callers treat as a cache miss.
     """
     if not settings.RECS_CACHE_ENABLED:
         return None
@@ -99,14 +75,10 @@ async def get_df(key: str) -> pd.DataFrame | None:
 
 async def set_json(key: str, obj, ttl: int) -> None:
     """
-    Serialise a plain Python object (dict/list) to JSON and store it in Redis with a TTL. (Time to live)
+    Serialise a plain Python object (dict/list) to JSON and cache it.
 
-    Used for:
-      - recs:user:{id}:signals  → {"brands": [...], "median_price": float|null}
-      - recs:anonymous:{limit}  → list of listing dicts (pre-scored, full payload)
-
-    The custom _json_default handler is needed because score values computed by
-    pandas/numpy are numpy.float64 objects, not native Python floats.
+    Used for recs:user:{id}:signals ({"brands": [...], "median_price": float|null})
+    and recs:anonymous:{limit} (pre-scored listing dicts).
     """
     if not settings.RECS_CACHE_ENABLED:
         return
@@ -118,12 +90,7 @@ async def set_json(key: str, obj, ttl: int) -> None:
 
 
 async def get_json(key: str):
-    """
-    Retrieve and deserialise a JSON value from Redis.
-
-    Returns None on miss, disabled cache, or any exception (treated as cache miss —
-    the caller recomputes and re-caches).
-    """
+    """Retrieve and deserialise a JSON value from Redis, or None on miss/disabled/error."""
     if not settings.RECS_CACHE_ENABLED:
         return None
     try:

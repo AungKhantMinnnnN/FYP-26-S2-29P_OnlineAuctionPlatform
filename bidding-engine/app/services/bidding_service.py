@@ -23,10 +23,7 @@ logger = logging.getLogger("BiddingEngine")
 class BiddingService:
     @staticmethod
     async def process_bid_message(db: AsyncSession, listing_id: str, user_id: str, data: str) -> dict:
-        """
-        Process an incoming bid message, handle locks, and update the DB securely.
-        Returns a dict indicating success/error and the response data.
-        """
+        """Process an incoming bid message under the listing's Redis lock."""
         try:
             payload = json.loads(data)
             action_type = payload.get("type")
@@ -43,17 +40,14 @@ class BiddingService:
             logger.error(f"ListingId: [{listing_id}] Invalid message format")
             return {"success": False, "error": "Invalid message format"}
 
-        # Use Redis lock to prevent race conditions on this specific listing
         lock_key = f"lock:bid:{listing_id}"
-        # Lock for up to 5 seconds. If blocked, wait for it.
         logger.info(f"ListingId: [{listing_id}] Locking listing for 5 sec. Block will be finished after 3 sec.")
         try:
             async with redis_client.lock(lock_key, timeout=5.0, blocking_timeout=3.0):
                 return await BiddingService._execute_bid(db, listing_id, user_id, amount)
         except LockError:
-            # blocking_timeout elapsed without acquiring the lock (a hot listing).
-            # A retryable error the client can act on, not a reason to drop the socket
-            # (the bare except in the websocket loop would otherwise disconnect the user).
+            # blocking_timeout elapsed without acquiring the lock (hot listing). Return a
+            # retryable error instead of raising, so the websocket loop doesn't disconnect the user.
             logger.warning(f"ListingId: [{listing_id}] Could not acquire bid lock in time")
             return {"success": False, "error": "This listing is busy right now. Please try your bid again."}
 
@@ -68,7 +62,6 @@ class BiddingService:
         
         logger.info(f"Listing ID: [{listing_id}] User ID: [{user_id}]")
 
-        # 1. Fetch the listing
         result = await db.execute(select(Listing).where(Listing.id == listing_uuid))
         listing = result.scalars().first()
         
@@ -88,7 +81,7 @@ class BiddingService:
             logger.error("Seller cannot bid on their own listing")
             return {"success": False, "error": "Seller cannot bid on their own listing"}
 
-        # 2. Fetch the previous highest bid (to check state and eventually release funds)
+        # Previous highest bid, needed to check state and release its hold if outbid
         result = await db.execute(
             select(Bid).where(Bid.listing_id == listing_uuid, Bid.status == BidStatus.accepted)
             .order_by(Bid.amount.desc()).limit(1)
@@ -96,11 +89,10 @@ class BiddingService:
         previous_highest_bid = result.scalars().first()
         has_bids = previous_highest_bid is not None
 
-        # 3. Check if amount is high enough
         if listing.bidding_type == BiddingType.public:
-            min_required = listing.current_price + 1.0 # Implement $1 as minimum increment for public auctions
+            min_required = listing.current_price + 1.0  # fixed $1 minimum increment
         elif listing.bidding_type == BiddingType.low_start and not has_bids:
-            min_required = listing.starting_price # In low_start auction, any price can be the lowest price until someone else has already placed a bet
+            min_required = listing.starting_price  # any price is valid until the first bid
         else:
             min_required = listing.current_price + listing.min_increment if has_bids else listing.starting_price
 
@@ -108,15 +100,13 @@ class BiddingService:
             logger.error(f"Listing ID: [{listing_id}] Bid amount must be at least {min_required:.2f}")
             return {"success": False, "error": f"Bid amount must be at least {min_required:.2f}"}
 
-        # 4. Fetch current user (bidder)
         result = await db.execute(select(User).where(User.id == user_uuid))
         current_user = result.scalars().first()
         if not current_user:
             logger.error("User not found")
             return {"success": False, "error": "User not found"}
 
-        # Block suspended/deleted accounts from bidding (status may change mid-session,
-        # so this is re-checked per bid rather than only at WS connect time).
+        # Status can change mid-session, so re-check per bid rather than only at WS connect time.
         if current_user.status != UserStatus.active:
             logger.warning(f"User [{user_id}] with status [{current_user.status.value}] attempted to bid")
             return {"success": False, "error": "Your account is not active. Bidding is disabled."}
@@ -125,10 +115,9 @@ class BiddingService:
             logger.error("Insufficient wallet balance")
             return {"success": False, "error": "Insufficient wallet balance"}
 
-        # Free tier: max 10 bids per hour. Counted via an atomic Redis counter keyed by
-        # user (not a DB count guarded by the per-listing lock above) -- that per-listing
-        # lock doesn't stop the same user from racing this check across two DIFFERENT
-        # listings at once, each under its own lock, and slipping past the cap.
+        # Free tier: max 10 bids/hour, via an atomic Redis counter rather than a DB count --
+        # the per-listing lock above wouldn't stop a user racing this check across two
+        # different listings at once and slipping past the cap.
         if current_user.subscription_tier == SubscriptionTier.free:
             bid_count_key = f"bidcount:free_tier:{user_id}"
             bid_count = await redis_client.incr(bid_count_key)
@@ -143,16 +132,13 @@ class BiddingService:
 
         outbid_user_id = None  # captured here so notify_outbid can fire after commit
         if previous_highest_bid:
-            # release the old bid hold.
             prev_user_id = previous_highest_bid.bidder_id
             outbid_user_id = str(prev_user_id)
-            
-            # Fetch the previous user
+
             result = await db.execute(select(User).where(User.id == prev_user_id))
             prev_user = result.scalars().first()
-            
+
             if prev_user:
-                # Release funds
                 prev_user.balance += previous_highest_bid.amount
                 release_tx = WalletTransaction(
                     user_id=prev_user_id,
@@ -163,10 +149,8 @@ class BiddingService:
                 db.add(release_tx)
                 logger.info(f"Previous userId: [{prev_user_id}]'s bid amount [{previous_highest_bid.amount}] has been released.")
 
-        # 5. Hold new bidder's funds
         current_user.balance -= amount
-        
-        # 6. Create the new bid
+
         new_bid = Bid(
             listing_id=listing_uuid,
             bidder_id=user_uuid,
@@ -174,9 +158,8 @@ class BiddingService:
             status=BidStatus.accepted
         )
         db.add(new_bid)
-        await db.flush()  # To get new_bid.id
-        
-        # 7. Record the hold transaction
+        await db.flush()  # populate new_bid.id
+
         hold_tx = WalletTransaction(
             user_id=user_uuid,
             amount=amount,
@@ -184,15 +167,12 @@ class BiddingService:
             reference=str(new_bid.id)
         )
         db.add(hold_tx)
-        
-        # 8. Update listing's current price
+
         now = datetime.now(timezone.utc)
         listing.current_price = amount
         listing.updated_at = now
 
-        # 9. Anti-sniping: extend end_time if the bid lands in the final 60 seconds.
-        # The check uses the end_time that was valid when this bid was accepted — we
-        # make it timezone-aware here because the DB column may be stored as naive UTC.
+        # DB column may be stored as naive UTC, so make it tz-aware before comparing.
         end_time_aware = listing.end_time if listing.end_time.tzinfo else listing.end_time.replace(tzinfo=timezone.utc)
         seconds_remaining = (end_time_aware - now).total_seconds()
         time_extended = False
@@ -204,17 +184,15 @@ class BiddingService:
                 f"Extended end_time by {ANTI_SNIPE_EXTENSION_SECONDS}s to {listing.end_time.isoformat()}"
             )
 
-        # 10. Log interaction and commit all changes atomically.
-        # The extension is committed in the same transaction as the bid — no partial state.
+        # Extension is committed in the same transaction as the bid — no partial state.
         db.add(UserInteraction(user_id=user_uuid, listing_id=listing_uuid, action=InteractionAction.bid))
         await db.commit()
 
-        # Fire-and-forget outbid notification — must be after commit so the DB write is durable first
+        # Fire-and-forget, after commit so the DB write is durable first.
         if outbid_user_id:
             await notification_client.notify_outbid(outbid_user_id, str(listing.id), listing.title, amount)
 
-        # Build success broadcast payload — include extension info so the frontend
-        # can update its countdown timer immediately without polling.
+        # Include extension info so the frontend can update its countdown without polling.
         broadcast_data = {
             "type": "new_bid",
             "listing_id": str(listing.id),

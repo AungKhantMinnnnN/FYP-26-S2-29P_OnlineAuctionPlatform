@@ -1,6 +1,5 @@
 #!/bin/sh
-# Creates the Redis Stream consumer group for the bidding engine
-# on first startup after Redis is ready
+# Creates the Redis Stream consumer group for the bidding engine on first startup
 
 sleep 2
 

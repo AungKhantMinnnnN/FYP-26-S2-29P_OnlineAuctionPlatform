@@ -15,7 +15,6 @@ ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/ogg"}
 
 @router.get("/marketing-video")
 async def get_marketing_video(db: AsyncSession = Depends(get_db)):
-    """Public: returns the currently active hero marketing video's URL."""
     url = await MarketingService.get_active_url(db)
     if not url:
         raise HTTPException(status_code=404, detail="No marketing video uploaded yet")
@@ -28,8 +27,7 @@ async def upload_marketing_video(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_admin_user),
 ):
-    """Admin: upload a new hero video. It becomes active immediately; prior
-    uploads are kept in the library rather than being overwritten."""
+    """Becomes active immediately; prior uploads stay in the library, not overwritten."""
     if file.content_type not in ALLOWED_VIDEO_TYPES:
         raise HTTPException(
             status_code=400,
@@ -44,7 +42,7 @@ async def list_marketing_videos(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: every saved hero video upload, newest first."""
+    """Newest first."""
     return {"items": await MarketingService.list_videos(db)}
 
 
@@ -54,7 +52,6 @@ async def activate_marketing_video(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: switch the active hero video without re-uploading."""
     return await MarketingService.activate_video(db, id)
 
 
@@ -64,5 +61,5 @@ async def delete_marketing_video(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: delete a saved (non-active) video."""
+    """Only a non-active video can be deleted."""
     await MarketingService.delete_video(db, id)

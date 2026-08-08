@@ -46,8 +46,8 @@ export const adminUsersApi = {
     search = '',
     page = 1,
     size = 10,
-    status?: string,  // value comes from the DB-backed user_status option set
-    role?: string,  // value comes from the DB-backed user_role option set
+    status?: string,
+    role?: string,
   ): Promise<AdminUsersResponse> {
     const response = await apiClient.get<AdminUsersResponse>(
       '/admin/users',

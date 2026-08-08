@@ -17,7 +17,7 @@ export default function UsersSection() {
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // '' / 'all' are the "no filter" sentinels; real values come from the DB option sets.
+  // '' and 'all' are the two different "no filter" sentinels used below.
   const [roleFilter, setRoleFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('')
 

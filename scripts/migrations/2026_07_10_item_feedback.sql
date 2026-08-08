@@ -33,11 +33,11 @@ CREATE INDEX IF NOT EXISTS idx_item_feedback_listing  ON item_feedback(listing_i
 CREATE INDEX IF NOT EXISTS idx_item_feedback_reviewee ON item_feedback(reviewee_id);
 CREATE INDEX IF NOT EXISTS idx_item_feedback_public   ON item_feedback(is_public, created_at DESC) WHERE is_public = TRUE;
 
--- ── Seed feedback (15 rows: 5 per type, all public) ─────────────────────────
--- Uses a PL/pgSQL block to resolve UUIDs from seeded usernames and titles.
--- All listings used below are ended auctions with a known winner (from seed_data.py).
+-- Seed feedback (15 rows: 5 per type, all public). Resolves UUIDs from seeded
+-- usernames/titles via PL/pgSQL; listings are ended auctions with known
+-- winners from seed_data.py.
 --
--- ended_specs seller_idx → normal_users index → username:
+-- seller_idx → normal_users index → username:
 --   0=stewie  1=zixin  2=ethan  3=jn  4=wesley  5=gavrel
 --   8=normal_user_3  9=normal_user_4  13=normal_user_8
 --
@@ -72,17 +72,16 @@ DECLARE
     l_wh1000  UUID := (SELECT id FROM listings WHERE title ILIKE '%WH-1000XM5%'        LIMIT 1);
 BEGIN
 
--- Warn about any unresolved listings so the caller can investigate
 IF l_omega   IS NULL THEN RAISE NOTICE 'listing not found: Omega Seamaster';   END IF;
 IF l_ps5     IS NULL THEN RAISE NOTICE 'listing not found: PlayStation 5';     END IF;
 IF l_gibson  IS NULL THEN RAISE NOTICE 'listing not found: Gibson Les Paul';   END IF;
 IF l_dji     IS NULL THEN RAISE NOTICE 'listing not found: Mavic 3 Pro';       END IF;
 IF l_wh1000  IS NULL THEN RAISE NOTICE 'listing not found: WH-1000XM5';        END IF;
 
--- INSERT ... SELECT ... WHERE pattern: rows with any null UUID are silently skipped
--- rather than crashing with a NOT NULL constraint violation.
+-- The WHERE clause below skips rows with an unresolved (NULL) UUID instead of
+-- crashing on a NOT NULL constraint violation.
 
--- ── Buyer to Seller (winner reviews the seller) ───────────────────────────────
+-- Buyer to Seller: winner reviews the seller
 INSERT INTO item_feedback (listing_id, reviewer_id, reviewee_id, feedback_type_id, rating, comment, is_public)
 SELECT listing_id, reviewer_id, reviewee_id, feedback_type_id, rating, comment, is_public
 FROM (VALUES
@@ -97,7 +96,7 @@ WHERE v.listing_id IS NOT NULL
   AND v.reviewee_id IS NOT NULL
 ON CONFLICT (listing_id, reviewer_id, feedback_type_id) DO NOTHING;
 
--- ── Buyer to Listing (winner reviews the listing accuracy) ────────────────────
+-- Buyer to Listing: winner reviews the listing accuracy
 INSERT INTO item_feedback (listing_id, reviewer_id, reviewee_id, feedback_type_id, rating, comment, is_public)
 SELECT listing_id, reviewer_id, reviewee_id, feedback_type_id, rating, comment, is_public
 FROM (VALUES
@@ -112,7 +111,7 @@ WHERE v.listing_id IS NOT NULL
   AND v.reviewee_id IS NOT NULL
 ON CONFLICT (listing_id, reviewer_id, feedback_type_id) DO NOTHING;
 
--- ── Seller to Buyer (seller reviews the winning bidder) ───────────────────────
+-- Seller to Buyer: seller reviews the winning bidder
 INSERT INTO item_feedback (listing_id, reviewer_id, reviewee_id, feedback_type_id, rating, comment, is_public)
 SELECT listing_id, reviewer_id, reviewee_id, feedback_type_id, rating, comment, is_public
 FROM (VALUES

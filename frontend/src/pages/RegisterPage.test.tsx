@@ -87,9 +87,6 @@ describe('RegisterPage', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  // Regression test for a fixed inconsistency: RegisterPage now enforces the
-  // same 8-character minimum as ResetPasswordPage for the same underlying
-  // credential.
   it('rejects a password shorter than 8 characters, matching ResetPasswordPage', async () => {
     renderPage()
     await userEvent.type(screen.getByLabelText('Full Name'), 'Alex Tan')
@@ -103,10 +100,8 @@ describe('RegisterPage', () => {
     expect(mockRegister).not.toHaveBeenCalled()
   })
 
-  // Regression test for a fixed defense-in-depth gap: handleSubmit now checks
-  // `agreed` itself instead of relying solely on the submit button's
-  // `disabled` attribute, so a direct form submit (bypassing the button) no
-  // longer skips the terms-agreement gate.
+  // handleSubmit checks `agreed` itself rather than relying solely on the submit
+  // button's `disabled` attribute, so a direct form submit can't bypass the gate.
   it('blocks a direct form submit (bypassing the disabled button) when terms are not agreed', async () => {
     renderPage()
     await fillRequiredFields(false) // deliberately do NOT check the terms box

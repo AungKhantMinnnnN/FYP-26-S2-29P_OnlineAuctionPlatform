@@ -22,7 +22,6 @@ router = APIRouter()
 
 @router.get("/types", response_model=List[FeedbackTypeResponse])
 async def list_feedback_types(db: AsyncSession = Depends(get_db)):
-    """Public: list all active feedback types."""
     return await FeedbackTypeService.get_all(db, active_only=True)
 
 
@@ -33,7 +32,7 @@ async def list_all_feedback_types(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: list all feedback types including inactive."""
+    """Includes inactive types, unlike the public list above."""
     return await FeedbackTypeService.get_all(db, active_only=False)
 
 
@@ -72,19 +71,16 @@ async def get_public_feedback(
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
-    """Public: recent public feedback for landing page."""
     return await FeedbackService.get_public(db, limit)
 
 
 @router.get("/listing/{listing_id}", response_model=List[FeedbackResponse])
 async def get_listing_feedback(listing_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Public: all public feedback for a specific listing."""
     return await FeedbackService.get_for_listing(db, listing_id)
 
 
 @router.get("/user/{user_id}", response_model=List[FeedbackResponse])
 async def get_user_feedback(user_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Public: all public feedback received by a user."""
     return await FeedbackService.get_for_user(db, user_id)
 
 
@@ -96,7 +92,6 @@ async def check_eligibility(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Check which feedback types the current user can submit for a listing."""
     return await FeedbackService.get_eligibility(db, current_user.id, listing_id)
 
 
@@ -105,7 +100,7 @@ async def get_my_submitted_feedback(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Feedback the current user has submitted (as reviewer), regardless of visibility."""
+    """As reviewer, regardless of is_public."""
     return await FeedbackService.get_submitted_by_user(db, current_user.id)
 
 

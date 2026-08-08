@@ -4,9 +4,8 @@ function createClient(baseURL: string): AxiosInstance {
   const client = axios.create({
     baseURL,
     headers: { 'Content-Type': 'application/json' },
-    // The session lives in an httpOnly cookie now (see AuthContext) -- unreadable by JS,
-    // so it can't be attached as an Authorization header manually. withCredentials makes
-    // the browser send/accept it automatically on every request to this origin instead.
+    // Session lives in an httpOnly cookie (unreadable by JS), so it can't be attached
+    // as an Authorization header -- withCredentials sends/accepts it automatically instead.
     withCredentials: true,
   });
 
@@ -14,11 +13,8 @@ function createClient(baseURL: string): AxiosInstance {
     (response) => response,
     (error) => {
       const url: string = error.config?.url ?? '';
-      // /auth/login's own failure shouldn't bounce the login page itself, and
-      // /auth/get_current_user is what AuthContext now polls on every page load (it can
-      // no longer just check "is there a token in storage" -- the cookie isn't readable)
-      // to find out whether anyone is logged in at all, so a 401 there is the expected,
-      // normal shape of "not logged in," not a session that just expired.
+      // Both endpoints return 401 as their normal "not logged in" response, not an
+      // expired session, so they shouldn't trigger the redirect below.
       const isExemptRequest = url.includes('/auth/login') || url.includes('/auth/get_current_user');
       if (error.response?.status === 401 && !isExemptRequest) {
         window.location.href = '/login';

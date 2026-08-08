@@ -23,7 +23,6 @@ class DisputeService:
 
     @staticmethod
     async def get_user_disputes(db: AsyncSession, user_id: UUID) -> List[Dispute]:
-        """User: own submitted disputes with current status."""
         result = await db.execute(
             select(Dispute)
             .where(Dispute.reporter_id == user_id)

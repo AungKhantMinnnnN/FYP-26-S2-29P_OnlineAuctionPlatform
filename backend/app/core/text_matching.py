@@ -48,12 +48,9 @@ def _damerau_levenshtein(a: str, b: str) -> int:
 
 
 def _fuzzy_threshold(keyword_len: int) -> int:
-    # Deliberately capped at 1 regardless of keyword length: a distance of 2 lets through
-    # too many coincidental real words (e.g. a threshold of 2 on "heroin" would also flag
-    # "heron"). Distance 1 still isn't perfect — "heron" is a single deletion away from
-    # "heroin" too — but that's an inherent tradeoff of edit-distance matching without a
-    # full dictionary, and it's the admin-visible Flagged Attempts log that lets an admin
-    # notice and retire an overly-collision-prone keyword.
+    # Capped at 1: distance 2 flags too many coincidental real words (e.g. "heron"
+    # vs "heroin"). Not perfect, but the admin Flagged Attempts log lets an admin
+    # retire an overly collision-prone keyword.
     return 1
 
 
@@ -65,19 +62,18 @@ def keyword_matches(keyword: str, text: str) -> bool:
     keyword_lower = keyword.lower()
     text_lower = text.lower()
 
-    # 1. Plain case-insensitive substring — also catches plurals/suffixes ("guns" contains "gun").
+    # Plain substring — also catches plurals/suffixes ("guns" contains "gun").
     if keyword_lower in text_lower:
         return True
 
-    # 2. Normalized substring — catches symbol substitution ("9un") and separator-inserted
-    #    spelling ("g.u.n", "g-u-n") by stripping punctuation/spaces and leetspeak first.
+    # Normalized substring — catches symbol substitution ("9un") and separator-inserted
+    # spelling ("g.u.n") via leetspeak/punctuation stripping.
     normalized_keyword = _normalize(keyword_lower)
     if normalized_keyword and normalized_keyword in _normalize(text_lower):
         return True
 
-    # 3. Fuzzy token match — catches simple typos/transpositions ("cocain", "herion").
-    #    Skipped for short keywords, where a distance-1 match is too permissive
-    #    (e.g. "gun" at distance 1 would also match "sun", "fun", "gum", "run").
+    # Fuzzy token match for typos ("cocain", "herion"); skipped for short keywords
+    # where distance-1 is too permissive ("gun" would also match "sun", "fun", "run").
     if len(normalized_keyword) < 4:
         return False
 

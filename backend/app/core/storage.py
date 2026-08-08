@@ -55,19 +55,14 @@ class StorageService:
                 content_type=content_type
             )
         except Exception as err:
-            # Broad catch (not just S3Error): connection-level failures — MinIO
-            # unreachable, DNS/network errors, timeouts — raise from urllib3, not
-            # minio.error.S3Error, and would otherwise surface as an opaque 500.
+            # Broad catch: connection-level failures (MinIO unreachable, DNS, timeouts)
+            # raise from urllib3, not S3Error, and would otherwise surface as a bare 500.
             raise Exception(f"Failed to upload video: {err}")
 
     def get_video_url(self, object_key: str) -> str:
-        # A presigned_get_object URL is built against S3_ENDPOINT (the internal Docker
-        # hostname "minio"), which the browser can't resolve — same class of bug that
-        # ListingImages.image_url avoids by using a browser-reachable base instead. The
-        # video bucket is public-read (see docker/minio/init-buckets.sh), so no signature
-        # is needed: a plain path through nginx's /auction-videos/ proxy
-        # (see docker/nginx/default.conf) works, using the same public origin already
-        # relied on for browser-facing links elsewhere (see notification_service.py).
+        # Presigned URLs resolve against S3_ENDPOINT (the internal Docker hostname),
+        # which the browser can't reach. The video bucket is public-read, so route
+        # through nginx's public /auction-videos/ proxy instead.
         return f"{settings.FRONTEND_URL.rstrip('/')}/auction-videos/{object_key}"
 
     def delete_object(self, bucket: str, object_key: str) -> None:

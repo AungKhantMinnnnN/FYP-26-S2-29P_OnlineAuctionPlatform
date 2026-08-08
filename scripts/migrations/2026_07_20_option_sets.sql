@@ -1,16 +1,11 @@
--- Migration: Admin dropdown option catalogue
--- Date: 2026-07-20
+-- Admin dropdown option catalogue: a single lookup table keyed by set_key that
+-- backs every admin dropdown (statuses, roles, actions, log level/service, etc.),
+-- seeded with the previously-hardcoded option lists.
 --
--- Changes:
---   1. Create option_sets table: a single lookup catalogue keyed by set_key that
---      backs every admin dropdown (statuses, roles, actions, log level/service, etc.).
---   2. Seed all previously-hardcoded option lists.
---
--- NOTE: The status/role sets mirror Python enums the backend logic still references
--- directly (UserStatus, DisputeStatus, ListingStatus). These rows drive the dropdown
--- LABELS only; adding a new value here does not make it functional without code changes.
---
--- Apply once on each environment's Postgres instance. Safe to re-run (idempotent).
+-- NOTE: the status/role sets mirror Python enums the backend still references
+-- directly (UserStatus, DisputeStatus, ListingStatus). These rows drive the
+-- dropdown LABELS only — adding a value here doesn't make it functional
+-- without code changes.
 
 BEGIN;
 

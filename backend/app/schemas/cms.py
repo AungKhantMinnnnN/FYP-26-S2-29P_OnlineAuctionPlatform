@@ -4,9 +4,7 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
-# Puck owns the content shape — the API is a dumb pipe. The only trust-boundary
-# check we apply is size, not structure: reject anything absurdly large before it
-# ever reaches the DB, but never validate block-level fields server-side.
+# Puck owns the content shape; the API only guards size, never block-level structure.
 MAX_CONTENT_BYTES = 256 * 1024
 
 
@@ -23,9 +21,8 @@ class SiteContentUpdate(BaseModel):
 class SiteContentResponse(BaseModel):
     slug: str
     content: dict
-    # Optional: a slug with no row yet (fresh DB, nothing published) genuinely has
-    # no "last updated" timestamp — the service returns a default empty page rather
-    # than a 404, so this must tolerate that case rather than fake a value.
+    # None when the slug has no row yet (fresh DB) — service returns a default
+    # empty page rather than a 404, so there's no real "last updated" value.
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

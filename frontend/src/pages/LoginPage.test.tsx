@@ -57,11 +57,8 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Invalid username/email or password')).toBeInTheDocument()
   })
 
-  // Regression test for a fixed bug: the "fill in all fields" check always
-  // validated the *trimmed* value, but the untrimmed raw state used to be
-  // what got passed to login(). The username/email is now trimmed before
-  // submitting too. Password is deliberately left untouched — whitespace
-  // could be a legitimate part of a real password.
+  // Username/email is trimmed before submitting; password is left untouched since
+  // whitespace could be a legitimate part of a real password.
   it('trims the username/email before submitting but leaves the password untouched', async () => {
     mockLogin.mockResolvedValue(undefined)
     renderPage()

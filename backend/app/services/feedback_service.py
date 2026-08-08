@@ -72,7 +72,6 @@ class FeedbackService:
             raise HTTPException(status_code=404, detail="Listing not found")
 
         if ft.reviewer_role == "buyer":
-            # Reviewer must have placed at least one bid on this listing
             has_bid = await db.scalar(
                 select(exists().where(
                     Bid.listing_id == listing_id,
@@ -84,8 +83,7 @@ class FeedbackService:
                     status_code=403,
                     detail="You must have placed a bid on this listing to submit this feedback."
                 )
-        else:  # seller role
-            # Reviewer must be the listing seller
+        else:
             if listing.seller_id != reviewer_id:
                 raise HTTPException(status_code=403, detail="Only the listing seller can submit this feedback type.")
 
@@ -111,7 +109,6 @@ class FeedbackService:
             elif ft.reviewer_role == "seller" and is_seller:
                 eligible_ids.append(ft.id)
 
-        # Which types has this user already submitted for this listing?
         submitted = await db.execute(
             select(ItemFeedback.feedback_type_id).where(
                 ItemFeedback.listing_id == listing_id,
@@ -134,12 +131,10 @@ class FeedbackService:
 
         await FeedbackService._check_eligibility(db, reviewer_id, data.listing_id, ft)
 
-        # Resolve reviewee: for buyer types, reviewee must be the listing seller
         listing = await db.scalar(select(Listing).where(Listing.id == data.listing_id))
         if ft.reviewer_role == "buyer" and data.reviewee_id != listing.seller_id:
             raise HTTPException(status_code=400, detail="Reviewee must be the listing seller for buyer feedback types.")
 
-        # Check duplicate
         existing = await db.scalar(
             select(ItemFeedback).where(
                 ItemFeedback.listing_id == data.listing_id,

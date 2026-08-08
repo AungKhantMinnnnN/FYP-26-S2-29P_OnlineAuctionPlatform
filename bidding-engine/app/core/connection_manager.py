@@ -9,8 +9,7 @@ from app.core.config import settings
 logger = logging.getLogger("BiddingEngine")
 
 # Per-user WS message throttle: reject a socket sending more than
-# RATE_LIMIT_MAX_MESSAGES within RATE_LIMIT_WINDOW_SECONDS. Human bidding is
-# far below this; the cap only stops floods/misbehaving clients.
+# RATE_LIMIT_MAX_MESSAGES within RATE_LIMIT_WINDOW_SECONDS.
 RATE_LIMIT_MAX_MESSAGES = 10
 RATE_LIMIT_WINDOW_SECONDS = 5.0
 
@@ -21,9 +20,7 @@ class ConnectionManager:
         self._redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
 
     async def allow_message(self, user_id: str) -> bool:
-        """Redis-backed sliding-window rate check. Records the message and returns
-        False if over the cap. Survives restarts and works across multiple workers
-        unlike the previous in-memory deque."""
+        """Redis-backed sliding-window rate check; survives restarts and works across workers."""
         if not settings.RATE_LIMIT_ENABLED:
             return True
         key = f"ratelimit:ws:{user_id}"

@@ -64,6 +64,3 @@ export default function ServiceHealthPanel() {
     </div>
   )
 }
-
-// System Monitoring — System Logs. Paginated application/service log lines.
-// Shared control style, matched to SelectField/FormInput so filters read as one system.

@@ -174,7 +174,6 @@ class BoardService:
     async def add_item(
         db: AsyncSession, board_id: UUID, owner_id: UUID, data: BoardItemAdd
     ) -> BoardItemResponse:
-        # Verify board ownership
         board_exists = await db.scalar(
             select(CollectorBoard.id).where(
                 CollectorBoard.id == board_id, CollectorBoard.user_id == owner_id
@@ -183,7 +182,6 @@ class BoardService:
         if not board_exists:
             raise HTTPException(status_code=404, detail="Board not found")
 
-        # Verify the auction result belongs to this user
         result = await db.execute(
             select(AuctionResult)
             .options(
@@ -198,7 +196,6 @@ class BoardService:
         if not auction_result:
             raise HTTPException(status_code=404, detail="Auction result not found or not won by you")
 
-        # Check for duplicate
         duplicate = await db.scalar(
             select(BoardItem.id).where(
                 BoardItem.board_id == board_id,
@@ -218,7 +215,6 @@ class BoardService:
         await db.commit()
         await db.refresh(item)
 
-        # Re-fetch with relationships for response
         result2 = await db.execute(
             select(BoardItem)
             .options(
@@ -235,7 +231,6 @@ class BoardService:
     async def update_item(
         db: AsyncSession, board_id: UUID, item_id: UUID, owner_id: UUID, data: BoardItemUpdate
     ) -> BoardItemResponse:
-        # Load item and verify via board ownership
         result = await db.execute(
             select(BoardItem)
             .join(CollectorBoard, BoardItem.board_id == CollectorBoard.id)
@@ -260,7 +255,6 @@ class BoardService:
             item.sort_order = data.sort_order
 
         if data.target_board_id is not None:
-            # Verify the target board also belongs to this owner
             target_exists = await db.scalar(
                 select(CollectorBoard.id).where(
                     CollectorBoard.id == data.target_board_id,
@@ -269,7 +263,6 @@ class BoardService:
             )
             if not target_exists:
                 raise HTTPException(status_code=404, detail="Target board not found")
-            # Check for duplicate on target board
             duplicate = await db.scalar(
                 select(BoardItem.id).where(
                     BoardItem.board_id == data.target_board_id,

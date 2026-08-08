@@ -61,16 +61,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await apiClient.post('/auth/logout');
     } catch (error) {
-      // Clearing local state is what actually matters for the UI; a failed logout
-      // call just leaves a cookie the server will reject as expired anyway.
+      // Clearing local state is what matters for the UI; a failed request just leaves
+      // a cookie the server will reject as expired anyway.
       console.error('Logout request failed:', error);
     }
   }, [queryClient]);
 
   useEffect(() => {
-    // The session lives in an httpOnly cookie (unreadable by JS), so the only way to find
-    // out whether anyone is logged in is to ask the server -- there's no local token to
-    // check anymore. A 401 here just means "not logged in," not an error to surface.
+    // Session lives in an httpOnly cookie, so the only way to check login state is to ask
+    // the server. A 401 here just means "not logged in," not an error to surface.
     let isMounted = true;
     apiClient.get<User>('/auth/get_current_user')
       .then((response) => {

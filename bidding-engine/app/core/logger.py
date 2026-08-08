@@ -13,8 +13,7 @@ def setup_logging(service_name: str = "bidding-engine") -> logging.Logger:
     )
 
     def file_handler(filename: str, level: int = logging.INFO) -> TimedRotatingFileHandler:
-        # Rolls over to a fresh file at midnight; keeps 5 days of rotated files and
-        # auto-deletes anything older (backupCount). Rotated files get a .YYYY-MM-DD suffix.
+        # Rolls over at midnight, keeps 5 days of rotated files.
         handler = TimedRotatingFileHandler(
             filename=os.path.join(log_dir, filename),
             when="midnight",
@@ -25,7 +24,7 @@ def setup_logging(service_name: str = "bidding-engine") -> logging.Logger:
         handler.setLevel(level)
         return handler
 
-    # ── Console handler — shows logs in docker compose logs ──────
+    # Shows logs in docker compose logs
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(log_formatter)
     console_handler.setLevel(logging.INFO)

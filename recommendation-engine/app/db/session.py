@@ -1,12 +1,11 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.core.config import settings
 
-# For async, we need to ensure the URL uses +asyncpg
 database_url = settings.DATABASE_URL
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# Strip query params like ?sslmode=require because asyncpg doesn't support them natively
+# asyncpg doesn't support query params like ?sslmode=require natively
 if "?" in database_url:
     database_url = database_url.split("?")[0]
 

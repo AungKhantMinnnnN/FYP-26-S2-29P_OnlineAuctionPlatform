@@ -1,13 +1,4 @@
--- Migration: Collector boards feature (Premium)
--- Date: 2026-07-01
--- Sprint: 2
---
--- Changes:
---   1. Create collector_boards table (premium showcase of won items)
---   2. Create board_items table (won auction results added to boards)
---
--- Apply once on each environment's Postgres instance.
--- Safe to re-run: uses IF NOT EXISTS guards.
+-- Collector boards (premium showcase of won items) and their items.
 
 BEGIN;
 

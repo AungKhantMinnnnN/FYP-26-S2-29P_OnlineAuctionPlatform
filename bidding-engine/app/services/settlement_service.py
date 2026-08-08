@@ -1,21 +1,16 @@
 """
-settlement_service.py — Auction settlement logic.
+Auction settlement logic. Called by the APScheduler job every 60 seconds to find
+active listings whose end_time has passed and settle each one atomically.
 
-Called by the APScheduler job every 60 seconds. Finds all active listings whose
-end_time has passed and settles each one atomically.
+Invariant: only one bid hold is active per listing at a time — each new bid
+immediately releases the previous highest bidder's hold (see bidding_service.py),
+so at auction end there is at most one outstanding hold to resolve.
 
-Settlement invariant: at any point during bidding, only ONE bid hold is active
-per listing. Each new bid immediately releases the previous highest bidder's hold
-(see bidding_service.py). So at auction end there is at most one outstanding hold —
-the current highest bidder's.
+Three outcomes: no bids (no winner), reserve not met (hold refunded, no winner),
+or reserve met (winner pays seller via settlement transaction).
 
-Three settlement outcomes:
-  1. No bids placed        → listing ended, no winner, AuctionResult(winner=None)
-  2. Reserve price not met → listing ended, no winner, highest bidder's hold refunded
-  3. Reserve price met     → listing ended, winner pays seller via settlement transaction
-
-The Redis lock (lock:bid:{listing_id}) is re-used during settlement to prevent a
-race between a last-second bid and the settlement job running simultaneously.
+Re-uses the lock:bid:{listing_id} Redis lock to prevent a race between a
+last-second bid and the settlement job running simultaneously.
 """
 
 import logging
@@ -37,12 +32,10 @@ logger = logging.getLogger("BiddingEngine")
 
 
 async def settle_ended_auctions(db: AsyncSession) -> None:
-    """
-    Find all active listings whose end_time has passed and settle them.
+    """Find all active listings whose end_time has passed and settle them.
 
-    Idempotency: each listing is only settled once — `_settle_listing` skips any
-    listing that already has an AuctionResult row (guarded by the unique constraint
-    on auction_results.listing_id).
+    Idempotent: `_settle_listing` skips any listing that already has an
+    AuctionResult row (guarded by the unique constraint on auction_results.listing_id).
     """
     now = datetime.now(timezone.utc)
 
@@ -63,13 +56,10 @@ async def settle_ended_auctions(db: AsyncSession) -> None:
 
 
 async def _settle_listing(db: AsyncSession, listing: Listing) -> None:
-    """
-    Settle a single ended auction under the Redis bid lock.
-
-    Using the same lock:bid:{listing_id} key as the bidding pipeline ensures
-    settlement and last-second bids can never run concurrently on the same listing.
-    Blocking timeout is short (2s) — if the lock is held by an active bid, the
-    scheduler will retry this listing on the next 60-second tick.
+    """Settle a single ended auction under the same lock:bid:{listing_id} key used by
+    the bidding pipeline, so settlement and last-second bids can't run concurrently.
+    Blocking timeout is short (2s) — if the lock is busy, the scheduler retries on
+    the next tick.
     """
     listing_id_str = str(listing.id)
     lock_key = f"lock:bid:{listing_id_str}"
@@ -78,33 +68,18 @@ async def _settle_listing(db: AsyncSession, listing: Listing) -> None:
         async with redis_client.lock(lock_key, timeout=10.0, blocking_timeout=2.0):
             await _execute_settlement(db, listing)
     except Exception as exc:
-        # Lock not acquired or settlement failed — log and move on. The rollback matters
-        # because `db` is reused across every listing in this batch (see
-        # settle_ended_auctions): without it, pending/dirty state left over from this
-        # failed settlement would carry into the next listing's session and could get
-        # flushed/committed alongside it. The scheduler will retry this listing on the
-        # next tick.
+        # `db` is reused across every listing in this batch, so roll back on failure --
+        # otherwise dirty state from this listing could get flushed with the next one.
         await db.rollback()
         logger.warning("settlement: could not settle listing %s: %s", listing_id_str, exc)
 
 
 async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
-    """
-    Core settlement logic for a single listing. Runs inside the Redis lock.
-
-    Steps:
-      1. Skip if already settled (idempotency guard).
-      2. Re-fetch listing with a fresh DB read to get the latest state.
-      3. Find the highest accepted bid.
-      4. Determine outcome (no bids / reserve not met / winner).
-      5. Write AuctionResult + wallet transactions atomically.
-      6. Mark listing as ended.
-      7. Broadcast auction_ended to all connected WS subscribers.
-    """
+    """Core settlement logic for a single listing. Runs inside the Redis lock."""
     now = datetime.now(timezone.utc)
     listing_id_str = str(listing.id)
 
-    # 1. Idempotency: skip if already settled
+    # Skip if already settled
     existing = await db.scalar(
         select(AuctionResult).where(AuctionResult.listing_id == listing.id)
     )
@@ -112,7 +87,7 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
         logger.info("settlement: listing %s already settled — skipping", listing_id_str)
         return
 
-    # 2. Re-read listing status under the lock (a concurrent bid may have just extended end_time)
+    # Re-read status under the lock — a concurrent bid may have just extended end_time
     await db.refresh(listing)
     end_time_aware = listing.end_time if listing.end_time.tzinfo else listing.end_time.replace(tzinfo=timezone.utc)
     if listing.status != ListingStatus.active or end_time_aware > now:
@@ -120,7 +95,6 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
                     listing_id_str, listing.status, listing.end_time)
         return
 
-    # 3. Find the highest accepted bid
     bid_result = await db.execute(
         select(Bid)
         .where(Bid.listing_id == listing.id, Bid.status == BidStatus.accepted)
@@ -129,9 +103,7 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
     )
     winning_bid = bid_result.scalars().first()
 
-    # 4. Determine outcome and build the AuctionResult
     if winning_bid is None:
-        # No bids placed — end with no winner
         logger.info("settlement: listing %s — no bids, ending with no winner", listing_id_str)
         auction_result = AuctionResult(
             listing_id=listing.id,
@@ -154,7 +126,6 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
         reserve_met = listing.reserve_price is None or winning_bid.amount >= listing.reserve_price
 
         if not reserve_met:
-            # Reserve price not met — refund the highest bidder's hold, end with no winner
             logger.info(
                 "settlement: listing %s — reserve not met (bid=%.2f, reserve=%.2f), refunding winner hold",
                 listing_id_str, winning_bid.amount, listing.reserve_price,
@@ -179,9 +150,8 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
             broadcast_payload = _build_broadcast(listing, winner_id=None, final_price=winning_bid.amount, outcome="reserve_not_met")
 
         else:
-            # Reserve met — pay the seller, record the winner
-            # The winner's funds are already held (balance was reduced at bid time).
-            # We credit the seller and record a settlement transaction for audit.
+            # Winner's funds are already held (balance reduced at bid time); credit the
+            # seller and record a settlement transaction for audit.
             logger.info(
                 "settlement: listing %s — winner=%s, final_price=%.2f, paying seller=%s",
                 listing_id_str, winning_bid.bidder_id, winning_bid.amount, listing.seller_id,
@@ -210,22 +180,18 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
                 outcome="sold",
             )
 
-    # 5. Mark listing as ended
     listing.status = ListingStatus.ended
     listing.updated_at = now
 
-    # 6. Commit everything atomically
     await db.commit()
     logger.info("settlement: listing %s committed — status=ended", listing_id_str)
 
-    # 7. Broadcast auction_ended to all connected WS subscribers.
-    # Done after commit so clients never see a stale state.
+    # Broadcast after commit so clients never see a stale state.
     await manager.broadcast(json.dumps(broadcast_payload), listing_id_str)
     logger.info("settlement: listing %s broadcast sent to %d subscriber(s)",
                 listing_id_str, len(manager.active_connections.get(listing_id_str, [])))
 
-    # 8. Fire-and-forget email + in-app notifications via backend internal API.
-    # Runs after commit and broadcast — a notification failure must not roll back a completed settlement.
+    # Fire-and-forget: runs after commit/broadcast so a notification failure can't roll back settlement.
     await notification_client.notify_auction_ended(
         listing_id=listing_id_str,
         listing_title=listing.title,
@@ -237,7 +203,6 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
 
 
 def _build_broadcast(listing: Listing, winner_id, final_price: float, outcome: str) -> dict:
-    """Build the auction_ended broadcast payload sent to all WS subscribers."""
     return {
         "type": "auction_ended",
         "listing_id": str(listing.id),

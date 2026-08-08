@@ -14,11 +14,7 @@ class EmailVerificationService:
 
     @staticmethod
     async def send_verification(db: AsyncSession, user: User) -> None:
-        """Generate a verification token and email a verify link to the user's email.
-
-        Called from registration and from re-send endpoint. No-ops cleanly if user is
-        already verified.
-        """
+        """No-ops if the user is already verified."""
         if user.email_verified:
             return
 

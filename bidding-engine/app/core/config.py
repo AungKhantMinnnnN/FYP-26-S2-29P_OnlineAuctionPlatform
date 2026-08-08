@@ -18,8 +18,7 @@ class Settings(BaseSettings):
 
     ALLOWED_ORIGINS: str
 
-    # Rate limiting toggle — set RATE_LIMIT_ENABLED=false to disable per-user
-    # WebSocket message rate limiting (e.g. during integration/QA testing).
+    # Set false to disable per-user WS message rate limiting (e.g. QA testing).
     RATE_LIMIT_ENABLED: bool = True
     
     @property

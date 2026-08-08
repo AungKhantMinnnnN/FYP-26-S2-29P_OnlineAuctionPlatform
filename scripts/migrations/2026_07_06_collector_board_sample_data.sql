@@ -42,9 +42,7 @@ BEGIN
   SELECT id INTO v_cat_sport  FROM categories WHERE slug = 'sporting-goods';
   SELECT id INTO v_cat_fashion FROM categories WHERE slug = 'fashion';
 
-  -- ----------------------------------------------------------------
-  -- 1. Six ended listings (seller = normal_user_3)
-  -- ----------------------------------------------------------------
+  -- Six ended listings (seller = normal_user_3)
   INSERT INTO listings (id, seller_id, category_id, title, description, brand,
     condition, bidding_type, starting_price, reserve_price, current_price,
     min_increment, status, is_draft, start_time, end_time)
@@ -117,9 +115,7 @@ BEGIN
      NOW() - INTERVAL '6 days', NOW() - INTERVAL '1 day')
   RETURNING id INTO v_l6;
 
-  -- ----------------------------------------------------------------
-  -- 2. Winning bids from normal_user_1
-  -- ----------------------------------------------------------------
+  -- Winning bids from normal_user_1
   INSERT INTO bids (id, listing_id, bidder_id, amount, status, placed_at) VALUES
     (uuid_generate_v4(), v_l1, v_winner_id, 780.00,  'accepted', NOW() - INTERVAL '3 days' - INTERVAL '30 minutes')
   RETURNING id INTO v_b1;
@@ -144,9 +140,7 @@ BEGIN
     (uuid_generate_v4(), v_l6, v_winner_id, 1750.00, 'accepted', NOW() - INTERVAL '1 day'  - INTERVAL '5 minutes')
   RETURNING id INTO v_b6;
 
-  -- ----------------------------------------------------------------
-  -- 3. Auction results
-  -- ----------------------------------------------------------------
+  -- Auction results
   INSERT INTO auction_results (id, listing_id, winner_id, winning_bid_id, final_price, ended_at) VALUES
     (uuid_generate_v4(), v_l1, v_winner_id, v_b1, 780.00,  NOW() - INTERVAL '3 days')
   RETURNING id INTO v_r1;
@@ -171,9 +165,7 @@ BEGIN
     (uuid_generate_v4(), v_l6, v_winner_id, v_b6, 1750.00, NOW() - INTERVAL '1 day')
   RETURNING id INTO v_r6;
 
-  -- ----------------------------------------------------------------
-  -- 4. Collector boards
-  -- ----------------------------------------------------------------
+  -- Collector boards
   INSERT INTO collector_boards (id, user_id, name, description, is_public, created_at, updated_at) VALUES
     (uuid_generate_v4(), v_winner_id,
      'Premium Picks',
@@ -190,11 +182,8 @@ BEGIN
      NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day')
   RETURNING id INTO v_board2;
 
-  -- ----------------------------------------------------------------
-  -- 5. Board items
-  --    Board 1 "Premium Picks": watch, camera, guitar, sneakers
-  --    Board 2 "Hidden Gems":   PS5, bike
-  -- ----------------------------------------------------------------
+  -- Board items: "Premium Picks" gets watch/camera/guitar/sneakers,
+  -- "Hidden Gems" gets PS5/bike
   INSERT INTO board_items (id, board_id, auction_result_id, sort_order, added_at) VALUES
     (uuid_generate_v4(), v_board1, v_r1, 0, NOW() - INTERVAL '2 days'),  -- watch
     (uuid_generate_v4(), v_board1, v_r3, 1, NOW() - INTERVAL '2 days'),  -- camera

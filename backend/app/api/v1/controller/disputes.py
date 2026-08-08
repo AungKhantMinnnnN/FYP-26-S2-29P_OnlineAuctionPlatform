@@ -21,7 +21,6 @@ async def list_all_disputes(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: all disputes across all users, optional ?status filter."""
     return await DisputeService.get_disputes(db=db, dispute_status=dispute_status)
 
 
@@ -30,7 +29,6 @@ async def get_my_disputes(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """User: own submitted disputes with current resolution status."""
     return await DisputeService.get_user_disputes(db=db, user_id=current_user.id)
 
 
@@ -41,7 +39,6 @@ async def respond_to_dispute(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_admin_user),
 ):
-    """Admin: update dispute status and add a resolution note."""
     return await DisputeService.resolve_dispute(
         db=db, dispute_id=id, admin_id=current_admin.id, data=data
     )

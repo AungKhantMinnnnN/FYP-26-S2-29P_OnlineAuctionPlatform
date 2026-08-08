@@ -1,7 +1,6 @@
--- Content moderation extensions:
---   1. Tag each prohibited keyword as 'illegal_item' or 'profanity' (admin-facing grouping).
---   2. Secondary AI-moderation review queue: listings that passed the keyword gate but were
---      flagged by the OpenAI moderation API. Never auto-blocks — see app.core.ai_moderation.
+-- Tags each prohibited keyword as 'illegal_item' or 'profanity', and adds a
+-- secondary review queue for listings the OpenAI moderation API flagged after
+-- passing the keyword gate. Never auto-blocks — see app.core.ai_moderation.
 ALTER TABLE prohibited_keywords
     ADD COLUMN IF NOT EXISTS category VARCHAR(20) NOT NULL DEFAULT 'illegal_item';
 

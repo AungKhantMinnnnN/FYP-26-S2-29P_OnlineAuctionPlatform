@@ -15,11 +15,8 @@ def _client_ip(request: Request) -> str:
 
 
 def rate_limiter(key_prefix: str, limit: int, window_seconds: int):
-    """
-    Sliding-window per-IP rate limit dependency backed by Redis sorted sets.
-    Tracks request timestamps per IP within the window for accurate rate counting
-    without the boundary spikes that fixed-window INCR/EXPIRE exhibits.
-    """
+    """Sliding-window per-IP rate limit backed by Redis sorted sets, avoiding the
+    boundary spikes fixed-window INCR/EXPIRE would allow."""
     async def _check(request: Request) -> None:
         if not settings.RATE_LIMIT_ENABLED:
             return

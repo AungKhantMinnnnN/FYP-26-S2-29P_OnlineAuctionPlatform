@@ -582,7 +582,6 @@ export default function SupportPage() {
                 </div>
               ) : (
                 <form onSubmit={handleFeedbackSubmit} className="space-y-6">
-                  {/* Listing selector */}
                   <div>
                     <label className="mb-2 block text-sm font-bold text-slate-700">Select Auction</label>
                     <select
@@ -611,7 +610,6 @@ export default function SupportPage() {
                       </div>
                     ) : (
                       <>
-                        {/* Feedback type selector */}
                         <div>
                           <label className="mb-2 block text-sm font-bold text-slate-700">Feedback Type</label>
                           <div className="space-y-2">
@@ -649,7 +647,6 @@ export default function SupportPage() {
                           </div>
                         </div>
 
-                        {/* Star rating */}
                         <div>
                           <label className="mb-2 block text-sm font-bold text-slate-700">Rating</label>
                           <div className="flex gap-1">
@@ -666,7 +663,6 @@ export default function SupportPage() {
                           </div>
                         </div>
 
-                        {/* Comment */}
                         <div>
                           <label className="mb-2 block text-sm font-bold text-slate-700">
                             Comment <span className="font-normal text-slate-400">(optional)</span>

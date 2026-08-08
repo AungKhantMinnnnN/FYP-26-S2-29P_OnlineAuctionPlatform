@@ -1,14 +1,12 @@
 import { ChevronDown } from 'lucide-react'
 import type { SelectHTMLAttributes } from 'react'
 
-// Canonical dropdown for the admin pages. appearance-none strips the OS-native chrome
-// (double-arrow indicator + intrinsic height that ignores padding); a single chevron is
-// drawn in with the same slate tone so every select matches the text/date inputs exactly.
+// appearance-none strips the native select chrome so the custom chevron below can replace it.
 const SELECT_CLASS =
   'w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition-all focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15'
 
 interface StyledSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  // Sizing/spacing for the wrapper (e.g. "mt-1"); the select itself owns the visual style.
+  // wrapper spacing only; the select itself owns its visual style
   wrapperClassName?: string
 }
 
