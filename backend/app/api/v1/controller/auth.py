@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,21 +45,27 @@ async def register(
 async def login(
     request: LoginRequest,
     response: Response,
+    http_request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     token = await AuthService.authenticate_user(db=db, request=request)
     # httpOnly cookie is what the browser frontend actually relies on now (unreadable by
     # JS, so an XSS can't exfiltrate it); the token is still returned in the body too for
     # non-browser API clients (this project's own QA suite included) that authenticate
-    # via a plain Bearer header instead. secure=False because this app is also served
-    # over plain HTTP on the LAN/Tailscale in several deployment modes -- a Secure cookie
-    # would just silently stop being sent there. SameSite=Lax blocks the common
-    # cross-site-form CSRF vector without needing a separate CSRF token for this scope.
+    # via a plain Bearer header instead. secure is conditional on X-Forwarded-Proto rather
+    # than hardcoded True, because this app is also served over plain HTTP on the
+    # LAN/Tailscale in several deployment modes -- a Secure cookie would just silently stop
+    # being sent there. nginx only ever forwards X-Forwarded-Proto: https for requests that
+    # genuinely came through the Cloudflare Tunnel (see docker/nginx/default.conf's
+    # $client_proto map, gated on the connection's real source being inside the tunnel's
+    # trusted internal network) -- a direct HTTP client can't spoof this into a false
+    # "https". SameSite=Lax blocks the common cross-site-form CSRF vector without needing a
+    # separate CSRF token for this scope.
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE_NAME,
         value=token.access_token,
         httponly=True,
-        secure=False,
+        secure=http_request.headers.get("x-forwarded-proto") == "https",
         samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
