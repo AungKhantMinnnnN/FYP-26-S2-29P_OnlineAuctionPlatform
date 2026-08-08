@@ -49,18 +49,13 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     token = await AuthService.authenticate_user(db=db, request=request)
-    # httpOnly cookie is what the browser frontend actually relies on now (unreadable by
-    # JS, so an XSS can't exfiltrate it); the token is still returned in the body too for
-    # non-browser API clients (this project's own QA suite included) that authenticate
-    # via a plain Bearer header instead. secure is conditional on X-Forwarded-Proto rather
-    # than hardcoded True, because this app is also served over plain HTTP on the
-    # LAN/Tailscale in several deployment modes -- a Secure cookie would just silently stop
-    # being sent there. nginx only ever forwards X-Forwarded-Proto: https for requests that
-    # genuinely came through the Cloudflare Tunnel (see docker/nginx/default.conf's
-    # $client_proto map, gated on the connection's real source being inside the tunnel's
-    # trusted internal network) -- a direct HTTP client can't spoof this into a false
-    # "https". SameSite=Lax blocks the common cross-site-form CSRF vector without needing a
-    # separate CSRF token for this scope.
+    # httpOnly cookie is what the browser relies on (JS/XSS can't read it); the token is
+    # also returned in the body for non-browser clients using a Bearer header. `secure`
+    # is conditional on X-Forwarded-Proto rather than hardcoded, since this app is also
+    # served over plain HTTP on the LAN/Tailscale and a Secure cookie wouldn't be sent
+    # there; nginx only sets that header for requests genuinely through the Cloudflare
+    # Tunnel, so it can't be spoofed by a direct HTTP client. SameSite=Lax covers CSRF
+    # without a separate token.
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE_NAME,
         value=token.access_token,
@@ -118,7 +113,6 @@ async def email_verification_send(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Re-send the verification email for the currently logged-in user."""
     if current_user.email_verified:
         return GenericMessageResponse(message="Your email is already verified.")
     await EmailVerificationService.send_verification(db=db, user=current_user)
@@ -140,6 +134,5 @@ async def change_password(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Change the current user's password. Requires the correct current password."""
     await AuthService.change_password(db=db, user=current_user, request=request)
     return GenericMessageResponse(message="Password updated successfully.")

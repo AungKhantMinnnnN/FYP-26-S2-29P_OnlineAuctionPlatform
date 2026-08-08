@@ -1,9 +1,5 @@
--- Migration: Add auction_durations table and seed default options
--- Date: 2026-07-06
---
--- Creates the auction_durations lookup table and seeds the four
--- standard duration options used in the listing creation form.
--- Safe to re-run: CREATE TABLE IF NOT EXISTS + ON CONFLICT DO NOTHING.
+-- Auction duration lookup table, seeded with the four standard options used
+-- in the listing creation form.
 
 CREATE TABLE IF NOT EXISTS auction_durations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

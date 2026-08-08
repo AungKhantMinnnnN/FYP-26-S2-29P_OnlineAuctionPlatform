@@ -106,5 +106,3 @@ export function Pagination({ page, pages, onPage }: { page: number; pages: numbe
     </div>
   )
 }
-
-// System Monitoring — Platform Activity Stats. Aggregate platform metrics as stat cards.

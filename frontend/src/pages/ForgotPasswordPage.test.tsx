@@ -20,12 +20,8 @@ describe('ForgotPasswordPage', () => {
     vi.mocked(requestPasswordReset).mockReset()
   })
 
-  // The email input has the native `required` attribute, so a real browser
-  // (and jsdom, which enforces the same constraint-validation API) blocks
-  // the submit event before it ever reaches handleSubmit — the component's
-  // own `if (!email.trim())` check is unreachable via a plain button click
-  // and only matters if `required` were ever removed. Assert the reachable
-  // behavior: native validation blocks it and the API is never called.
+  // The email input has the native `required` attribute, so jsdom's constraint
+  // validation blocks the submit before handleSubmit's own empty-check ever runs.
   it('blocks submission via native required-field validation when the email is empty', async () => {
     renderPage()
     const input = screen.getByLabelText('Email') as HTMLInputElement

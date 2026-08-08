@@ -34,7 +34,7 @@ import TestimonialSuccessPage from './pages/TestimonialSuccessPage'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
       retry: 1,
     },
   },
@@ -47,7 +47,7 @@ export default function App() {
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<CmsPage slug="landing" />} />
-            {/* Pre-cutover page, kept temporarily for side-by-side comparison — remove once CmsPage parity is confirmed in production */}
+            {/* Legacy landing page, kept until CmsPage parity is confirmed */}
             <Route path="/landing-legacy" element={<LandingPage />} />
             <Route path="/browse" element={<BrowseAuctionsPage />} />
             <Route path="/auction/:id" element={<AuctionDetailPage />} />

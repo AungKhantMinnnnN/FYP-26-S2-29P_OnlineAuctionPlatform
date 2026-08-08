@@ -2,8 +2,8 @@ import apiClient, { biddingClient, recsClient } from './apiClient'
 import type { TestimonialResponse } from './supportApi'
 
 // ── Service Health ───────────────────────────────────────────────────────────────
-// Each microservice exposes its own /health route; there's no aggregate backend
-// endpoint, so the admin UI pings all three directly and reports what came back.
+// No aggregate backend endpoint -- each microservice exposes its own /health route,
+// so the admin UI pings all three directly.
 
 export interface ServiceHealthStatus {
   name: string
@@ -53,10 +53,7 @@ export interface AdminStatsResponse {
 }
 
 // ── System Logs ─────────────────────────────────────────────────────────────────
-// Reads each service's rotating log file via GET /admin/system-logs (see backend
-// app.core.logger + admin_service.get_system_logs). In Docker a read-only mount of all
-// three services' log dirs (ALL_LOGS_DIR -> ./logs) backs this; locally it falls back to
-// LOG_DIR. Logs are flat files parsed server-side — not written to a database.
+// Logs are flat files parsed server-side (GET /admin/system-logs), not stored in a database.
 
 export interface SystemLogEntry {
   id: string
@@ -169,7 +166,6 @@ export interface OptionItem {
   label: string
 }
 
-// Dropdown option catalogue — one lookup table, keyed by set name (see option_sets).
 export const getOptions = async (setKey: string): Promise<OptionItem[]> => {
   const res = await apiClient.get<OptionItem[]>(`/admin/options/${setKey}`)
   return res.data
@@ -194,7 +190,7 @@ export const getProhibitedKeywords = async (): Promise<ProhibitedKeyword[]> => {
 
 export const createProhibitedKeyword = async (
   keyword: string,
-  category: string = 'illegal_item',  // value comes from the DB-backed keyword_category set
+  category: string = 'illegal_item',
 ): Promise<ProhibitedKeyword> => {
   const res = await apiClient.post<ProhibitedKeyword>('/admin/prohibited-keywords', { keyword, category })
   return res.data

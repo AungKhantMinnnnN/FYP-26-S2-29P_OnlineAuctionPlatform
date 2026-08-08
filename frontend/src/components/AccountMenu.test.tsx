@@ -62,13 +62,10 @@ describe('AccountMenu', () => {
     expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument()
   })
 
-  // Regression test for a fixed bug: the trigger is wrapped in a div with
-  // onMouseEnter/onMouseLeave (hover to open). The button's onClick used to
-  // toggle open state (`setOpen(!open)`); since a real mouse click always
-  // fires mouseover→mousedown→click, onMouseEnter opened the menu first and
-  // the click handler's toggle immediately closed it again. onClick now sets
-  // open to true unconditionally, so a realistic click (hover-then-click, as
-  // userEvent.click simulates) opens and *stays* open.
+  // The trigger div opens on hover; a real click always fires mouseover before click,
+  // so a toggling onClick (`setOpen(!open)`) immediately closed what hover had just
+  // opened. onClick now sets open unconditionally so a real click (hover-then-click,
+  // as userEvent.click simulates) stays open.
   it('stays open after a realistic mouse click (hover-then-click, like a real browser)', async () => {
     renderMenu({ username: 'bob' })
     await userEvent.click(screen.getByText('bob'))

@@ -62,11 +62,9 @@ function renderEdit(id = 'listing-1') {
   )
 }
 
-// userEvent.upload() emulates a real OS file picker, which silently filters
-// out files that don't match the input's `accept` attribute -- it can't be
-// used to test the JS-level type-rejection branch (that codepath is only
-// reachable via drag-and-drop, which doesn't respect `accept`). Bypass it by
-// setting `.files` directly and firing the change event, same as a drop would.
+// userEvent.upload() emulates a real file picker and silently filters out files that
+// don't match `accept`, so it can't exercise the JS-level type-rejection branch (only
+// reachable via drag-and-drop). Set `.files` directly instead, same as a drop would.
 function dropFiles(input: HTMLInputElement, files: File[]) {
   Object.defineProperty(input, 'files', { value: files, configurable: true })
   fireEvent.change(input)
@@ -227,12 +225,6 @@ describe('ListingFormPage', () => {
       expect(createListing).not.toHaveBeenCalled()
     })
 
-    // Regression test for a fixed bug: "Save Changes" used to submit('draft')
-    // unconditionally (same handler as "Save as Draft" in create mode)
-    // instead of preserving the listing's current status — editing an
-    // already-*active* auction and clicking "Save Changes" silently reverted
-    // it to a draft, taking a live auction off the marketplace with no
-    // warning. It now preserves whatever status the listing was loaded with.
     it('"Save Changes" preserves an already-active listing\'s status instead of drafting it', async () => {
       vi.mocked(getAuction).mockResolvedValue({
         id: 'listing-1', seller_id: 's1', title: 'Existing Item', condition: 'new',

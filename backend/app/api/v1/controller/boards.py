@@ -23,13 +23,12 @@ async def get_my_boards(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_premium_user),
 ):
-    """Premium owner: list all own boards including private ones."""
+    """Includes private boards, unlike get_public_boards below."""
     return await BoardService.get_own_boards(db=db, user_id=current_user.id)
 
 
 @router.get("/user/{user_id}", response_model=List[BoardSummaryResponse])
 async def get_public_boards(user_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Public: list public boards belonging to a specific user."""
     return await BoardService.get_public_boards_by_user(db=db, user_id=user_id)
 
 
@@ -92,7 +91,6 @@ async def reorder_items(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_premium_user),
 ):
-    """Batch-update sort_order for drag-and-drop reordering."""
     await BoardService.reorder_items(db=db, board_id=id, owner_id=current_user.id, data=data)
 
 
@@ -104,7 +102,7 @@ async def update_item(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_premium_user),
 ):
-    """Edit note/position or move item to a different board via target_board_id."""
+    """Also moves the item to a different board when target_board_id is set."""
     return await BoardService.update_item(
         db=db, board_id=id, item_id=item_id, owner_id=current_user.id, data=data
     )

@@ -46,8 +46,7 @@ export default function RegisterPage() {
     setLocalLoading(true)
     try {
       await register(fullName, username, email, password, undefined, undefined, undefined, city, country)
-      // Log the new user in, then route them into the interests onboarding step.
-      // login() navigates to /dashboard internally; the replace-navigate below supersedes it.
+      // login() navigates to /dashboard internally; the replace below sends them to onboarding instead.
       await login(username, password)
       navigate('/onboarding/interests', { replace: true })
     } catch (err) {

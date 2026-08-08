@@ -55,10 +55,8 @@ describe('Navbar', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/')
   })
 
-  // Regression test for a fixed bug: identical hover/click race as
-  // AccountMenu.tsx (see its test for the full explanation) — onClick now
-  // sets open to true unconditionally instead of toggling, so a realistic
-  // mouse click (hover-then-click) opens and stays open.
+  // Same hover/click race as AccountMenu (see its test) — onClick sets open
+  // unconditionally instead of toggling, so a real click opens and stays open.
   it('stays open after a realistic mouse click on the Admin trigger', async () => {
     renderNavbar({ user: { username: 'root' }, role: 'admin' })
     await userEvent.click(screen.getByText('Admin'))

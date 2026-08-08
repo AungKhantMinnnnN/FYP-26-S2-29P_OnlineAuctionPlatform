@@ -162,11 +162,8 @@ describe('AuctionDetailPage', () => {
       expect(await screen.findByPlaceholderText('Enter at least $155.00')).toBeInTheDocument()
     })
 
-    // Regression test for a fixed crash: AuctionListing.starting_price is
-    // typed as optional, but the low_start/first-bid branches of minimumBid
-    // used to call `auction.starting_price.toFixed(2)` directly with no null
-    // check, throwing inside a useMemo during render (with no recovery UI —
-    // caught only by the test's own error boundary). It now falls back to 0.
+    // starting_price is optional on AuctionListing; minimumBid must not call
+    // .toFixed on it directly or it throws inside a useMemo during render.
     it('falls back to $0.00 instead of crashing when starting_price is missing on a zero-bid listing', async () => {
       mockUseAuth.mockReturnValue({ user: { id: 'u1', balance: 1000 }, refreshUser: mockRefreshUser })
       mockAuctionFetch({ bidding_type: 'price_up', starting_price: undefined, current_price: undefined }, [])
@@ -184,14 +181,9 @@ describe('AuctionDetailPage', () => {
       await screen.findByPlaceholderText(/Enter at least/)
     }
 
-    // Bug: the bid input carries a live `min={minimumBid}` attribute, so a
-    // browser's (and jsdom's) native constraint validation blocks the submit
-    // event before handleSubmit ever runs when the typed amount is below
-    // minimumBid — the same value the JS check also compares against. The
-    // polished, in-app "Bid must be at least $X.XX." message is therefore
-    // unreachable via a normal button click; a real user instead sees the
-    // browser's own unstyled "value must be greater than or equal to..."
-    // tooltip. Assert the reachable behavior instead.
+    // The input's `min={minimumBid}` triggers native constraint validation before
+    // handleSubmit runs, so the in-app "Bid must be at least $X.XX" error is
+    // actually unreachable via a normal click -- users see the browser's own tooltip.
     it('BUG: native min-attribute validation blocks a below-minimum bid before the custom error can show', async () => {
       await setUpActiveAuctionWithUser()
       const input = screen.getByPlaceholderText(/Enter at least/) as HTMLInputElement

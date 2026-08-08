@@ -1,22 +1,14 @@
 """
 recommendation_service.py — Orchestration layer for the trending/recommendation pipeline.
 
-Responsibilities:
-  - Cache-first data loading (listings_df, interactions_df, user signals)
-  - DB fetch on cache miss (delegated to _fetch_* helpers)
-  - Per-user enrichment (segment, category, brand, price, CF signals)
-  - Calling trending.rank_listings() with the assembled signals
-  - Assembling the final item payload from full ORM objects
+Loads listings/interactions/user-signals cache-first (DB fetch on miss via _fetch_*
+helpers), enriches with per-user signals, calls trending.rank_listings(), then hydrates
+the top-N with full ORM objects for the response.
 
-Cache strategy (request-driven, no scheduler):
-  - recs:global:listings      — active listings snapshot, TTL 5 min
-  - recs:global:interactions  — interaction window (7d), TTL 5 min
-  - recs:anonymous:{limit}    — pre-scored anonymous result, TTL 5 min
-  - recs:user:{id}:signals    — per-user brand set + median price, TTL 24h
-
-Staleness trade-off: a bid placed now won't appear in recommendations until
-the interactions TTL expires (~5 min). User signals (brands, price median) are
-stable enough for 24h caching. See RECS_*_CACHE_TTL settings to tune.
+Cache keys: recs:global:listings, recs:global:interactions (both TTL 5 min),
+recs:anonymous:{limit} (TTL 5 min), recs:user:{id}:signals (TTL 24h — brand/price
+profiles shift slowly, unlike interaction counts). A bid placed now won't affect
+rankings until the interactions TTL expires. See RECS_*_CACHE_TTL to tune.
 """
 
 import datetime
@@ -46,10 +38,9 @@ def _cast_listings_df(df: pd.DataFrame) -> pd.DataFrame:
     """
     Restore Python UUID objects after JSON round-trip through Redis.
 
-    pandas.read_json deserialises UUIDs as plain strings. The CF scoring function
-    compares user_id against df["user_id"].values using Python equality — this silently
-    fails if one side is a UUID object and the other is a string, producing zero CF
-    scores for all users. Casting explicitly on every cache read prevents this.
+    pandas.read_json deserialises UUIDs as plain strings, and the CF scoring function's
+    user_id equality check silently returns zero matches for everyone if one side is a
+    UUID object and the other a string. Cast explicitly on every cache read to avoid this.
     """
     df["id"] = df["id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
     df["category_id"] = df["category_id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
@@ -58,14 +49,9 @@ def _cast_listings_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def _cast_interactions_df(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Restore UUID and date types after JSON round-trip through Redis.
-
-    Three casts needed:
-      - listing_id / user_id: UUIDs become strings (same issue as _cast_listings_df).
-      - dob: datetime.date objects become ISO strings like "1990-05-12T00:00:00".
-             We slice [:10] to extract just the date part before fromisoformat().
-      - city: NaN (missing) and empty string both represent "no city" — normalise
-              to None so downstream comparisons work consistently.
+    Restore UUID and date types after JSON round-trip through Redis (same issue as
+    _cast_listings_df). dob comes back as an ISO string like "1990-05-12T00:00:00",
+    hence the [:10] slice before fromisoformat().
     """
     df["listing_id"] = df["listing_id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
     df["user_id"] = df["user_id"].apply(lambda x: uuid.UUID(x) if pd.notna(x) and x else None)
@@ -93,9 +79,8 @@ async def _fetch_listings(db: AsyncSession, now: datetime.datetime) -> pd.DataFr
     """
     Query active, non-draft listings that haven't ended yet.
 
-    Only selects the columns needed by the scoring pipeline (not full ORM objects)
-    to keep the DataFrame small and serialisation fast. Full ORM objects are fetched
-    separately at the end of get_trending() only for the top-N results.
+    Only selects the columns needed by the scoring pipeline, not full ORM objects --
+    those are fetched separately for the top-N results at the end of get_trending().
     """
     logger.info("_fetch_listings: querying DB")
     result = await db.execute(
@@ -116,22 +101,15 @@ async def _fetch_interactions(
     db: AsyncSession, active_ids: list, window_start: datetime.datetime
 ) -> pd.DataFrame:
     """
-    Build the interaction DataFrame from three sources and merge them into one.
+    Build the interaction DataFrame from three sources, concatenated with a synthetic
+    "action" column so scoring can treat them uniformly via ACTION_WEIGHTS:
+      1. user_interactions — logged view/search/watchlist/bid events, 7-day window.
+      2. bids table — pulled directly rather than relying on interaction logging being
+         complete; weighted higher (8.0) than a logged "bid" event.
+      3. watchlist table — current saved state, unlike the logged watchlist add/remove events.
 
-    Sources:
-      1. user_interactions — general engagement events (view, search, watchlist, bid).
-         Filtered to the 7-day window and only for currently active listings.
-      2. bids table — explicit bid events with weight 8.0, stronger than logged "bid" events.
-         Pulling directly from source avoids reliance on interaction logging being perfect.
-      3. watchlist table — items currently saved. Unlike user_interactions "watchlist" events
-         which log add/remove, this reflects the current saved state (weight 4.0).
-
-    All three are concatenated into a single DataFrame with a synthetic "action" column
-    so the scoring functions can treat them uniformly via ACTION_WEIGHTS.
-
-    UserProfiles is outer-joined to each source so we get dob, address, and city for
-    segment matching. The outer join ensures we don't drop interactions from users
-    who have no profile row.
+    UserProfiles is outer-joined to each source (for segment matching) so interactions
+    from users without a profile row aren't dropped.
     """
     logger.info("_fetch_interactions: querying DB")
 
@@ -195,26 +173,17 @@ async def get_trending(
     """
     Return (items, personalized) for the trending endpoint.
 
-    Cache-first flow:
-      1. Anonymous users: try recs:anonymous:{limit} — if hit, return immediately
-         (no DB or pandas work needed).
-      2. Load listings_df from recs:global:listings or DB.
-      3. Load interactions_df from recs:global:interactions or DB.
-      4. Per-user enrichment:
-           - segment_df / category_df: derived from the cached interactions_df
-             via fast pandas ops — not separately cached (cheap to recompute).
-           - user signals (brands + median price): cached at recs:user:{id}:signals
-             for 24h because they require multiple DB queries across all-time history.
-      5. rank_listings() applies the 8-factor scoring pipeline.
-      6. Full ORM fetch for the top-N listing IDs (images, seller).
-      7. Cache anonymous result for next caller.
-
-    personalized=True means at least one user-specific signal influenced the ranking.
+    Anonymous requests short-circuit on the recs:anonymous:{limit} cache. Otherwise
+    loads listings/interactions cache-first, enriches with per-user signals (segment
+    and category are cheap to recompute from interactions_df; brands/price are cached
+    24h since they need all-time DB queries), ranks via trending.rank_listings(), then
+    hydrates the top-N with full ORM objects. personalized=True if any user-specific
+    signal influenced the ranking.
     """
     logger.info("get_trending: start — user_id=%s limit=%d", user_id, limit)
 
-    # Anonymous short-circuit — serve pre-scored result directly from cache.
-    # Skips all DB queries and pandas work for the most common call pattern.
+    # Anonymous short-circuit — serve pre-scored result directly from cache, skipping
+    # all DB queries and pandas work for the most common call pattern.
     if user_id is None:
         cached = await cache_service.get_json(f"recs:anonymous:{limit}")
         if cached is not None:
@@ -256,12 +225,11 @@ async def get_trending(
     )
 
     # --- per-user enrichment ---
-    # segment + category: fast pandas ops on the already-loaded interactions_df — not cached
     segment_df = await _segment_interactions(db, user_id, interactions_df)
     category_df = await _category_interactions(db, user_id, interactions_df, listings_df)
 
-    # brands + price: require multiple DB queries across all-time history — cached 24h per user.
-    # The 24h TTL is acceptable because brand affinity and price profile shift slowly.
+    # brands + price require multiple DB queries across all-time history, so they're
+    # cached 24h per user — acceptable since both signals shift slowly.
     if user_id is not None:
         signals = await cache_service.get_json(f"recs:user:{user_id}:signals")
         if signals is not None:
@@ -290,7 +258,7 @@ async def get_trending(
         user_id=user_id,
     )
     top = ranked.head(limit)[["id", "score"]]
-    # Preserve the ranked order as a dict so we can re-sort after the ORM fetch
+    # dict preserves ranked order so we can restore it after the ORM fetch below
     score_map = dict(zip(top["id"], top["score"]))
     logger.info("get_trending: top %d listings selected", len(score_map))
 
@@ -302,13 +270,12 @@ async def get_trending(
     )
     full_listings = {l.id: l for l in full_result.scalars().all()}
 
-    # Build response items in ranked order (score_map preserves insertion order from ranked)
     items = []
     for listing_id, score in score_map.items():
         listing = full_listings.get(listing_id)
         if not listing:
-            # Listing was in the cache snapshot but ended or was deleted between cache fill
-            # and now — skip it silently rather than returning a broken item.
+            # Listing was in the cache snapshot but ended or was deleted since then --
+            # skip silently rather than return a broken item.
             logger.warning("get_trending: listing_id=%s missing from full fetch", listing_id)
             continue
         items.append({
@@ -348,12 +315,10 @@ async def get_trending(
             "score": float(score),
         })
 
-    # Cache the anonymous result after first computation so subsequent anonymous calls
-    # bypass all DB and pandas work entirely.
+    # Cache the anonymous result so subsequent anonymous calls skip DB and pandas work.
     if user_id is None:
         await cache_service.set_json(f"recs:anonymous:{limit}", items, settings.RECS_ANONYMOUS_CACHE_TTL)
 
-    # personalized=True if any user-specific signal influenced the ranking
     has_cf = user_id is not None and not interactions_df.empty and user_id in interactions_df["user_id"].values
     personalized = (
         segment_df is not None or category_df is not None
@@ -376,21 +341,13 @@ async def _segment_interactions(
 ) -> pd.DataFrame | None:
     """
     Filter the interaction window to rows from users in the same demographic segment
-    as the requesting user (same age group OR same city).
+    as the requesting user (same age group OR same city) — a "trending among people
+    like me" sub-signal, passed to rank_listings() as segment_interactions.
 
-    This produces a "what's trending among people like me" sub-signal. The result is
-    passed to rank_listings() as segment_interactions, where _relative_boost() converts
-    it into a 0..1 normalised boost per listing.
+    City resolution prefers the structured `city` column, falling back to
+    parse_location(address) for profiles that only have a freeform address.
 
-    City resolution (Phase 6):
-      - Prefers the structured `city` column added in Phase 6.
-      - Falls back to parse_location(address) for users whose profiles predate Phase 6
-        or who haven't filled in their city yet.
-      - The same dual-source logic applies to both the requesting user's profile and
-        the peer rows in interactions_df.
-
-    Returns None if the user has no demographic data or no peers match — callers treat
-    None as "no segment signal" and apply zero boost.
+    Returns None if the user has no demographic data or no peers match.
     """
     if user_id is None or interactions_df.empty:
         logger.debug("_segment_interactions: user_id=%s or empty interactions → skipping", user_id)
@@ -405,27 +362,23 @@ async def _segment_interactions(
         return None
 
     user_age_group = trending.age_group(profile["dob"])
-    # Prefer structured city; fall back to parse_location for users who haven't updated yet
     user_city = profile["city"] or (parse_location(profile["address"])["city"] if profile["address"] else None)
     logger.debug("_segment_interactions: user=%s age_group=%s city=%s", user_id, user_age_group, user_city)
 
     df = interactions_df.copy()
     df["age_group"] = df["dob"].apply(trending.age_group)
 
-    # Resolve city for each peer row using the same dual-source logic:
-    # structured city column wins; address heuristic is the fallback.
     if "city" in df.columns:
         df["resolved_city"] = df["city"].where(
             df["city"].notna() & (df["city"] != ""),
             df["address"].apply(lambda a: parse_location(a)["city"] if a else None),
         )
     else:
-        # Pre-Phase-6 cached DataFrame — city column doesn't exist yet
+        # Older cached DataFrame without a city column yet
         df["resolved_city"] = df["address"].apply(lambda a: parse_location(a)["city"] if a else None)
 
-    # Match any row from a user sharing the same age group OR same city.
-    # OR logic intentionally broadens the segment — a narrow intersection (same age AND city)
-    # would return too few peers in most regions.
+    # OR (not AND) intentionally broadens the segment -- same age AND city would
+    # return too few peers in most regions.
     mask = pd.Series(False, index=df.index)
     if user_age_group:
         mask |= df["age_group"] == user_age_group
@@ -443,17 +396,13 @@ async def _category_interactions(
     """
     Filter the interaction window to rows for listings in categories the user cares about.
 
-    Category preference is derived from a 4-level fallback chain (most to least recent):
-      1. Interaction history (window) — categories from listings the user viewed/bid in the last 7d.
-      2. Auction wins (all-time) — categories from listings the user has won.
-      3. Collector board items — categories the user curated into their boards.
-      4. Onboarding interests — categories selected during registration (cold-start fallback).
+    Category preference comes from a 4-level fallback chain, stopping at the first
+    level with at least one category: (1) recent interaction history, (2) all-time
+    auction wins, (3) collector board items, (4) onboarding interests. This lets new
+    users get category personalisation from their onboarding picks while active users
+    get preferences driven by recent behaviour.
 
-    The chain stops at the first level that yields at least one category. This ensures
-    new users (levels 1-3 empty) still get category personalisation via onboarding picks,
-    while active users get dynamically updated preferences from their recent behaviour.
-
-    Returns None if no categories are found at any level — callers treat this as no boost.
+    Returns None if no categories are found at any level.
     """
     if user_id is None:
         return None
@@ -520,18 +469,10 @@ async def _user_brands(
     db: AsyncSession, user_id: uuid.UUID | None, interactions_df: pd.DataFrame, listings_df: pd.DataFrame
 ) -> set:
     """
-    Build the complete set of brands the user has engaged with across all history.
-
-    Four sources (all merged into one set):
-      1. Window interactions — brands from listings the user viewed/bid on in the last 7d.
-         Fast: derived from already-loaded DataFrames, no extra DB query.
-      2. All-time bid history — brands from every listing the user has ever bid on.
-      3. Auction wins — brands from listings the user has won.
-      4. Collector board items — brands from items the user curated into boards.
-
-    Sources 2-4 use all-time data (no window filter) because brand affinity develops
-    over the user's full history, not just recent activity. This result is cached for
-    24h to avoid repeating these DB queries on every request.
+    Build the complete set of brands the user has engaged with, merging window
+    interactions (no extra DB query) with all-time bid history, auction wins, and
+    collector board items. Sources 2-4 are all-time (not window-filtered) because
+    brand affinity develops over a user's full history, not just recent activity.
     """
     if user_id is None:
         return set()
@@ -595,19 +536,11 @@ async def _user_price_profile(
     """
     Compute the user's median price point from their bidding history.
 
-    Median is preferred over mean because auction prices have a long right tail —
-    a single high-value bid would pull the mean up and de-rank most affordable listings.
-    Median is stable and represents the price range the user most commonly operates in.
-
-    Fallback: if the user has never bid, we use the current prices of listings they've
-    interacted with in the window. This gives a rough price signal for browsers who
-    haven't committed to bids yet.
-
-    Capped at 200 bid rows — enough for a stable median; beyond that, recency bias
-    from unlimited history would make the signal less useful anyway.
-
-    Returns None if no price signal is available — price_affinity_scores() will use
-    a neutral 0.5 value for this user.
+    Median rather than mean because auction prices have a long right tail — a single
+    high-value bid would pull the mean up and de-rank affordable listings. Falls back
+    to prices of interacted-with listings if the user has never bid. Capped at 200 bid
+    rows, enough for a stable median. Returns None if no signal is available, in which
+    case price_affinity_scores() uses a neutral 0.5.
     """
     if user_id is None:
         return None

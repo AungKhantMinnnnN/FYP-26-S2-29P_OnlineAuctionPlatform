@@ -20,7 +20,6 @@ class PasswordResetService:
         result = await db.execute(stmt)
         user = result.scalars().first()
 
-        # Silently no-op if user not found — don't leak account existence
         if not user:
             return
 

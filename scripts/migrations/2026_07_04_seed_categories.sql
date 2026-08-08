@@ -1,9 +1,5 @@
--- Migration: Seed default categories
--- Date: 2026-07-04
---
--- Inserts 10 top-level categories used for listing classification and
+-- Seeds 10 top-level categories used for listing classification and
 -- cold-start interest selection during onboarding.
--- Safe to re-run: ON CONFLICT (slug) DO NOTHING.
 
 INSERT INTO categories (name, slug, is_active) VALUES
     ('Electronics',         'electronics',          TRUE),

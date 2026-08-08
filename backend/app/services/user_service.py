@@ -66,7 +66,6 @@ class UserService:
             for ar in ar_result.scalars().all():
                 winner_map[ar.listing_id] = ar.winner_id
 
-        # Build items with result label
         items = []
         for listing, my_highest_bid, last_placed_at in rows:
             if listing.status == ListingStatus.ended:
@@ -187,12 +186,10 @@ class UserService:
 
     @staticmethod
     async def add_to_watchlist(db: AsyncSession, user: User, listing_id: uuid.UUID) -> Watchlist:
-        # Confirm listing exists
         listing_check = await db.execute(select(Listing.id).where(Listing.id == listing_id))
         if not listing_check.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
 
-        # Idempotent check
         existing_stmt = select(Watchlist).where(
             (Watchlist.user_id == user.id) & (Watchlist.listing_id == listing_id)
         )
@@ -342,7 +339,6 @@ class UserService:
         if not category_ids:
             raise HTTPException(status_code=400, detail="At least one category is required")
 
-        # Validate all category IDs exist
         valid = (await db.execute(
             select(Categories.id).where(Categories.id.in_(category_ids))
         )).scalars().all()
@@ -350,7 +346,6 @@ class UserService:
         if invalid:
             raise HTTPException(status_code=404, detail=f"Unknown category IDs: {', '.join(invalid)}")
 
-        # Replace: delete existing then insert new set
         await db.execute(delete(UserInterest).where(UserInterest.user_id == user_id))
         for category_id in category_ids:
             db.add(UserInterest(user_id=user_id, category_id=category_id))

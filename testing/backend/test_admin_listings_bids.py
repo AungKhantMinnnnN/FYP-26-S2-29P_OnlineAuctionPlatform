@@ -28,10 +28,10 @@ suite = Suite("Admin: listings & bids")
 
 
 def _create_listing(seller_client, status="draft"):
-    # Title deliberately avoids the word "listing", and uses a letters-only random
-    # suffix (not hex) — see TEST_PLAN.md Finding F6. Both a plain word match
-    # ("listing" -> "fisting") and a leetspeak-normalized hex collision ("b0b0" ->
-    # "bobo") were hit by earlier drafts of this exact helper.
+    # Avoids "listing" and uses a letters-only random suffix (not hex) -- both a plain
+    # word match ("listing" -> "fisting") and a leetspeak hex collision ("b0b0" ->
+    # "bobo") have tripped the prohibited-keyword matcher here before. See TEST_PLAN.md
+    # Finding F6.
     now = datetime.now(timezone.utc)
     payload = {
         "title": f"QA Admin Item {unique_tag()}",

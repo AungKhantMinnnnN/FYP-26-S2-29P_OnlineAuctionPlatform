@@ -3,11 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChevronDown, Wallet, User as UserIcon, LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-/**
- * Shared account dropdown for non-admin users. Used by both Navbar (public pages)
- * and DashboardLayout (protected pages) so the trigger label and menu items stay
- * uniform everywhere without duplicating markup.
- */
+// Shared account dropdown used by both Navbar and DashboardLayout.
 export default function AccountMenu() {
   const [open, setOpen] = useState(false)
   const { user, logout } = useAuth()

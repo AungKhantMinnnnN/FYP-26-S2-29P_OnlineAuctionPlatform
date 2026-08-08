@@ -33,8 +33,8 @@ export default function BrowseAuctionsPage() {
   const categoryMap = new Map((metadata?.categories ?? []).map(c => [c.id, c.name]))
   const slugMap = new Map((metadata?.categories ?? []).map(c => [c.slug, c.id]))
 
-  // categoryParam may be a slug (from landing page) or a UUID (from FilterPanel).
-  // slugMap.get() returns undefined for UUIDs, so we fall through to the raw param.
+  // categoryParam may be a slug or a UUID; slugMap.get() returns undefined for UUIDs,
+  // so we fall through to the raw param.
   const resolvedCategoryId = categoryParam
     ? (slugMap.get(categoryParam) ?? categoryParam)
     : undefined

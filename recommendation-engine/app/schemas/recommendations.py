@@ -16,8 +16,7 @@ class ListingImageItem(BaseModel):
 
 
 class SellerItem(BaseModel):
-    # No email here -- this is a public-facing response (personalized or not), and the
-    # seller's email is not something every viewer of a listing should be able to read.
+    # No email -- this is a public-facing response, not every viewer should read it.
     id: uuid.UUID
     username: str
 

@@ -23,9 +23,8 @@ async def get_trending_items(
     user_id: Optional[uuid.UUID] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    # user_id now comes from the caller's own validated JWT, never a client-supplied
-    # query param -- previously any caller could pass an arbitrary user_id and get that
-    # user's personalized results (plus a leaked seller email, see TrendingListing).
+    # user_id comes from the caller's own validated JWT, never a client-supplied query
+    # param -- otherwise any caller could request another user's personalized results.
     items, personalized = await recommendation_service.get_trending(db, user_id=user_id, limit=limit)
     return TrendingResponse(
         items=[TrendingListing(**item) for item in items],

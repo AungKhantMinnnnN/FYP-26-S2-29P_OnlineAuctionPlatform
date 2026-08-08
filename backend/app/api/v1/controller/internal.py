@@ -13,10 +13,8 @@ router = APIRouter(prefix="/internal", tags=["internal"])
 
 
 async def require_internal_key(x_internal_api_key: str | None = Header(default=None)) -> None:
-    # INTERNAL_API_KEY is optional so existing deployments keep working until it's
-    # configured; once set, calls without a matching header are rejected. Nginx already
-    # blocks the public path to this prefix -- this is defense-in-depth for anyone who
-    # can reach the backend's own port directly (e.g. over the internal network).
+    # Optional so deployments work before it's configured. Nginx already blocks the
+    # public path here; this is defense-in-depth for direct internal-network access.
     if not settings.INTERNAL_API_KEY:
         return
     if not x_internal_api_key or not secrets.compare_digest(x_internal_api_key, settings.INTERNAL_API_KEY):

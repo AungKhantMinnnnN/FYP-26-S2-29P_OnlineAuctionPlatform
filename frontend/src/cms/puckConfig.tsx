@@ -15,19 +15,15 @@ import AuctionCard from '../components/AuctionCard'
 import SectionHeader from '../components/SectionHeader'
 import EmptyState from '../components/EmptyState'
 
-// CMS link fields (Hero/Banner CTAs) are free text set by whoever has admin access to
-// the page editor. Restrict what actually renders as a Link target to same-site relative
-// paths or explicit https:// URLs -- blocks a `javascript:`/`data:` URL or a bare
-// protocol-relative "//evil.com" from ever reaching every visitor of the landing page.
+// CMS link fields are free text from the page editor; restrict Link targets to same-site
+// relative paths or https:// to block javascript:/data: URL injection.
 const safeCtaLink = (link: string): string => {
   if (/^\/(?!\/)/.test(link)) return link // relative path, not protocol-relative "//"
   if (/^https:\/\//i.test(link)) return link
   return '/'
 }
 
-// Icons available to the FeatureGrid block's admin-facing icon picker. Kept as a
-// closed set (rather than a free-text field) since Puck has no icon-picker field
-// type — admins choose from this list, editors add new ones here as needed.
+// Closed set of icons for the FeatureGrid picker — Puck has no icon-picker field type.
 const FEATURE_ICONS = { zap: Zap, shield: Shield, trendingUp: TrendingUp, barChart: BarChart3 } as const
 type FeatureIconKey = keyof typeof FEATURE_ICONS
 

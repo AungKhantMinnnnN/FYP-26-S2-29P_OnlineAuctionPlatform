@@ -6,10 +6,8 @@
 --
 -- Filtered out: bare words under 4 characters, and a short manual exclusion list
 -- (anal, hell, crap, rape, cock, dick, balls, pawn, escort) whose plain-substring
--- match would collide with common marketplace/English words -- e.g. 'con' inside
--- 'condition', 'rape' inside 'grape'/'grapefruit', 'balls' inside 'baseballs',
--- 'cum' inside 'cucumber', 'hell' inside 'seashell', 'anal' inside 'analog',
--- 'pawn' as in 'pawn shop', 'escort' as in 'Ford Escort'. Requires migration
+-- match would collide with common marketplace words, e.g. 'rape' inside 'grape',
+-- 'balls' inside 'baseballs', 'anal' inside 'analog'. Requires migration
 -- 2026_07_19_keyword_category_ai_flags.sql (adds the category column) to run first.
 
 INSERT INTO prohibited_keywords (keyword, category) VALUES

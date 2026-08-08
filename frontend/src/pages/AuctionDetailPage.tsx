@@ -122,12 +122,10 @@ export default function AuctionDetailPage() {
 
     let closedIntentionally = false
 
-    // Falls back to the current origin (through nginx's /v1.0.0/bids/ws/ proxy) rather than a
-    // hardcoded host:port — required for any deployment whose public URL isn't known at build
-    // time (e.g. a Cloudflare tunnel), and still overridable via VITE_WS_URL for local dev.
-    // The session's httpOnly cookie rides along with the handshake automatically (same-origin
-    // request) -- the bidding-engine reads it from there now instead of a "?token=" query param,
-    // which would otherwise be the one place still exposing the raw JWT in a URL.
+    // Falls back to the current origin (via nginx's /v1.0.0/bids/ws/ proxy) so it works behind
+    // any public URL not known at build time (e.g. a Cloudflare tunnel); VITE_WS_URL overrides
+    // for local dev. The httpOnly session cookie rides along automatically (same-origin), so
+    // the bidding-engine reads auth from there instead of a "?token=" query param.
     const wsBaseUrl = import.meta.env.VITE_WS_URL
       || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/v1.0.0/bids/ws`
     const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${id}`
@@ -181,7 +179,6 @@ export default function AuctionDetailPage() {
     }
   }, [id, user, refreshUser])
 
-  // Reflect whether this listing (and any related listings) is already on the user's watchlist.
   useEffect(() => {
     if (!user || !id) return
     let active = true
@@ -197,7 +194,6 @@ export default function AuctionDetailPage() {
     return () => { active = false }
   }, [user, id])
 
-  // Related items — other active listings in the same category.
   useEffect(() => {
     if (!auction?.category_id || !id) return
     let active = true

@@ -14,7 +14,6 @@ function ProhibitedKeywordsPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newKeyword, setNewKeyword] = useState('')
-  // Category value comes from the DB-backed keyword_category option set; default to the first.
   const [newCategory, setNewCategory] = useState('')
   const effectiveCategory = newCategory || categoryOptions[0]?.value || ''
   const [adding, setAdding] = useState(false)

@@ -4,8 +4,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 
 def setup_logging(service_name: str = "APIGateWay") -> logging.Logger:
-    # On local machine — defaults to backend/logs/
-    # In Docker — reads LOG_DIR environment variable
+    # Defaults to backend/logs/ locally; Docker sets LOG_DIR explicitly.
     log_dir = os.getenv("LOG_DIR", os.path.join(os.path.dirname(__file__), "../../../logs"))
     os.makedirs(log_dir, exist_ok=True)
 
@@ -15,8 +14,7 @@ def setup_logging(service_name: str = "APIGateWay") -> logging.Logger:
     )
 
     def file_handler(filename: str, level: int = logging.INFO) -> TimedRotatingFileHandler:
-        # Rolls over to a fresh file at midnight; keeps 5 days of rotated files and
-        # auto-deletes anything older (backupCount). Rotated files get a .YYYY-MM-DD suffix.
+        # Rolls over at midnight, keeps 5 days of rotated files.
         handler = TimedRotatingFileHandler(
             filename=os.path.join(log_dir, filename),
             when="midnight",
@@ -27,12 +25,11 @@ def setup_logging(service_name: str = "APIGateWay") -> logging.Logger:
         handler.setLevel(level)
         return handler
 
-    # ── Console handler — prints to terminal locally ──────────────
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(log_formatter)
     console_handler.setLevel(logging.INFO)
 
-    # ── Root service logger: general (INFO+) + error (ERROR+) files ──
+    # Separate general (INFO+) and error (ERROR+) log files.
     logger = logging.getLogger(service_name)
     logger.setLevel(logging.INFO)
     if not logger.handlers:

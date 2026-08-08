@@ -36,9 +36,7 @@ export default function AuctionCard({ auction, showWatchlist = true, isWatched =
   const [watched, setWatched] = useState(isWatched)
   const [watchLoading, setWatchLoading] = useState(false)
 
-  // Re-sync when the parent's watchlist query refetches with fresh data —
-  // useState(isWatched) only seeds the initial value, it won't otherwise
-  // pick up prop changes on an already-mounted card.
+  // useState(isWatched) only seeds initial state, so re-sync explicitly when the prop changes.
   useEffect(() => { setWatched(isWatched) }, [isWatched])
 
   const handleWatchToggle = async (e: React.MouseEvent) => {
@@ -56,7 +54,6 @@ export default function AuctionCard({ auction, showWatchlist = true, isWatched =
       }
       queryClient.invalidateQueries({ queryKey: ['users', 'me', 'watchlist'] })
     } catch {
-      // silent — state unchanged
     } finally {
       setWatchLoading(false)
     }

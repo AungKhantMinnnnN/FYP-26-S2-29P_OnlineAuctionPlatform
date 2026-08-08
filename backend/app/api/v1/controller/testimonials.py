@@ -14,7 +14,6 @@ router = APIRouter()
 
 @router.get("/", response_model=List[TestimonialResponse])
 async def get_featured_testimonials(db: AsyncSession = Depends(get_db)):
-    """Public: admin-approved testimonials for display on the website."""
     return await TestimonialService.get_featured(db=db)
 
 
@@ -23,7 +22,7 @@ async def get_all_testimonials(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: full review queue — all submitted testimonials regardless of approval."""
+    """All submitted testimonials, regardless of approval."""
     return await TestimonialService.get_all(db=db)
 
 
@@ -32,7 +31,6 @@ async def get_my_testimonials(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """User: own submissions with current approval status (is_featured)."""
     return await TestimonialService.get_by_user(db=db, user_id=current_user.id)
 
 
@@ -42,7 +40,6 @@ async def approve_testimonial(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: approve a testimonial for public display."""
     return await TestimonialService.approve_testimonial(db=db, testimonial_id=id)
 
 
@@ -52,7 +49,7 @@ async def delete_testimonial(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: remove a testimonial (pending or already-approved)."""
+    """Works whether the testimonial is pending or already approved."""
     await TestimonialService.delete_testimonial(db=db, testimonial_id=id)
 
 

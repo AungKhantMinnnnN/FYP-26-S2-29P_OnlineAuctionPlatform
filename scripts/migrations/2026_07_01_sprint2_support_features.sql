@@ -1,22 +1,7 @@
--- Migration: Sprint 2 support page features
--- Date: 2026-07-01
--- Sprint: 2
---
--- Changes:
---   1. Create testimonials table
---   2. Create issue_types table
---   3. Update disputes table:
---      a. Rename legacy 'reason' column -> 'description' (if it exists)
---      b. Add 'category', 'subject', 'issue_type_id' columns
---      c. Make listing_id nullable
---      d. Add resolved_by, resolution_note, resolved_at columns
---
--- Apply once on each environment's Postgres instance.
--- Safe to re-run: uses IF NOT EXISTS / DO-block guards.
+-- Support page features: testimonials, issue types, and dispute tracking columns.
 
 BEGIN;
 
--- 1. Testimonials
 CREATE TABLE IF NOT EXISTS testimonials (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -29,14 +14,12 @@ CREATE TABLE IF NOT EXISTS testimonials (
 CREATE INDEX IF NOT EXISTS idx_testimonials_featured
     ON testimonials(is_featured) WHERE is_featured = TRUE;
 
--- 2. Issue types
 CREATE TABLE IF NOT EXISTS issue_types (
     id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name       VARCHAR(100) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Seed default issue types
 INSERT INTO issue_types (name) VALUES
     ('Item Not Received'),
     ('Item Not as Described'),
@@ -50,8 +33,7 @@ INSERT INTO issue_types (name) VALUES
     ('Other')
 ON CONFLICT (name) DO NOTHING;
 
--- 3. Disputes table updates
--- 3a. Rename legacy 'reason' -> 'description' if old column still exists
+-- Rename legacy 'reason' -> 'description' if it still exists
 DO $$
 BEGIN
     IF EXISTS (
@@ -62,7 +44,6 @@ BEGIN
     END IF;
 END $$;
 
--- 3b. Add new columns
 ALTER TABLE disputes
     ADD COLUMN IF NOT EXISTS category      VARCHAR(100),
     ADD COLUMN IF NOT EXISTS subject       VARCHAR(255),
@@ -71,11 +52,11 @@ ALTER TABLE disputes
     ADD COLUMN IF NOT EXISTS resolution_note TEXT,
     ADD COLUMN IF NOT EXISTS resolved_at   TIMESTAMPTZ;
 
--- Backfill category from description if blank (preserves existing data on upgrade)
+-- Backfill default before enforcing NOT NULL
 UPDATE disputes SET category = 'General' WHERE category IS NULL;
 ALTER TABLE disputes ALTER COLUMN category SET NOT NULL;
 
--- 3c. Make listing_id nullable (disputes can exist without a specific listing)
+-- Nullable: disputes can exist without a specific listing
 ALTER TABLE disputes ALTER COLUMN listing_id DROP NOT NULL;
 
 COMMIT;

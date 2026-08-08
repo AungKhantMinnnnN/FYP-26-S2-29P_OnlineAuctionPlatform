@@ -109,5 +109,3 @@ export default function SystemLogsSection() {
     </>
   )
 }
-
-// System Monitoring — Audit Logs. Paginated record of admin actions (admin_logs table).

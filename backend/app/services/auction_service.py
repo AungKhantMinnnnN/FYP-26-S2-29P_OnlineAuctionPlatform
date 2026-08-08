@@ -69,11 +69,9 @@ class AuctionService:
         if max_price is not None:
             query = query.where(Listing.current_price <= max_price)
             
-        # Count total
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
-        
-        # Pagination
+
         query = query.order_by(Listing.created_at.desc())
         query = query.offset((page - 1) * size).limit(size)
         
@@ -253,11 +251,9 @@ class AuctionService:
         if listing_status:
             query = query.where(Listing.status == listing_status)
         
-        # Count total
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
-        
-        # Pagination
+
         query = query.order_by(Listing.created_at.desc())
         query = query.offset((page - 1) * size).limit(size)
         
@@ -281,7 +277,6 @@ class AuctionService:
         auction_id: UUID,
         files: List[UploadFile]
     ) -> List[ListingImages]:
-        # 1. Fetch listing
         query = select(Listing).options(selectinload(Listing.images)).where(Listing.id == auction_id)
         result = await db.execute(query)
         listing = result.scalars().first()
@@ -296,12 +291,10 @@ class AuctionService:
         current_images_count = len(listing.images)
         
         for index, file in enumerate(files):
-            # Read file bytes
             file_bytes = await file.read()
 
-            # The controller already checked the client-sent Content-Type header, but
-            # that header is just a client claim -- sniff the actual bytes so a
-            # relabeled non-image file can't ride through as one.
+            # The controller only checked the client-sent Content-Type header, which is
+            # just a claim -- sniff the actual bytes so a relabeled file can't ride through.
             sniffed_type = _sniff_image_type(file_bytes)
             if sniffed_type is None:
                 raise HTTPException(
@@ -309,17 +302,14 @@ class AuctionService:
                     detail=f"File '{file.filename}' does not look like a valid PNG, JPEG, or WEBP image.",
                 )
 
-            # Extension is derived from the verified content, never from the client-
-            # supplied filename -- a crafted filename (e.g. containing "/" or "..")
-            # could otherwise inject a path into the generated S3 object key.
+            # Extension comes from the verified content, never the client-supplied filename --
+            # a crafted filename (e.g. containing "/" or "..") could inject a path into the S3 key.
             ext = _EXTENSION_BY_CONTENT_TYPE[sniffed_type]
             unique_filename = f"{uuid.uuid4()}.{ext}"
             s3_key = f"listings/{auction_id}/{unique_filename}"
 
-            # Upload to MinIO
             storage_service.upload_file(file_bytes, s3_key, sniffed_type)
-            
-            # Create DB record
+
             is_primary = (current_images_count == 0 and index == 0)
             sort_order = current_images_count + index
             
@@ -395,16 +385,13 @@ class AuctionService:
 
     @staticmethod
     async def get_form_metadata(db: AsyncSession) -> Dict[str, Any]:
-        # Fetch active categories
         query = select(Categories).where(Categories.is_active == True)
         result = await db.execute(query)
         categories = result.scalars().all()
-        
-        # Enums
+
         conditions = [{"id": e.value, "name": e.name} for e in ItemConditions]
         bidding_types = [{"id": e.value, "name": e.name} for e in BiddingType]
 
-        # Durations from DB
         duration_result = await db.execute(
             select(AuctionDuration)
             .where(AuctionDuration.is_active == True)

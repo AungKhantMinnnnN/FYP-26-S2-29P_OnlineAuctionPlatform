@@ -18,8 +18,7 @@ EPHEMERAL_PASSWORD = "QaTest!2026"
 
 
 def _unique_suffix():
-    # time component keeps values sortable/greppable in the DB; random component
-    # avoids collisions when tests run back-to-back within the same second.
+    # timestamp keeps values sortable/greppable; random tail avoids same-second collisions.
     return f"{int(time.time())}{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
 
 

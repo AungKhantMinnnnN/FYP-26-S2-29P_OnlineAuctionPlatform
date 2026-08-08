@@ -31,8 +31,8 @@ describe('MarketplaceNav', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1)
   })
 
-  // Regression test for a fixed bug: `compact` was declared and passed by
-  // Navbar but never read, so compact/normal renders were pixel-identical.
+  // `compact` was declared and passed by Navbar but never read, so compact/normal
+  // renders used to be pixel-identical.
   it('applies tighter spacing and smaller text when compact is set', () => {
     const { container: normal } = render(
       <MemoryRouter>

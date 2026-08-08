@@ -3,8 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import PrimaryButton from './PrimaryButton'
 import SecondaryButton from './SecondaryButton'
 
-// Shared "Filters" card for admin list views: header, a slot for the filter fields, and a
-// Search/Clear footer. Keeps every filtered admin table visually identical.
+// Shared filter card layout so every admin list view looks the same.
 export default function AdminFilterBar({
   onSubmit,
   onClear,

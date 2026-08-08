@@ -257,7 +257,7 @@ export default function ProfilePage() {
   }
 
   const runDeleteAccount = async () => {
-    // No account-deletion endpoint exists yet — simulated, matching the previous page's behavior.
+    // No account-deletion endpoint exists yet.
     setPasswordMessage('Account deletion simulated.')
   }
 

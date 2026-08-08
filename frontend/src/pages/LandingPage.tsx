@@ -49,7 +49,7 @@ export default function LandingPage() {
   const mapToCardType = (listing: AuctionListing) => ({
     id: listing.id,
     title: listing.title,
-    category: 'Other', // We'll need a category map later, fallback for now
+    category: 'Other',
     condition: listing.condition,
     currentBid: listing.current_price || 0,
     startingPrice: listing.starting_price || 0,
@@ -131,7 +131,6 @@ export default function LandingPage() {
             View Auctions
           </Link>
         </div>
-        {/* Hero video */}
         <div className="w-full aspect-video bg-slate-200 rounded-xl border border-slate-300 mt-8 overflow-hidden relative shadow-lg flex items-center justify-center group">
           {videoUrl ? (
             <video
@@ -331,7 +330,6 @@ export default function LandingPage() {
           <p className="text-sm text-slate-500">Scale your collecting hobby or business with ease</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {/* Free Tier */}
           <div className={`bg-white rounded-xl p-8 shadow-sm flex flex-col relative ${isFreeUser ? 'border-2 border-slate-400' : 'border border-slate-200'}`}>
             {isFreeUser && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -367,7 +365,6 @@ export default function LandingPage() {
               )}
           </div>
 
-          {/* Premium Tier — always shown */}
           <div className="bg-white border-2 border-accent-600 rounded-xl p-8 shadow-xl relative flex flex-col transform md:scale-105">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
               <span className="bg-accent-600 text-white font-bold text-[10px] px-3 py-1 rounded-full uppercase tracking-widest shadow-md">

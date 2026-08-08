@@ -5,14 +5,13 @@ Endpoints under test (backend/app/api/v1/controller/internal.py):
 
 nginx blocks the public path (docker/nginx/default.conf has
 `location /v1.0.0/internal/ { return 404; }`), so calling them through the
-normal BASE_URL (port 80) correctly 404s. As of the docker-compose port-exposure
-hardening, the backend container's port 8000 is no longer published on the VM
-host at all -- nginx already proxies every legitimate request, and there was no
-reason for it to be directly reachable (see docker-compose.yml's backend service
-comment and TEST_PLAN.md Finding F1). These routes also require a shared
-X-Internal-Api-Key header matching INTERNAL_API_KEY (see backend/app/api/deps.py's
-require_internal_key) as defence in depth, but that's moot for external callers
-now since the port itself is unreachable.
+normal BASE_URL (port 80) correctly 404s. The backend container's port 8000 is
+not published on the VM host at all -- nginx already proxies every legitimate
+request, so there's no reason for it to be directly reachable (see
+docker-compose.yml's backend service comment and TEST_PLAN.md Finding F1).
+These routes also require a shared X-Internal-Api-Key header matching
+INTERNAL_API_KEY (see backend/app/api/deps.py's require_internal_key) as
+defence in depth, though that's moot while the port itself is unreachable.
 
 The "via the direct port" cases below only exercise real request/response
 behaviour when QA_INTERNAL_DIRECT_BASE_URL points somewhere that can actually
@@ -117,9 +116,8 @@ def _():
 
 @suite.case("via the direct port: a non-UUID outbid_user_id returns a clean 422")
 def _():
-    # OutbidPayload.outbid_user_id is a uuid.UUID field, so pydantic rejects a non-UUID
-    # string before the handler ever runs (this used to reach notification_service and
-    # crash with an unhandled 500 -- see git history for the old version of this test).
+    # outbid_user_id is a uuid.UUID field, so pydantic rejects a non-UUID string with a
+    # clean 422 before the handler (and notification_service) ever runs.
     direct = _direct_client()
     resp = direct.post("/internal/notifications/outbid", json={
         "outbid_user_id": "this-is-not-a-uuid",

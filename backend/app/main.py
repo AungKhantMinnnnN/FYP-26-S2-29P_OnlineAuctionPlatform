@@ -10,7 +10,6 @@ logger.info("API GateWay starting up.")
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.API_VERSION,
-    # Swagger UI will be at /v1.0.0/docs
     docs_url=f"/{settings.API_VERSION}/docs",
     redoc_url=f"/{settings.API_VERSION}/redoc",
     openapi_url=f"/{settings.API_VERSION}/openapi.json"
@@ -24,8 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# We don't prefix the router here because the endpoints in router.py 
-# are already prefixed or we want them under the app's versioned docs
 app.include_router(api_router, prefix=f"/{settings.API_VERSION}")
 
 @app.get("/")

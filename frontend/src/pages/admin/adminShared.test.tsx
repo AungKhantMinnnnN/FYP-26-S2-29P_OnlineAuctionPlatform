@@ -39,16 +39,9 @@ describe('formatDate', () => {
 })
 
 describe('formatDateTime', () => {
-  // Bug/design gap: formatDate/formatDateTime pass locale 'en-SG' to
-  // Intl.DateTimeFormat but never set `timeZone`, so the *clock time* shown
-  // is whatever the host machine's local timezone is, not Singapore time —
-  // 'en-SG' only controls formatting style (DD Mon YYYY, month abbreviations),
-  // not the offset. Two admins viewing the same audit-log timestamp from
-  // machines in different timezones would see two different clock times for
-  // the same instant, which is a real footgun for a Singapore-only platform.
-  // This test therefore can't assert a fixed expected hour (it's genuinely
-  // environment-dependent by design) — it locks in the date part, which is
-  // timezone-stable for this input, and the *shape* of the time part.
+  // formatDateTime never sets `timeZone`, so the clock time shown is the host
+  // machine's local time, not Singapore time -- 'en-SG' only controls formatting
+  // style. So this only asserts the (timezone-stable) date part and time shape.
   it('formats an ISO date with a 24h time (exact hour is host-timezone-dependent — see comment above)', () => {
     const result = formatDateTime('2026-03-05T14:30:00Z')
     expect(result).toContain('05 Mar 2026')

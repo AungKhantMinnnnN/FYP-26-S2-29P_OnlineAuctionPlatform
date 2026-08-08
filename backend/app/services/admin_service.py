@@ -341,11 +341,9 @@ class AdminService:
         if listing.status == ListingStatus.removed:
             raise HTTPException(status_code=400, detail="Listing is already removed")
 
-        # Forcing a listing to `removed` while it still has a live bid would otherwise trap that
-        # bidder's held funds with no automatic way back. Release the current highest bid's hold —
-        # the only bid actually holding funds at any time (see cancel_bid) — same as an explicit
-        # cancel, but skip this if the auction is already finalized (settlement already accounted
-        # for that money via a different path).
+        # Removing a listing with a live bid would otherwise trap that bidder's held funds,
+        # so release the current highest bid's hold (the only bid actually holding funds —
+        # see cancel_bid) unless the auction is already finalized and settled elsewhere.
         refunded_bid = False
         finalized = await db.scalar(select(AuctionResult.id).where(AuctionResult.listing_id == listing.id))
         if not finalized:
@@ -388,15 +386,13 @@ class AdminService:
         if new_end_time <= datetime.now(timezone.utc):
             raise HTTPException(status_code=400, detail="end_time must be in the future")
 
-        # Auction finalization (winner determination, settlement) isn't automated anywhere in this
-        # codebase yet, so an AuctionResult only exists if one was seeded/written some other way.
-        # Refunding is genuinely optional: only happens when there's something to reverse.
+        # Auction finalization isn't automated anywhere in this codebase yet, so an
+        # AuctionResult only exists if one was seeded/written some other way.
         refunded = False
         result = await db.scalar(select(AuctionResult).where(AuctionResult.listing_id == listing_id))
         if result:
-            # board_items.auction_result_id is a NOT NULL FK with no cascade — deleting a result
-            # still pinned to someone's collector board would violate it. Fail clearly instead of
-            # crashing the transaction or silently deleting the user's saved board item.
+            # board_items.auction_result_id is a NOT NULL FK with no cascade — fail clearly
+            # instead of crashing the transaction if a board still points at this result.
             pinned_to_board = await db.scalar(
                 select(BoardItem.id).where(BoardItem.auction_result_id == result.id)
             )
@@ -522,8 +518,8 @@ class AdminService:
         if not listing:
             raise HTTPException(status_code=404, detail="Listing for this bid not found")
 
-        # An already-finalized auction has its wallet/settlement records tied to the recorded
-        # result; overriding a bid there would desync them. Restart the auction instead.
+        # A finalized auction's wallet/settlement records are tied to the recorded result;
+        # overriding a bid there would desync them, so require a restart instead.
         finalized = await db.scalar(select(AuctionResult.id).where(AuctionResult.listing_id == listing.id))
         if finalized:
             raise HTTPException(
@@ -531,11 +527,9 @@ class AdminService:
                 detail="This auction has already been finalized. Use the restart-auction endpoint instead.",
             )
 
-        # Only the current highest bid actually holds funds — every earlier bid on this listing
-        # already had its hold released back to the bidder when it was outbid (see bidding-engine).
-        # Identify it by row id, not by amount: after a prior cancel resets current_price to
-        # starting_price, an unrelated older (already-released) bid could coincidentally match that
-        # value in a low_start auction, where the first bid is allowed to equal starting_price.
+        # Only the current highest bid actually holds funds (earlier bids were released when
+        # outbid). Identify it by row id, not amount: a prior cancel can reset current_price
+        # to starting_price, which an older released bid could coincidentally match.
         current_highest_bid = await db.scalar(
             select(Bid).where(Bid.listing_id == listing.id, Bid.status == BidStatus.accepted)
             .order_by(Bid.amount.desc()).limit(1)
@@ -568,8 +562,7 @@ class AdminService:
                         detail="Cannot restore the previous bid: that bidder no longer has sufficient "
                                "balance to re-hold the funds.",
                     )
-                # Re-hold funds for the restored bid, mirroring the bidding engine's own hold logic,
-                # so current_price always corresponds to an actually-held amount.
+                # Re-hold funds so current_price still corresponds to an actually-held amount.
                 restored_bidder.balance -= next_highest.amount
                 db.add(WalletTransaction(
                     user_id=restored_bidder.id, amount=next_highest.amount, type=TransactionType.bid_hold,
@@ -618,11 +611,9 @@ class AdminService:
         level: Optional[str] = None,
         service: Optional[str] = None,
     ) -> Dict[str, Any]:
-        # Read the general log of every microservice. ALL_LOGS_DIR is a read-only mount of
-        # all services' log dirs in Docker, one level deep (all-logs/<svc>/x.log); it falls
-        # back to this service's flat LOG_DIR locally. The "<name>*" glob picks up both the
-        # current file and rotated daily files (<name>.log.YYYY-MM-DD) so past days stay
-        # filterable; the "*/" prefix keeps stale top-level files from duplicating subdir ones.
+        # ALL_LOGS_DIR is a read-only mount of every service's logs in Docker, one level deep
+        # (all-logs/<svc>/x.log); falls back to this service's flat LOG_DIR locally. The
+        # "<name>*" glob also picks up rotated daily files so past days stay filterable.
         base = Path(settings.ALL_LOGS_DIR or settings.LOG_DIR)
         subdir = "*/" if settings.ALL_LOGS_DIR else ""
         level = level.lower() if level else None
@@ -642,10 +633,8 @@ class AdminService:
                         lvl = match.group("level").lower()
                         if level and lvl != level:
                             continue
-                        # The formatter writes naive local time; the container always runs in UTC
-                        # (no TZ override anywhere), so attach it explicitly — otherwise the naive
-                        # string round-trips through JSON with no offset and browsers parse it as
-                        # local time, skewing every timestamp by the admin's UTC offset.
+                        # Formatter writes naive local time; container always runs UTC, so attach
+                        # it explicitly or the browser parses the naive string as local time.
                         ts = datetime.strptime(match.group("timestamp"), "%Y-%m-%d %H:%M:%S").replace(
                             tzinfo=timezone.utc
                         )
