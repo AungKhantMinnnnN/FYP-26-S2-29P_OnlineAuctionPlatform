@@ -38,8 +38,8 @@ export default function PublicLayout() {
               <ul className="space-y-3 text-sm text-slate-500">
                 <li className="flex items-center gap-2"><MapPin size={14} className="text-slate-400 flex-shrink-0" /> Singapore</li>
                 <li className="flex items-center gap-2"><Mail size={14} className="text-slate-400 flex-shrink-0" /> support@auctionhub.sg</li>
-                <li><span className="transition-colors hover:text-accent-600 cursor-pointer">Help Center</span></li>
-                <li><span className="transition-colors hover:text-accent-600 cursor-pointer">Trust & Safety</span></li>
+                <li><Link to="/support" className="transition-colors hover:text-accent-600">Help Center</Link></li>
+                <li><Link to="/support" className="transition-colors hover:text-accent-600">Trust & Safety</Link></li>
               </ul>
             </div>
           </div>

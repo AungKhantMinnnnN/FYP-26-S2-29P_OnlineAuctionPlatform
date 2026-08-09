@@ -18,6 +18,13 @@ class DisputeResolveRequest(BaseModel):
     resolution_note: Optional[str] = None
 
 
+class DisputeListingInfo(BaseModel):
+    id: UUID
+    title: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DisputeResponse(BaseModel):
     id: UUID
     reporter_id: UUID
@@ -30,5 +37,6 @@ class DisputeResponse(BaseModel):
     resolution_note: Optional[str] = None
     resolved_at: Optional[datetime] = None
     created_at: datetime
+    listing: Optional[DisputeListingInfo] = None
 
     model_config = ConfigDict(from_attributes=True)

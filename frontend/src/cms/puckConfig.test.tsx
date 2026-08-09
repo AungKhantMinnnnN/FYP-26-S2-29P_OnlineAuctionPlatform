@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { puckConfig } from './puckConfig'
 import { getAuctions } from '../api/auctionsApi'
 import { getFormMetadata } from '../api/auctionsApi'
-import { getPublicFeedback } from '../api/feedbackApi'
+import { getPublicTestimonials } from '../api/supportApi'
 import { getMarketingVideoUrl } from '../api/marketingApi'
 import { getMyWatchlist } from '../api/usersApi'
 
@@ -19,7 +19,7 @@ vi.mock('../api/auctionsApi', () => ({
   getAuctions: vi.fn(),
   getFormMetadata: vi.fn(),
 }))
-vi.mock('../api/feedbackApi', () => ({ getPublicFeedback: vi.fn() }))
+vi.mock('../api/supportApi', () => ({ getPublicTestimonials: vi.fn() }))
 vi.mock('../api/marketingApi', () => ({ getMarketingVideoUrl: vi.fn() }))
 vi.mock('../api/usersApi', () => ({ getMyWatchlist: vi.fn() }))
 
@@ -44,7 +44,7 @@ describe('puckConfig blocks', () => {
     mockUseAuth.mockReturnValue({ isAuthenticated: false, user: null })
     vi.mocked(getAuctions).mockResolvedValue({ items: [], total: 0, page: 1, size: 20, pages: 0 })
     vi.mocked(getFormMetadata).mockResolvedValue({ categories: [], conditions: [], biddingTypes: [], durations: [] })
-    vi.mocked(getPublicFeedback).mockResolvedValue([])
+    vi.mocked(getPublicTestimonials).mockResolvedValue([])
     vi.mocked(getMarketingVideoUrl).mockResolvedValue(null)
     vi.mocked(getMyWatchlist).mockResolvedValue({ items: [], listing_ids: [] })
   })
@@ -123,18 +123,17 @@ describe('puckConfig blocks', () => {
   })
 
   describe('TestimonialWall', () => {
-    it('renders nothing when there is no public feedback', async () => {
+    it('renders nothing when there are no featured testimonials', async () => {
       const { container } = renderBlock('TestimonialWall')
-      await waitFor(() => expect(getPublicFeedback).toHaveBeenCalled())
+      await waitFor(() => expect(getPublicTestimonials).toHaveBeenCalled())
       expect(container.querySelector('section')).toBeNull()
     })
 
-    it('renders testimonial cards when feedback exists', async () => {
-      vi.mocked(getPublicFeedback).mockResolvedValue([
+    it('renders testimonial cards when admin-featured testimonials exist', async () => {
+      vi.mocked(getPublicTestimonials).mockResolvedValue([
         {
-          id: 'f1', listing_id: 'l1', reviewer_id: 'u1', reviewee_id: 'u2', feedback_type_id: 'ft1',
-          rating: 4, comment: 'Great seller!', is_public: true, created_at: '2026-01-01',
-          reviewer: { id: 'u1', username: 'alice' }, reviewee: null, feedback_type: null, listing: null,
+          id: 't1', user_id: 'u1', content: 'Great seller!', rating: 4, is_featured: true,
+          created_at: '2026-01-01', user: { username: 'alice' },
         },
       ])
       renderBlock('TestimonialWall')

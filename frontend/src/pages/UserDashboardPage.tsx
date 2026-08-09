@@ -22,7 +22,11 @@ const mapListingToCard = (listing: AuctionListing) => ({
   currentBid: listing.current_price || 0,
   startingPrice: listing.starting_price || 0,
   endTime: new Date(listing.end_time),
-  seller: { name: 'Seller', rating: 5.0 },
+  seller: {
+    name: listing.seller?.username || 'Seller',
+    rating: listing.seller?.rating_avg ?? null,
+    ratingCount: listing.seller?.rating_count ?? 0,
+  },
   bids: 0,
   watchers: 0,
   status: listing.status,
@@ -38,7 +42,8 @@ const mapTrendingToCard = (listing: TrendingListing) => ({
   currentBid: listing.current_price || 0,
   startingPrice: listing.starting_price || 0,
   endTime: listing.end_time ? new Date(listing.end_time) : new Date(),
-  seller: { name: listing.seller?.username || 'Seller', rating: 5.0 },
+  // recommendation-engine's TrendingListing.seller only carries id/username, no rating data
+  seller: { name: listing.seller?.username || 'Seller', rating: null, ratingCount: 0 },
   bids: 0,
   watchers: 0,
   status: listing.status,

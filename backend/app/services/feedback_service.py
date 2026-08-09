@@ -1,7 +1,7 @@
 from typing import List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, exists
+from sqlalchemy import select, exists, func
 from fastapi import HTTPException
 
 from app.models.auction import FeedbackType, ItemFeedback, Listing, Bid, User
@@ -156,6 +156,25 @@ class FeedbackService:
         db.add(feedback)
         await db.commit()
         await db.refresh(feedback)
+
+        # Seller rating shown on listings is built only from buyer->seller feedback
+        # (reviewer_role == "buyer") -- seller->buyer feedback rates the buyer, not
+        # this reviewee's standing as a seller, so it's excluded from this aggregate.
+        if ft.reviewer_role == "buyer":
+            agg = await db.execute(
+                select(func.avg(ItemFeedback.rating), func.count(ItemFeedback.id))
+                .join(FeedbackType, ItemFeedback.feedback_type_id == FeedbackType.id)
+                .where(
+                    ItemFeedback.reviewee_id == data.reviewee_id,
+                    FeedbackType.reviewer_role == "buyer",
+                )
+            )
+            avg_rating, count = agg.one()
+            reviewee = await db.scalar(select(User).where(User.id == data.reviewee_id))
+            reviewee.rating_avg = float(avg_rating) if avg_rating is not None else None
+            reviewee.rating_count = count or 0
+            await db.commit()
+
         return feedback
 
     @staticmethod

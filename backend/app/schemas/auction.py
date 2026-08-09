@@ -84,6 +84,8 @@ class UserSellerResponse(BaseModel):
     id: UUID
     username: str
     email: str
+    rating_avg: Optional[float] = None
+    rating_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

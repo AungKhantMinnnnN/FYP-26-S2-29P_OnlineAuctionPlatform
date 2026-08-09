@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
-import { getPublicFeedback } from '../api/feedbackApi'
+import { getPublicTestimonials } from '../api/supportApi'
 import { getMarketingVideoUrl } from '../api/marketingApi'
 import { getMyWatchlist } from '../api/usersApi'
 import AuctionCard from '../components/AuctionCard'
@@ -200,44 +200,36 @@ const FeatureGrid = ({ heading, subheading, features }: FeatureGridProps) => (
 )
 
 // ── Testimonial wall (dynamic, no editable props) ──────────────────
+// Driven by admin-curated Testimonial records (TestimonialsSection.tsx's "Approve"
+// toggle), not raw feedback -- the backend already caps this to the 4 most recently
+// featured (TestimonialService.FEATURED_DISPLAY_LIMIT), so what shows here is exactly
+// what an admin chose to feature.
 const TestimonialWall = () => {
-  const { data: feedbackData } = useQuery({ queryKey: ['feedback', 'public'], queryFn: () => getPublicFeedback(8) })
-  const feedbackItems = feedbackData ?? []
+  const { data: testimonialData } = useQuery({ queryKey: ['testimonials', 'public'], queryFn: getPublicTestimonials })
+  const testimonials = testimonialData ?? []
 
-  if (feedbackItems.length === 0) return null
+  if (testimonials.length === 0) return null
 
   return (
     <section id="feedback" className="space-y-8">
       <div>
         <h2 className="text-xl font-bold text-slate-950">What Our Community Says</h2>
-        <p className="text-sm text-slate-500">Real feedback from buyers and sellers on the platform</p>
+        <p className="text-sm text-slate-500">Stories shared by buyers and sellers on the platform</p>
       </div>
       <div className="flex gap-6 overflow-x-auto pb-2 snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}>
-        {feedbackItems.map(f => (
-          <div key={f.id} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-shrink-0 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={15} className={i < f.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
-                ))}
-              </div>
-              {f.feedback_type && (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 rounded-full px-2.5 py-1">
-                  {f.feedback_type.name}
-                </span>
-              )}
+        {testimonials.map(t => (
+          <div key={t.id} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-shrink-0 flex flex-col">
+            <div className="flex gap-1 mb-4">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} size={15} className={i < t.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
+              ))}
             </div>
-            <p className="text-sm text-slate-950 italic leading-relaxed flex-1 mb-6">"{f.comment || 'No comment provided.'}"</p>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-accent-600/15 flex items-center justify-center text-accent-700 font-bold text-xs">
-                  {f.reviewer?.username?.[0]?.toUpperCase() ?? '?'}
-                </div>
-                <span className="text-xs font-semibold text-slate-950">{f.reviewer?.username ?? 'Anonymous'}</span>
+            <p className="text-sm text-slate-950 italic leading-relaxed flex-1 mb-6">"{t.content}"</p>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-accent-600/15 flex items-center justify-center text-accent-700 font-bold text-xs">
+                {t.user?.username?.[0]?.toUpperCase() ?? '?'}
               </div>
-              {f.listing && (
-                <span className="text-xs text-slate-400 truncate max-w-[140px]" title={f.listing.title}>{f.listing.title}</span>
-              )}
+              <span className="text-xs font-semibold text-slate-950">{t.user?.username ?? 'Anonymous'}</span>
             </div>
           </div>
         ))}

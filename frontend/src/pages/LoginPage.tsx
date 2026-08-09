@@ -56,11 +56,7 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
 
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" className="rounded border-slate-300 text-accent-600 focus:ring-accent-500" />
-              Remember me
-            </label>
+          <div className="flex items-center justify-end">
             <Link to="/forgot-password" className="text-sm font-medium text-accent-600 hover:text-accent-700">Forgot password?</Link>
           </div>
 
@@ -68,7 +64,6 @@ export default function LoginPage() {
             {localLoading ? 'Logging In...' : 'Log In'}
           </PrimaryButton>
         </form>
-        <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">Demo: bidder@auctionhub.test and seller@auctionhub.test both log in as marketplace users. Use admin@auctionhub.test for admin.</p>
 
         <p className="mt-4 text-center text-sm text-slate-600">
           Don't have an account? <Link to="/register" className="font-medium text-accent-600 hover:text-accent-700">Register</Link>
