@@ -119,7 +119,11 @@ const mapToCardType = (listing: AuctionListing) => ({
   currentBid: listing.current_price || 0,
   startingPrice: listing.starting_price || 0,
   endTime: new Date(listing.end_time),
-  seller: { name: 'Seller', rating: 5.0 },
+  seller: {
+    name: listing.seller?.username || 'Seller',
+    rating: listing.seller?.rating_avg ?? null,
+    ratingCount: listing.seller?.rating_count ?? 0,
+  },
   bids: 0,
   watchers: 0,
   status: listing.status,
