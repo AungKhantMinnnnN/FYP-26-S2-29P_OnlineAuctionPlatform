@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Image, Heart, Eye, Gavel } from 'lucide-react'
+import { Image, Heart, Eye, Gavel, Star } from 'lucide-react'
 import CountdownBadge from './CountdownBadge'
 import StatusBadge from './StatusBadge'
 import { useAuth } from '../context/AuthContext'
@@ -15,7 +15,7 @@ interface AuctionType {
   currentBid: number
   startingPrice: number
   endTime: Date
-  seller: { name: string; rating: number }
+  seller: { name: string; rating: number | null; ratingCount: number }
   bids: number
   watchers: number
   status: string
@@ -87,9 +87,20 @@ export default function AuctionCard({ auction, showWatchlist = true, isWatched =
       </div>
       <div className="p-4 flex-1 flex flex-col">
         <div className="text-xs font-medium text-slate-500 mb-1">{auction.category} • {auction.condition}</div>
-        <Link to={`/auction/${auction.id}`} className="font-semibold text-slate-950 text-sm leading-snug hover:text-accent-600 mb-3 line-clamp-2">
+        <Link to={`/auction/${auction.id}`} className="font-semibold text-slate-950 text-sm leading-snug hover:text-accent-600 mb-1 line-clamp-2">
           {auction.title}
         </Link>
+        <div className="mb-3 flex items-center gap-1 text-xs text-slate-500">
+          {auction.seller.ratingCount > 0 ? (
+            <>
+              <Star size={12} className="fill-amber-400 text-amber-400" />
+              <span className="font-medium text-slate-700">{auction.seller.rating!.toFixed(1)}</span>
+              <span>({auction.seller.ratingCount})</span>
+            </>
+          ) : (
+            <span>No reviews yet</span>
+          )}
+        </div>
         <div className="mt-auto">
           <div className="flex items-baseline gap-1 mb-2">
             <span className="text-xs text-slate-500">Current bid</span>

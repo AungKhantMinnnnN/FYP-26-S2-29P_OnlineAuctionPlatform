@@ -77,6 +77,8 @@ class User(Base):
     subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
     balance = Column(Float, default=0.0, nullable=False)
     avatar_key = Column(String)
+    rating_avg = Column(Float, nullable=True)
+    rating_count = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
@@ -269,6 +271,8 @@ class Dispute(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     resolved_at = Column(DateTime(timezone=True))
 
+    listing = relationship("Listing", foreign_keys=[listing_id], lazy="selectin")
+
 class Testimonial(Base):
     __tablename__ = "testimonials"
 
@@ -278,6 +282,8 @@ class Testimonial(Base):
     rating = Column(Integer, nullable=False)
     is_featured = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id], lazy="selectin")
 
 class AdminLog(Base):
     __tablename__ = "admin_logs"

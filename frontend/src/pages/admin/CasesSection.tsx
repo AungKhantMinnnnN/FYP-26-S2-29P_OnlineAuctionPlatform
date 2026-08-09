@@ -99,6 +99,9 @@ export default function CasesSection() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     {dispute.category} · {formatDate(dispute.created_at)}
                   </p>
+                  {dispute.listing && (
+                    <p className="mt-1 text-xs font-medium text-accent-700">Re: {dispute.listing.title}</p>
+                  )}
                 </div>
                 <StatusBadge status={dispute.status} />
               </div>

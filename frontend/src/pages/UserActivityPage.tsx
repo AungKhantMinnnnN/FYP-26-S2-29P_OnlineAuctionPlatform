@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Clock, DollarSign, Eye, Gavel, Heart, Package, PlusCircle, Trophy, TrendingUp } from 'lucide-react'
+import { Clock, DollarSign, Eye, Gavel, Heart, MessageSquareWarning, Package, PlusCircle, Star, ThumbsUp, Trophy, TrendingUp } from 'lucide-react'
 import DashboardStatCard from '../components/DashboardStatCard'
 import DataTable from '../components/DataTable'
+import Modal from '../components/Modal'
 import PrimaryButton from '../components/PrimaryButton'
 import StatusBadge from '../components/StatusBadge'
+import StyledSelect from '../components/StyledSelect'
 import { useAuth } from '../context/AuthContext'
 import { getMyListings, getSellerStats, type AuctionListing } from '../api/auctionsApi'
 import { getMyBids, getMyPurchases, type BidHistoryItem, type PurchaseItem } from '../api/usersApi'
+import {
+  getFeedbackTypes, checkFeedbackEligibility, submitFeedback, getMySubmittedFeedback,
+  type FeedbackType,
+} from '../api/feedbackApi'
+import { getIssueTypes, createSupportTicket, type IssueType } from '../api/supportApi'
 
 interface SellerStats {
   total_views: number
@@ -41,21 +48,54 @@ export default function UserActivityPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
+  // Listings the user has already left any feedback for, so a purchase row can show
+  // "Feedback submitted" instead of the button without a per-row API call.
+  const [feedbackedListingIds, setFeedbackedListingIds] = useState<Set<string>>(new Set())
+  const [feedbackTypes, setFeedbackTypes] = useState<FeedbackType[]>([])
+  const [issueTypes, setIssueTypes] = useState<IssueType[]>([])
+
+  // Leave-feedback modal
+  const [feedbackPurchase, setFeedbackPurchase] = useState<PurchaseItem | null>(null)
+  const [fbEligibleTypeIds, setFbEligibleTypeIds] = useState<string[]>([])
+  const [fbSubmittedTypeIds, setFbSubmittedTypeIds] = useState<string[]>([])
+  const [fbSellerId, setFbSellerId] = useState('')
+  const [fbTypeId, setFbTypeId] = useState('')
+  const [fbRating, setFbRating] = useState(5)
+  const [fbComment, setFbComment] = useState('')
+  const [fbLoadingEligibility, setFbLoadingEligibility] = useState(false)
+  const [fbSubmitting, setFbSubmitting] = useState(false)
+  const [fbError, setFbError] = useState('')
+
+  // Report-an-issue modal
+  const [issuePurchase, setIssuePurchase] = useState<PurchaseItem | null>(null)
+  const [issueTypeId, setIssueTypeId] = useState('')
+  const [issueSubject, setIssueSubject] = useState('')
+  const [issueDescription, setIssueDescription] = useState('')
+  const [issueSubmitting, setIssueSubmitting] = useState(false)
+  const [issueSubmitted, setIssueSubmitted] = useState(false)
+  const [issueError, setIssueError] = useState('')
+
   useEffect(() => {
     if (!user) return
     const fetchAll = async () => {
       setIsLoading(true)
       try {
-        const [listingsData, bidsData, purchasesData, statsData] = await Promise.all([
+        const [listingsData, bidsData, purchasesData, statsData, myFeedback, allIssueTypes, allFeedbackTypes] = await Promise.all([
           getMyListings({ size: 100 }),
           getMyBids({ size: 100 }),
           getMyPurchases({ size: 100 }),
           getSellerStats(),
+          getMySubmittedFeedback(),
+          getIssueTypes(),
+          getFeedbackTypes(),
         ])
         setListings(listingsData.items)
         setBids(bidsData.items)
         setPurchases(purchasesData.items)
         setStats(statsData)
+        setFeedbackedListingIds(new Set(myFeedback.map(f => f.listing_id)))
+        setIssueTypes(allIssueTypes)
+        setFeedbackTypes(allFeedbackTypes)
         setLoadError(false)
       } catch (err) {
         console.error('Failed to load activity', err)
@@ -66,6 +106,79 @@ export default function UserActivityPage() {
     }
     fetchAll()
   }, [user])
+
+  const openFeedbackModal = async (purchase: PurchaseItem) => {
+    setFeedbackPurchase(purchase)
+    setFbError('')
+    setFbComment('')
+    setFbRating(5)
+    setFbLoadingEligibility(true)
+    try {
+      const r = await checkFeedbackEligibility(purchase.listing_id)
+      setFbEligibleTypeIds(r.eligible_type_ids)
+      setFbSubmittedTypeIds(r.already_submitted_type_ids)
+      setFbSellerId(r.seller_id || '')
+      const firstEligible = r.eligible_type_ids.find(id => !r.already_submitted_type_ids.includes(id))
+      setFbTypeId(firstEligible ?? '')
+    } catch {
+      setFbError("Couldn't check your eligibility for this purchase. Please try again.")
+    } finally {
+      setFbLoadingEligibility(false)
+    }
+  }
+
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!feedbackPurchase || !fbTypeId || !fbSellerId) return
+    setFbError('')
+    setFbSubmitting(true)
+    try {
+      await submitFeedback({
+        listing_id: feedbackPurchase.listing_id,
+        reviewee_id: fbSellerId,
+        feedback_type_id: fbTypeId,
+        rating: fbRating,
+        comment: fbComment || undefined,
+      })
+      setFeedbackedListingIds(prev => new Set(prev).add(feedbackPurchase.listing_id))
+      setFeedbackPurchase(null)
+    } catch (err: any) {
+      setFbError(err?.response?.data?.detail || 'Unable to submit feedback. Please try again.')
+    } finally {
+      setFbSubmitting(false)
+    }
+  }
+
+  const openIssueModal = (purchase: PurchaseItem) => {
+    setIssuePurchase(purchase)
+    setIssueError('')
+    setIssueSubmitted(false)
+    setIssueSubject('')
+    setIssueDescription('')
+    setIssueTypeId(issueTypes[0]?.id ?? '')
+  }
+
+  const handleIssueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!issuePurchase || !issueTypeId) return
+    setIssueError('')
+    setIssueSubmitting(true)
+    try {
+      const selectedType = issueTypes.find(t => t.id === issueTypeId)
+      await createSupportTicket({
+        listing_id: issuePurchase.listing_id,
+        issue_type_id: issueTypeId,
+        subject: issueSubject,
+        category: selectedType?.name || 'Other',
+        description: issueDescription,
+      })
+      setIssueSubmitted(true)
+    } catch {
+      setIssueError('Unable to submit your report. Please try again.')
+    } finally {
+      setIssueSubmitting(false)
+    }
+  }
 
   const activeListings = listings.filter(l => l.status.toLowerCase() === 'active')
   const wonBids = bids.filter(b => b.result === 'won')
@@ -300,18 +413,189 @@ export default function UserActivityPage() {
               </button>,
               `$${p.final_price.toFixed(2)}`,
               new Date(p.ended_at).toLocaleDateString(),
-              <button
-                key={`v-${i}`}
-                onClick={() => navigate(`/auction/${p.listing_id}`)}
-                className="text-xs font-semibold text-accent-600 hover:underline"
-              >
-                View
-              </button>,
+              <div key={`a-${i}`} className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => navigate(`/auction/${p.listing_id}`)}
+                  className="text-xs font-semibold text-accent-600 hover:underline"
+                >
+                  View
+                </button>
+                {feedbackedListingIds.has(p.listing_id) ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                    <Star size={12} className="fill-emerald-600" /> Feedback submitted
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => openFeedbackModal(p)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-accent-600 hover:underline"
+                  >
+                    <ThumbsUp size={12} /> Leave Feedback
+                  </button>
+                )}
+                <button
+                  onClick={() => openIssueModal(p)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 hover:underline"
+                >
+                  <MessageSquareWarning size={12} /> Report an Issue
+                </button>
+              </div>,
             ])}
             emptyMessage="You haven't won any auctions yet."
           />
         )}
       </div>
+
+      <Modal isOpen={!!feedbackPurchase} onClose={() => setFeedbackPurchase(null)} title="Leave Feedback">
+        {feedbackPurchase && (
+          <form onSubmit={handleFeedbackSubmit} className="space-y-5">
+            <p className="text-sm text-slate-500">For <span className="font-semibold text-slate-800">{feedbackPurchase.listing_title}</span></p>
+
+            {fbLoadingEligibility ? (
+              <p className="text-sm text-slate-400">Checking eligibility…</p>
+            ) : fbEligibleTypeIds.length === 0 ? (
+              <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                You're not eligible to leave feedback for this purchase.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">Feedback Type</label>
+                  <div className="space-y-2">
+                    {feedbackTypes.filter(ft => fbEligibleTypeIds.includes(ft.id)).map(ft => {
+                      const alreadyDone = fbSubmittedTypeIds.includes(ft.id)
+                      return (
+                        <label
+                          key={ft.id}
+                          className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+                            alreadyDone
+                              ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-50'
+                              : fbTypeId === ft.id
+                                ? 'cursor-pointer border-accent-500 bg-accent-50'
+                                : 'cursor-pointer border-slate-200 hover:border-accent-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="fbType"
+                            value={ft.id}
+                            checked={fbTypeId === ft.id}
+                            disabled={alreadyDone}
+                            onChange={() => setFbTypeId(ft.id)}
+                            className="accent-accent-600"
+                          />
+                          <span className="text-sm font-medium text-slate-800">{ft.name}</span>
+                          {alreadyDone && <span className="ml-auto text-xs font-semibold text-emerald-600">Submitted</span>}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">Rating</label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(v => (
+                      <button key={v} type="button" onClick={() => setFbRating(v)} className={`rounded-xl p-1.5 ${v <= fbRating ? 'text-yellow-500' : 'text-slate-300'}`}>
+                        <Star size={22} fill="currentColor" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    Comment <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <textarea
+                    value={fbComment}
+                    onChange={e => setFbComment(e.target.value)}
+                    rows={3}
+                    placeholder="Share details about your experience…"
+                    className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                  />
+                </div>
+
+                {fbError && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{fbError}</div>}
+
+                <button
+                  type="submit"
+                  disabled={fbSubmitting || !fbTypeId}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <ThumbsUp size={16} />
+                  {fbSubmitting ? 'Submitting…' : 'Submit Feedback'}
+                </button>
+              </>
+            )}
+          </form>
+        )}
+      </Modal>
+
+      <Modal isOpen={!!issuePurchase} onClose={() => setIssuePurchase(null)} title="Report an Issue">
+        {issuePurchase && (
+          issueSubmitted ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-slate-600">
+                Your report has been submitted. Track its status under{' '}
+                <button onClick={() => navigate('/support?tab=tickets')} className="font-semibold text-accent-600 hover:underline">
+                  Support → My Tickets
+                </button>.
+              </p>
+              <button
+                onClick={() => setIssuePurchase(null)}
+                className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleIssueSubmit} className="space-y-5">
+              <p className="text-sm text-slate-500">About <span className="font-semibold text-slate-800">{issuePurchase.listing_title}</span></p>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">Issue Type</label>
+                <StyledSelect value={issueTypeId} onChange={e => setIssueTypeId(e.target.value)} required>
+                  {issueTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </StyledSelect>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">Subject</label>
+                <input
+                  value={issueSubject}
+                  onChange={e => setIssueSubject(e.target.value)}
+                  required
+                  placeholder="Briefly describe the issue"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">Description</label>
+                <textarea
+                  value={issueDescription}
+                  onChange={e => setIssueDescription(e.target.value)}
+                  required
+                  rows={4}
+                  placeholder="What went wrong with this order?"
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                />
+              </div>
+
+              {issueError && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{issueError}</div>}
+
+              <button
+                type="submit"
+                disabled={issueSubmitting || !issueTypeId}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <MessageSquareWarning size={16} />
+                {issueSubmitting ? 'Submitting…' : 'Submit Report'}
+              </button>
+            </form>
+          )
+        )}
+      </Modal>
     </div>
   )
 }

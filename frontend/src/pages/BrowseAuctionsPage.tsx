@@ -79,7 +79,11 @@ export default function BrowseAuctionsPage() {
     currentBid: listing.current_price || 0,
     startingPrice: listing.starting_price || 0,
     endTime: new Date(listing.end_time),
-    seller: { name: 'Seller', rating: 5.0 },
+    seller: {
+      name: listing.seller?.username || 'Seller',
+      rating: listing.seller?.rating_avg ?? null,
+      ratingCount: listing.seller?.rating_count ?? 0,
+    },
     bids: 0,
     watchers: 0,
     status: listing.status,
@@ -96,7 +100,8 @@ export default function BrowseAuctionsPage() {
     currentBid: item.current_price || 0,
     startingPrice: 0,
     endTime: item.end_time ? new Date(item.end_time) : new Date(),
-    seller: { name: 'Seller', rating: 5.0 },
+    // recommendation-engine's TrendingListing doesn't carry rating data
+    seller: { name: 'Seller', rating: null, ratingCount: 0 },
     bids: 0,
     watchers: 0,
     status: 'active',

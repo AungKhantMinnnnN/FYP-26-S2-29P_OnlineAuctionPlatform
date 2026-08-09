@@ -15,6 +15,12 @@ class TestimonialCreate(BaseModel):
         return v
 
 
+class TestimonialUserInfo(BaseModel):
+    username: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TestimonialResponse(BaseModel):
     id: UUID
     user_id: UUID
@@ -22,5 +28,6 @@ class TestimonialResponse(BaseModel):
     rating: int
     is_featured: bool
     created_at: datetime
+    user: Optional[TestimonialUserInfo] = None
 
     model_config = ConfigDict(from_attributes=True)

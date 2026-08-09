@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { getAuctions, getFormMetadata } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
-import { getPublicFeedback } from '../api/feedbackApi'
+import { getPublicTestimonials } from '../api/supportApi'
 import { getMarketingVideoUrl } from '../api/marketingApi'
 import { getMyWatchlist } from '../api/usersApi'
 import AuctionCard from '../components/AuctionCard'
@@ -40,11 +40,11 @@ export default function LandingPage() {
   })
   const watchlistIds = new Set(watchlistData?.listing_ids ?? [])
 
-  const { data: feedbackData } = useQuery({
-    queryKey: ['feedback', 'public'],
-    queryFn: () => getPublicFeedback(8)
+  const { data: testimonialData } = useQuery({
+    queryKey: ['testimonials', 'public'],
+    queryFn: getPublicTestimonials
   })
-  const feedbackItems = feedbackData ?? []
+  const testimonials = testimonialData ?? []
 
   const mapToCardType = (listing: AuctionListing) => ({
     id: listing.id,
@@ -54,7 +54,11 @@ export default function LandingPage() {
     currentBid: listing.current_price || 0,
     startingPrice: listing.starting_price || 0,
     endTime: new Date(listing.end_time),
-    seller: { name: 'Seller', rating: 5.0 },
+    seller: {
+      name: listing.seller?.username || 'Seller',
+      rating: listing.seller?.rating_avg ?? null,
+      ratingCount: listing.seller?.rating_count ?? 0,
+    },
     bids: 0,
     watchers: 0,
     status: listing.status,
@@ -242,12 +246,12 @@ export default function LandingPage() {
       </section>
 
       {/* ── 6. Community Feedback ── */}
-      {feedbackItems.length > 0 && (
+      {testimonials.length > 0 && (
       <section id="feedback" className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-950">What Our Community Says</h2>
-            <p className="text-sm text-slate-500">Real feedback from buyers and sellers on the platform</p>
+            <p className="text-sm text-slate-500">Stories shared by buyers and sellers on the platform</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -258,8 +262,8 @@ export default function LandingPage() {
               <ChevronLeft size={18} />
             </button>
             <button
-              onClick={() => scrollToTestimonial(Math.min(feedbackItems.length - 1, activeTestimonial + 1))}
-              disabled={activeTestimonial === feedbackItems.length - 1}
+              onClick={() => scrollToTestimonial(Math.min(testimonials.length - 1, activeTestimonial + 1))}
+              disabled={activeTestimonial === testimonials.length - 1}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:border-accent-200 hover:text-accent-600 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronRight size={18} />
@@ -273,42 +277,28 @@ export default function LandingPage() {
           className="flex gap-6 overflow-x-auto pb-2 snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none' }}
         >
-          {feedbackItems.map(f => (
-            <div key={f.id} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-shrink-0 flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={15} className={i < f.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
-                  ))}
-                </div>
-                {f.feedback_type && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 rounded-full px-2.5 py-1">
-                    {f.feedback_type.name}
-                  </span>
-                )}
+          {testimonials.map(t => (
+            <div key={t.id} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-shrink-0 flex flex-col">
+              <div className="flex gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} size={15} className={i < t.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
+                ))}
               </div>
               <p className="text-sm text-slate-950 italic leading-relaxed flex-1 mb-6">
-                "{f.comment || 'No comment provided.'}"
+                "{t.content}"
               </p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-accent-600/15 flex items-center justify-center text-accent-700 font-bold text-xs">
-                    {f.reviewer?.username?.[0]?.toUpperCase() ?? '?'}
-                  </div>
-                  <span className="text-xs font-semibold text-slate-950">{f.reviewer?.username ?? 'Anonymous'}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-accent-600/15 flex items-center justify-center text-accent-700 font-bold text-xs">
+                  {t.user?.username?.[0]?.toUpperCase() ?? '?'}
                 </div>
-                {f.listing && (
-                  <span className="text-xs text-slate-400 truncate max-w-[140px]" title={f.listing.title}>
-                    {f.listing.title}
-                  </span>
-                )}
+                <span className="text-xs font-semibold text-slate-950">{t.user?.username ?? 'Anonymous'}</span>
               </div>
             </div>
           ))}
         </div>
 
         <div className="flex items-center justify-center gap-2">
-          {feedbackItems.map((_, i) => (
+          {testimonials.map((_, i) => (
             <button
               key={i}
               onClick={() => scrollToTestimonial(i)}

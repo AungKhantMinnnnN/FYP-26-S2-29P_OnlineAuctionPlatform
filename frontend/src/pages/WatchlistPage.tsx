@@ -19,7 +19,7 @@ function toAuctionShape(item: WatchlistItem) {
     endTime: new Date(l.end_time),
     status: l.status,
     image: l.image_url ?? undefined,
-    seller: { name: '', rating: 0 },
+    seller: { name: '', rating: null, ratingCount: 0 },
     bids: 0,
     watchers: 0,
   }

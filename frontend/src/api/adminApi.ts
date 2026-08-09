@@ -133,6 +133,7 @@ export interface AdminDispute {
   resolution_note: string | null
   resolved_at: string | null
   created_at: string
+  listing: { id: string; title: string } | null
 }
 
 export interface DisputeRespondPayload {

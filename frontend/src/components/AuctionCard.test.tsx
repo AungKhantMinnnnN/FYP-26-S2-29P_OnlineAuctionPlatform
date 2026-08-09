@@ -33,7 +33,7 @@ const baseAuction = {
   currentBid: 120,
   startingPrice: 50,
   endTime: new Date(Date.now() + 3600_000),
-  seller: { name: 'Alice', rating: 4.8 },
+  seller: { name: 'Alice', rating: 4.8, ratingCount: 12 },
   bids: 3,
   watchers: 5,
   status: 'active',

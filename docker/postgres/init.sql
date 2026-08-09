@@ -24,6 +24,8 @@ CREATE TABLE users (
     subscription_expires_at TIMESTAMPTZ NULL,
     balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     avatar_key VARCHAR(500),
+    rating_avg DOUBLE PRECISION,
+    rating_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -31,6 +31,7 @@ export interface SupportTicketResponse {
   resolution_note: string | null
   resolved_at: string | null
   created_at: string
+  listing: { id: string; title: string } | null
 }
 
 export const createSupportTicket = async (
@@ -61,6 +62,7 @@ export interface TestimonialResponse {
   rating: number
   is_featured: boolean
   created_at: string
+  user: { username: string } | null
 }
 
 export const createTestimonial = async (

@@ -21,7 +21,11 @@ const mapListingToCard = (listing: AuctionListing) => ({
   currentBid: listing.current_price || 0,
   startingPrice: listing.starting_price || 0,
   endTime: new Date(listing.end_time),
-  seller: { name: 'Seller', rating: 5.0 },
+  seller: {
+    name: listing.seller?.username || 'Seller',
+    rating: listing.seller?.rating_avg ?? null,
+    ratingCount: listing.seller?.rating_count ?? 0,
+  },
   bids: 0,
   watchers: 0,
   status: listing.status,
@@ -99,7 +103,11 @@ export default function AuctionDetailPage() {
           currentBid: data.current_price,
           minIncrement: data.min_increment,
           endTime: data.end_time,
-          seller: { name: data.seller?.username || 'Unknown', rating: '5.0' }
+          seller: {
+            name: data.seller?.username || 'Unknown',
+            rating: data.seller?.rating_avg ?? null,
+            ratingCount: data.seller?.rating_count ?? 0,
+          }
         })
         setCurrentBid(data.current_price || data.starting_price || 0)
         setBidsPlaced(bidsData.length)
@@ -329,7 +337,11 @@ export default function AuctionDetailPage() {
               <User size={16} />
               <span className="font-medium">{auction.seller.name}</span>
               <span className="text-slate-400">•</span>
-              <span>{auction.seller.rating} ★</span>
+              <span>
+                {auction.seller.ratingCount > 0
+                  ? `${auction.seller.rating.toFixed(1)} ★ (${auction.seller.ratingCount})`
+                  : 'No reviews yet'}
+              </span>
             </div>
             <p className="text-slate-700 text-sm leading-relaxed">{auction.description}</p>
           </div>

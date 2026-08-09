@@ -1,40 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Clock,
-  CreditCard,
-  Eye,
-  HelpCircle,
-  LifeBuoy,
-  ListChecks,
-  MessageSquareHeart,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Wrench,
-  ThumbsUp,
+  Clock, CreditCard, HelpCircle, LifeBuoy, ListChecks, MessageSquareHeart,
+  Send, ShieldCheck, Sparkles, Star, Wrench,
 } from 'lucide-react'
 import {
-  createSupportTicket,
-  createTestimonial,
-  getIssueTypes,
-  getMyDisputes,
-  getMyTestimonials,
+  createSupportTicket, createTestimonial, getIssueTypes, getMyDisputes, getMyTestimonials,
 } from '../api/supportApi'
 import type { SupportTicketResponse, TestimonialResponse } from '../api/supportApi'
-import {
-  getFeedbackTypes,
-  checkFeedbackEligibility,
-  submitFeedback,
-  getMySubmittedFeedback,
-} from '../api/feedbackApi'
-import type { FeedbackType, FeedbackItem } from '../api/feedbackApi'
+import { getMyPurchases, type PurchaseItem } from '../api/usersApi'
 import { useAuth } from '../context/AuthContext'
-import { getMyBids } from '../api/usersApi'
 import StatusBadge from '../components/StatusBadge'
+import StyledSelect from '../components/StyledSelect'
 
-type TabType = 'support' | 'story' | 'feedback' | 'tickets' | 'stories' | 'my-feedback'
+type TopTab = 'new-case' | 'tickets'
+type StatusFilter = '' | 'open' | 'in_review' | 'resolved' | 'closed'
 
 function formatTicketDate(value: string): string {
   const date = new Date(value)
@@ -56,42 +36,47 @@ const sortIssueTypes = (issueTypes: { id: string; name: string }[]) => {
   })
 }
 
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: '', label: 'All' },
+  { value: 'open', label: 'Open' },
+  { value: 'in_review', label: 'In Review' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'closed', label: 'Closed' },
+]
+
 export default function SupportPage() {
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
-  const initialTab = searchParams.get('tab') === 'tickets' ? 'tickets' : 'support'
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab)
+  const initialTab: TopTab = searchParams.get('tab') === 'tickets' ? 'tickets' : 'new-case'
+  const [activeTab, setActiveTab] = useState<TopTab>(initialTab)
+  const navigate = useNavigate()
+
+  // New Case form state
   const [issueTypes, setIssueTypes] = useState<{ id: string; name: string }[]>([])
   const [selectedIssueTypeId, setSelectedIssueTypeId] = useState('')
   const [category, setCategory] = useState('')
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
-  const [testimonial, setTestimonial] = useState('')
-  const [rating, setRating] = useState(5)
+  const [purchases, setPurchases] = useState<PurchaseItem[]>([])
+  const [relatedListingId, setRelatedListingId] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingIssueTypes, setIsLoadingIssueTypes] = useState(true)
   const [error, setError] = useState('')
-  const navigate = useNavigate()
 
-  // Feedback tab state
-  const [feedbackTypes, setFeedbackTypes] = useState<FeedbackType[]>([])
-  const [biddedListings, setBiddedListings] = useState<{ id: string; title: string; seller_id: string }[]>([])
-  const [fbListingId, setFbListingId] = useState('')
-  const [fbRevieweeId, setFbRevieweeId] = useState('')
-  const [fbTypeId, setFbTypeId] = useState('')
-  const [fbRating, setFbRating] = useState(5)
-  const [fbComment, setFbComment] = useState('')
-  const [eligibleTypeIds, setEligibleTypeIds] = useState<string[]>([])
-  const [submittedTypeIds, setSubmittedTypeIds] = useState<string[]>([])
-  const [fbLoadingEligibility, setFbLoadingEligibility] = useState(false)
-  const [fbSuccess, setFbSuccess] = useState('')
-  const [feedbackDataError, setFeedbackDataError] = useState(false)
-  const [fbEligibilityError, setFbEligibilityError] = useState(false)
-
-  // My Tickets tab state
+  // My Tickets state
   const [tickets, setTickets] = useState<SupportTicketResponse[]>([])
   const [isLoadingTickets, setIsLoadingTickets] = useState(false)
   const [ticketsError, setTicketsError] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
+
+  // Share Story (secondary section) state
+  const [testimonial, setTestimonial] = useState('')
+  const [rating, setRating] = useState(5)
+  const [storySubmitting, setStorySubmitting] = useState(false)
+  const [storyError, setStoryError] = useState('')
+  const [myTestimonials, setMyTestimonials] = useState<TestimonialResponse[]>([])
+  const [isLoadingStories, setIsLoadingStories] = useState(false)
+  const [showStoryForm, setShowStoryForm] = useState(false)
 
   useEffect(() => {
     if (activeTab !== 'tickets' || !user) return
@@ -103,30 +88,11 @@ export default function SupportPage() {
       .finally(() => setIsLoadingTickets(false))
   }, [activeTab, user])
 
-  // My Stories tab state
-  const [myTestimonials, setMyTestimonials] = useState<TestimonialResponse[]>([])
-  const [isLoadingStories, setIsLoadingStories] = useState(false)
-
   useEffect(() => {
-    if (activeTab !== 'stories' || !user) return
+    if (!user) return
     setIsLoadingStories(true)
     getMyTestimonials().then(setMyTestimonials).catch(() => {}).finally(() => setIsLoadingStories(false))
-  }, [activeTab, user])
-
-  // My Feedback tab state
-  const [myFeedback, setMyFeedback] = useState<FeedbackItem[]>([])
-  const [isLoadingMyFeedback, setIsLoadingMyFeedback] = useState(false)
-  const [myFeedbackError, setMyFeedbackError] = useState('')
-
-  useEffect(() => {
-    if (activeTab !== 'my-feedback' || !user) return
-    setIsLoadingMyFeedback(true)
-    setMyFeedbackError('')
-    getMySubmittedFeedback()
-      .then(setMyFeedback)
-      .catch(() => setMyFeedbackError('Unable to load your feedback. Please try again.'))
-      .finally(() => setIsLoadingMyFeedback(false))
-  }, [activeTab, user])
+  }, [user])
 
   useEffect(() => {
     const loadIssueTypes = async () => {
@@ -150,78 +116,27 @@ export default function SupportPage() {
 
   useEffect(() => {
     if (!user) return
-    const loadFeedbackData = async () => {
-      setFeedbackDataError(false)
-      try {
-        const [types, bids] = await Promise.all([
-          getFeedbackTypes(),
-          getMyBids({ size: 100 }),
-        ])
-        setFeedbackTypes(types)
-        const seen = new Set<string>()
-        const listings: { id: string; title: string; seller_id: string }[] = []
-        for (const b of bids.items) {
-          if (!seen.has(b.listing_id)) {
-            seen.add(b.listing_id)
-            listings.push({ id: b.listing_id, title: b.listing_title, seller_id: '' })
-          }
-        }
-        setBiddedListings(listings)
-      } catch (err) {
-        console.error('Failed to load feedback data:', err)
-        setFeedbackDataError(true)
-      }
-    }
-    loadFeedbackData()
+    getMyPurchases({ size: 100 }).then(r => setPurchases(r.items)).catch(() => {})
   }, [user])
-
-  useEffect(() => {
-    if (!fbListingId || !user) return
-    setFbLoadingEligibility(true)
-    setEligibleTypeIds([])
-    setSubmittedTypeIds([])
-    setFbTypeId('')
-    setFbEligibilityError(false)
-    checkFeedbackEligibility(fbListingId)
-      .then(r => {
-        setEligibleTypeIds(r.eligible_type_ids)
-        setSubmittedTypeIds(r.already_submitted_type_ids)
-        const firstEligible = r.eligible_type_ids.find(id => !r.already_submitted_type_ids.includes(id))
-        setFbTypeId(firstEligible ?? '')
-        if (r.seller_id) setFbRevieweeId(r.seller_id)
-      })
-      .catch(err => {
-        console.error(err)
-        setFbEligibilityError(true)
-      })
-      .finally(() => setFbLoadingEligibility(false))
-  }, [fbListingId, user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    if (activeTab === 'support' && !selectedIssueTypeId) {
+    if (!selectedIssueTypeId) {
       setError('Please select an issue type before submitting.')
       return
     }
-
     setIsSubmitting(true)
     try {
-      if (activeTab === 'support') {
-        const selectedIssueType = issueTypes.find(t => t.id === selectedIssueTypeId)
-        const result = await createSupportTicket({
-          listing_id: null,
-          issue_type_id: selectedIssueTypeId,
-          subject,
-          category: selectedIssueType?.name || category,
-          description,
-        })
-        navigate('/support/success', { state: result })
-      } else if (activeTab === 'story') {
-        const result = await createTestimonial({ content: testimonial, rating })
-        navigate('/testimonial/success', { state: result })
-      }
+      const selectedIssueType = issueTypes.find((t) => t.id === selectedIssueTypeId)
+      const result = await createSupportTicket({
+        listing_id: relatedListingId || null,
+        issue_type_id: selectedIssueTypeId,
+        subject,
+        category: selectedIssueType?.name || category,
+        description,
+      })
+      navigate('/support/success', { state: result })
     } catch (err) {
       console.error(err)
       setError('Unable to submit your request. Please check your connection or try again.')
@@ -230,53 +145,27 @@ export default function SupportPage() {
     }
   }
 
-  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+  const handleStorySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setFbSuccess('')
-    if (!fbListingId || !fbTypeId || !fbRevieweeId) {
-      setError('Please select a listing and feedback type.')
-      return
-    }
-    setIsSubmitting(true)
+    setStoryError('')
+    setStorySubmitting(true)
     try {
-      await submitFeedback({
-        listing_id: fbListingId,
-        reviewee_id: fbRevieweeId,
-        feedback_type_id: fbTypeId,
-        rating: fbRating,
-        comment: fbComment || undefined,
-      })
-      setFbSuccess('Your feedback has been submitted successfully!')
-      setFbComment('')
-      setFbRating(5)
-      // Refresh eligibility to show this type as already submitted
-      const r = await checkFeedbackEligibility(fbListingId)
-      setEligibleTypeIds(r.eligible_type_ids)
-      setSubmittedTypeIds(r.already_submitted_type_ids)
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Unable to submit feedback. Please try again.')
+      const result = await createTestimonial({ content: testimonial, rating })
+      navigate('/testimonial/success', { state: result })
+    } catch (err) {
+      console.error(err)
+      setStoryError('Unable to submit your story. Please check your connection or try again.')
     } finally {
-      setIsSubmitting(false)
+      setStorySubmitting(false)
     }
   }
 
+  const filteredTickets = statusFilter ? tickets.filter((t) => t.status === statusFilter) : tickets
+
   const helpCards = [
-    {
-      title: 'General Questions',
-      text: 'Find help for account, auction, and browsing questions.',
-      icon: HelpCircle,
-    },
-    {
-      title: 'Payment Issues',
-      text: 'Get support for wallet top-ups, refunds, or failed payments.',
-      icon: CreditCard,
-    },
-    {
-      title: 'Technical Support',
-      text: 'Report bugs, website errors, or bidding problems.',
-      icon: Wrench,
-    },
+    { title: 'General Questions', text: 'Find help for account, auction, and browsing questions.', icon: HelpCircle },
+    { title: 'Payment Issues', text: 'Get support for wallet top-ups, refunds, or failed payments.', icon: CreditCard },
+    { title: 'Technical Support', text: 'Report bugs, website errors, or bidding problems.', icon: Wrench },
   ]
 
   return (
@@ -296,8 +185,11 @@ export default function SupportPage() {
           </h1>
 
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-            Our support team is ready to help. Submit a support request or share
-            your experience with AuctionHub.
+            Have an issue with a specific order? Report it right from your{' '}
+            <button onClick={() => navigate('/activity')} className="font-semibold text-accent-600 hover:underline">
+              Purchase History
+            </button>
+            . For anything else — account, payments, or general questions — start a case below.
           </p>
         </div>
 
@@ -355,453 +247,180 @@ export default function SupportPage() {
           </aside>
 
           <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
-            <div className="mb-6 space-y-3">
-              <div>
-                <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">Submit</p>
-                <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100 p-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab('support'); setError('') }}
-                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                      activeTab === 'support' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <LifeBuoy size={16} />
-                      <span className="hidden sm:inline">Support Case</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab('story'); setError('') }}
-                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                      activeTab === 'story' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <MessageSquareHeart size={16} />
-                      <span className="hidden sm:inline">Share Story</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab('feedback'); setError(''); setFbSuccess('') }}
-                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                      activeTab === 'feedback' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <ThumbsUp size={16} />
-                      <span className="hidden sm:inline">Leave Feedback</span>
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">View Your Submissions</p>
-                <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100 p-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab('tickets'); setError('') }}
-                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                      activeTab === 'tickets' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <ListChecks size={16} />
-                      <span className="hidden sm:inline">My Tickets</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab('stories'); setError('') }}
-                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                      activeTab === 'stories' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <Star size={16} />
-                      <span className="hidden sm:inline">My Stories</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab('my-feedback'); setError('') }}
-                    className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                      activeTab === 'my-feedback' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <Eye size={16} />
-                      <span className="hidden sm:inline">My Feedback</span>
-                    </span>
-                  </button>
-                </div>
-              </div>
+            <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('new-case')}
+                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                  activeTab === 'new-case' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Send size={16} />
+                  New Case
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('tickets')}
+                className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                  activeTab === 'tickets' ? 'bg-white text-accent-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <ListChecks size={16} />
+                  My Tickets{tickets.length > 0 && ` (${tickets.length})`}
+                </span>
+              </button>
             </div>
 
             {activeTab === 'tickets' ? (
-              /* ── My Tickets tab ──────────────────────────────────────────── */
+              /* ── My Tickets ──────────────────────────────────────────────── */
               !user ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
                   <ListChecks size={40} className="text-slate-300" />
                   <p className="text-sm text-slate-500">Sign in to view your support tickets.</p>
                 </div>
-              ) : isLoadingTickets ? (
-                <p className="py-12 text-center text-sm text-slate-400">Loading your tickets…</p>
-              ) : ticketsError ? (
-                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-                  {ticketsError}
-                </div>
-              ) : tickets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <ListChecks size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">You haven't submitted any support tickets yet.</p>
-                </div>
               ) : (
-                <div className="space-y-3">
-                  {tickets.map(ticket => (
-                    <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-bold text-slate-900">{ticket.subject || ticket.category}</p>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{ticket.category}</p>
-                        </div>
-                        <StatusBadge status={ticket.status} />
-                      </div>
-
-                      <p className="mt-3 text-sm leading-6 text-slate-600">{ticket.description}</p>
-
-                      <p className="mt-3 text-xs text-slate-400">Submitted {formatTicketDate(ticket.created_at)}</p>
-
-                      {ticket.resolution_note && (
-                        <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
-                          <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">Response from support</p>
-                          <p className="mt-1 leading-6">{ticket.resolution_note}</p>
-                          {ticket.resolved_at && (
-                            <p className="mt-1 text-xs text-emerald-600">{formatTicketDate(ticket.resolved_at)}</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : activeTab === 'stories' ? (
-              /* ── My Stories tab ──────────────────────────────────────────── */
-              !user ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <Star size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">Sign in to view your submitted stories.</p>
-                </div>
-              ) : isLoadingStories ? (
-                <p className="py-12 text-center text-sm text-slate-400">Loading your stories…</p>
-              ) : myTestimonials.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <Star size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">You haven't shared a story yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {myTestimonials.map(t => (
-                    <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} size={14} className={i < t.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
-                          ))}
-                        </div>
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${t.is_featured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                          {t.is_featured ? 'Approved' : 'Pending Review'}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-slate-600">{t.content}</p>
-                      <p className="mt-2 text-xs text-slate-400">Submitted {formatTicketDate(t.created_at)}</p>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : activeTab === 'my-feedback' ? (
-              /* ── My Feedback tab ─────────────────────────────────────────── */
-              !user ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <Eye size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">Sign in to view feedback you've submitted.</p>
-                </div>
-              ) : isLoadingMyFeedback ? (
-                <p className="py-12 text-center text-sm text-slate-400">Loading your feedback…</p>
-              ) : myFeedbackError ? (
-                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-                  {myFeedbackError}
-                </div>
-              ) : myFeedback.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <Eye size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">You haven't submitted any feedback yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {myFeedback.map(f => (
-                    <div key={f.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-bold text-slate-900">{f.listing?.title ?? 'Listing'}</p>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            {f.feedback_type?.name ?? 'Feedback'} {f.reviewee ? `· for ${f.reviewee.username}` : ''}
-                          </p>
-                        </div>
-                        <div className="flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} size={14} className={i < f.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
-                          ))}
-                        </div>
-                      </div>
-                      {f.comment && <p className="mt-3 text-sm leading-6 text-slate-600">{f.comment}</p>}
-                      <p className="mt-2 text-xs text-slate-400">Submitted {formatTicketDate(f.created_at)}</p>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : activeTab === 'feedback' ? (
-              /* ── Feedback tab ────────────────────────────────────────────── */
-              !user ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <ThumbsUp size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">Sign in to leave feedback for buyers or sellers.</p>
-                </div>
-              ) : feedbackDataError ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <ThumbsUp size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">Couldn't load your auction history. Please refresh and try again.</p>
-                </div>
-              ) : biddedListings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                  <ThumbsUp size={40} className="text-slate-300" />
-                  <p className="text-sm text-slate-500">You haven't participated in any auctions yet.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleFeedbackSubmit} className="space-y-6">
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">Select Auction</label>
-                    <select
-                      value={fbListingId}
-                      onChange={e => { setFbListingId(e.target.value); setFbSuccess('') }}
-                      required
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                    >
-                      <option value="">-- Choose an auction --</option>
-                      {biddedListings.map(l => (
-                        <option key={l.id} value={l.id}>{l.title}</option>
-                      ))}
-                    </select>
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    {STATUS_FILTERS.map((f) => (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setStatusFilter(f.value)}
+                        className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                          statusFilter === f.value
+                            ? 'bg-accent-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
                   </div>
 
-                  {fbListingId && (
-                    fbLoadingEligibility ? (
-                      <p className="text-sm text-slate-400">Checking eligibility…</p>
-                    ) : fbEligibilityError ? (
-                      <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                        Couldn't check your eligibility for this auction. Please try again.
-                      </div>
-                    ) : eligibleTypeIds.length === 0 ? (
-                      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                        You are not eligible to leave feedback for this auction.
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <label className="mb-2 block text-sm font-bold text-slate-700">Feedback Type</label>
-                          <div className="space-y-2">
-                            {feedbackTypes
-                              .filter(ft => eligibleTypeIds.includes(ft.id))
-                              .map(ft => {
-                                const alreadyDone = submittedTypeIds.includes(ft.id)
-                                return (
-                                  <label
-                                    key={ft.id}
-                                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition ${
-                                      alreadyDone
-                                        ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-50'
-                                        : fbTypeId === ft.id
-                                          ? 'border-accent-500 bg-accent-50'
-                                          : 'border-slate-200 hover:border-accent-300'
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name="fbType"
-                                      value={ft.id}
-                                      checked={fbTypeId === ft.id}
-                                      disabled={alreadyDone}
-                                      onChange={() => setFbTypeId(ft.id)}
-                                      className="accent-accent-600"
-                                    />
-                                    <span className="text-sm font-medium text-slate-800">{ft.name}</span>
-                                    {alreadyDone && (
-                                      <span className="ml-auto text-xs font-semibold text-emerald-600">Submitted</span>
-                                    )}
-                                  </label>
-                                )
-                              })}
+                  {isLoadingTickets ? (
+                    <p className="py-12 text-center text-sm text-slate-400">Loading your tickets…</p>
+                  ) : ticketsError ? (
+                    <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                      {ticketsError}
+                    </div>
+                  ) : filteredTickets.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                      <ListChecks size={40} className="text-slate-300" />
+                      <p className="text-sm text-slate-500">
+                        {tickets.length === 0 ? "You haven't submitted any support tickets yet." : 'No tickets match this filter.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredTickets.map((ticket) => (
+                        <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="font-bold text-slate-900">{ticket.subject || ticket.category}</p>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{ticket.category}</p>
+                              {ticket.listing && (
+                                <p className="mt-1 text-xs font-medium text-accent-700">Re: {ticket.listing.title}</p>
+                              )}
+                            </div>
+                            <StatusBadge status={ticket.status} />
                           </div>
+
+                          <p className="mt-3 text-sm leading-6 text-slate-600">{ticket.description}</p>
+
+                          <p className="mt-3 text-xs text-slate-400">Submitted {formatTicketDate(ticket.created_at)}</p>
+
+                          {ticket.resolution_note && (
+                            <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+                              <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">Response from support</p>
+                              <p className="mt-1 leading-6">{ticket.resolution_note}</p>
+                              {ticket.resolved_at && (
+                                <p className="mt-1 text-xs text-emerald-600">{formatTicketDate(ticket.resolved_at)}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold text-slate-700">Rating</label>
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4, 5].map(v => (
-                              <button
-                                key={v}
-                                type="button"
-                                onClick={() => setFbRating(v)}
-                                className={`rounded-xl p-1.5 ${v <= fbRating ? 'text-yellow-500' : 'text-slate-300'}`}
-                              >
-                                <Star size={24} fill="currentColor" />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-sm font-bold text-slate-700">
-                            Comment <span className="font-normal text-slate-400">(optional)</span>
-                          </label>
-                          <textarea
-                            value={fbComment}
-                            onChange={e => setFbComment(e.target.value)}
-                            rows={4}
-                            placeholder="Share details about your experience…"
-                            className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                          />
-                        </div>
-
-                        {fbSuccess && (
-                          <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                            {fbSuccess}
-                          </div>
-                        )}
-                        {error && (
-                          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-                            {error}
-                          </div>
-                        )}
-
-                        <button
-                          type="submit"
-                          disabled={isSubmitting || !fbTypeId}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <ThumbsUp size={17} />
-                          {isSubmitting ? 'Submitting…' : 'Submit Feedback'}
-                        </button>
-                      </>
-                    )
+                      ))}
+                    </div>
                   )}
-                </form>
+                </div>
               )
             ) : (
-              /* ── Support / Story tabs ────────────────────────────────────── */
-              <>
+              /* ── New Case ────────────────────────────────────────────────── */
               <form onSubmit={handleSubmit} className="space-y-6">
-                {activeTab === 'support' ? (
-                  <>
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-slate-700">
-                        Issue Type
-                      </label>
-                      <select
-                        value={selectedIssueTypeId}
-                        onChange={(e) => {
-                          const selectedId = e.target.value
-                          const selectedType = issueTypes.find(
-                            (type) => type.id === selectedId
-                          )
-                          setSelectedIssueTypeId(selectedId)
-                          setCategory(selectedType?.name || '')
-                        }}
-                        required
-                        disabled={isLoadingIssueTypes}
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        {isLoadingIssueTypes ? (
-                          <option value="">Loading issue types...</option>
-                        ) : issueTypes.length === 0 ? (
-                          <option value="">No issue types available</option>
-                        ) : (
-                          issueTypes.map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.name}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-slate-700">
-                        Subject
-                      </label>
-                      <input
-                        value={subject}
-                        onChange={(e) => setSubject(e.target.value)}
-                        required
-                        placeholder="Briefly describe your issue"
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-slate-700">
-                        Description
-                      </label>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        required
-                        rows={6}
-                        placeholder="Tell us more about the problem..."
-                        className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-slate-700">
-                        Rating
-                      </label>
-                      <div className="flex gap-2">
-                        {[1, 2, 3, 4, 5].map((value) => (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => setRating(value)}
-                            className={`rounded-xl p-2 ${
-                              value <= rating ? 'text-yellow-500' : 'text-slate-300'
-                            }`}
-                          >
-                            <Star size={24} fill="currentColor" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-slate-700">
-                        Your Story
-                      </label>
-                      <textarea
-                        value={testimonial}
-                        onChange={(e) => setTestimonial(e.target.value)}
-                        required
-                        rows={7}
-                        placeholder="Share your experience using AuctionHub..."
-                        className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
-                      />
-                    </div>
-                  </>
+                {purchases.length > 0 && (
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-700">
+                      Related order <span className="font-normal text-slate-400">(optional)</span>
+                    </label>
+                    <StyledSelect value={relatedListingId} onChange={(e) => setRelatedListingId(e.target.value)}>
+                      <option value="">Not related to a specific order</option>
+                      {purchases.map((p) => (
+                        <option key={p.listing_id} value={p.listing_id}>{p.listing_title}</option>
+                      ))}
+                    </StyledSelect>
+                  </div>
                 )}
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    Issue Type
+                  </label>
+                  <StyledSelect
+                    value={selectedIssueTypeId}
+                    onChange={(e) => {
+                      const selectedId = e.target.value
+                      const selectedType = issueTypes.find(
+                        (type) => type.id === selectedId
+                      )
+                      setSelectedIssueTypeId(selectedId)
+                      setCategory(selectedType?.name || '')
+                    }}
+                    required
+                    disabled={isLoadingIssueTypes}
+                  >
+                    {isLoadingIssueTypes ? (
+                      <option value="">Loading issue types...</option>
+                    ) : issueTypes.length === 0 ? (
+                      <option value="">No issue types available</option>
+                    ) : (
+                      issueTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.name}
+                        </option>
+                      ))
+                    )}
+                  </StyledSelect>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    Subject
+                  </label>
+                  <input
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    required
+                    placeholder="Briefly describe your issue"
+                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                    rows={6}
+                    placeholder="Tell us more about the problem..."
+                    className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                  />
+                </div>
 
                 {error && (
                   <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
@@ -820,24 +439,117 @@ export default function SupportPage() {
 
                 <button
                   type="submit"
-                  disabled={
-                    isSubmitting ||
-                    (activeTab === 'support' &&
-                      (isLoadingIssueTypes || !selectedIssueTypeId))
-                  }
+                  disabled={isSubmitting || isLoadingIssueTypes || !selectedIssueTypeId}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Send size={17} />
-                  {isSubmitting
-                    ? 'Submitting...'
-                    : activeTab === 'support'
-                      ? 'Submit Support Case'
-                      : 'Submit Testimonial'}
+                  {isSubmitting ? 'Submitting...' : 'Submit Support Case'}
                 </button>
               </form>
-              </>
             )}
           </section>
+        </div>
+
+        {/* ── Share Your Story — secondary, not a support ticket ── */}
+        <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
+                <MessageSquareHeart size={18} />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-950">Share Your Story</h2>
+                <p className="text-sm text-slate-500">Tell other users what you love about AuctionHub</p>
+              </div>
+            </div>
+            {user && (
+              <button
+                type="button"
+                onClick={() => setShowStoryForm((s) => !s)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {showStoryForm ? 'Cancel' : 'Write a story'}
+              </button>
+            )}
+          </div>
+
+          {!user ? (
+            <p className="mt-4 text-sm text-slate-500">Sign in to share your story.</p>
+          ) : showStoryForm ? (
+            <form onSubmit={handleStorySubmit} className="mt-5 space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  Rating
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setRating(value)}
+                      className={`rounded-xl p-2 ${
+                        value <= rating ? 'text-yellow-500' : 'text-slate-300'
+                      }`}
+                    >
+                      <Star size={24} fill="currentColor" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-700">
+                  Your Story
+                </label>
+                <textarea
+                  value={testimonial}
+                  onChange={(e) => setTestimonial(e.target.value)}
+                  required
+                  rows={5}
+                  placeholder="Share your experience using AuctionHub..."
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-accent-500 focus:ring-4 focus:ring-accent-500/15"
+                />
+              </div>
+
+              {storyError && (
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                  {storyError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={storySubmitting}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-600 px-5 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Send size={16} />
+                {storySubmitting ? 'Submitting...' : 'Submit Story'}
+              </button>
+            </form>
+          ) : isLoadingStories ? (
+            <p className="mt-4 text-sm text-slate-400">Loading your stories…</p>
+          ) : myTestimonials.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500">You haven't shared a story yet.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {myTestimonials.map((t) => (
+                <div key={t.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={14} className={i < t.rating ? 'fill-accent-600 text-accent-600' : 'text-slate-200 fill-slate-200'} />
+                      ))}
+                    </div>
+                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${t.is_featured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {t.is_featured ? 'Featured on landing page' : 'Pending Review'}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{t.content}</p>
+                  <p className="mt-2 text-xs text-slate-400">Submitted {formatTicketDate(t.created_at)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

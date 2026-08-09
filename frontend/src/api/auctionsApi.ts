@@ -8,9 +8,18 @@ export interface ListingImage {
   image_url?: string;
 }
 
+export interface ListingSeller {
+  id: string;
+  username: string;
+  email: string;
+  rating_avg: number | null;
+  rating_count: number;
+}
+
 export interface AuctionListing {
   id: string;
   seller_id: string;
+  seller?: ListingSeller;
   category_id?: string;
   title: string;
   description?: string;
