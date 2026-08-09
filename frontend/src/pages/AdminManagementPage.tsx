@@ -13,6 +13,7 @@ import CasesSection from './admin/CasesSection'
 import TestimonialsSection from './admin/TestimonialsSection'
 import ModerationSection from './admin/ModerationSection'
 import MarketingSection from './admin/MarketingSection'
+import PolicyContentSection from './admin/PolicyContentSection'
 
 export default function AdminManagementPage() {
   const { section = 'users' } = useParams<{
@@ -133,6 +134,30 @@ export default function AdminManagementPage() {
           subtitle="Manage the hero video shown on the public landing page."
         />
         <MarketingSection />
+      </div>
+    )
+  }
+
+  if (section === 'privacy') {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Privacy Policy"
+          subtitle="Edit the sections shown on the public Privacy Policy page."
+        />
+        <PolicyContentSection page="privacy" />
+      </div>
+    )
+  }
+
+  if (section === 'terms') {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Terms of Service"
+          subtitle="Edit the sections shown on the public Terms of Service page."
+        />
+        <PolicyContentSection page="terms" />
       </div>
     )
   }

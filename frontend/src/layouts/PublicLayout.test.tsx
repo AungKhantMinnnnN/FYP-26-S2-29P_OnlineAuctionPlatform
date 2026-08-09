@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import PublicLayout from './PublicLayout'
 
@@ -32,9 +32,13 @@ describe('PublicLayout', () => {
   })
 
   it('renders footer links to the right routes', () => {
-    renderLayout()
-    expect(screen.getByRole('link', { name: 'Sell an Item' })).toHaveAttribute('href', '/register')
-    expect(screen.getAllByRole('link', { name: /Live Auctions|Categories/ })[0]).toHaveAttribute('href', '/browse')
+    const { container } = renderLayout()
+    const footer = container.querySelector('footer')!
+    expect(within(footer).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/')
+    expect(within(footer).getAllByRole('link', { name: /Browse Auctions|Categories/ })[0]).toHaveAttribute('href', '/browse')
+    expect(within(footer).getByRole('link', { name: 'Sign In' })).toHaveAttribute('href', '/login')
+    expect(within(footer).getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy')
+    expect(within(footer).getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/terms')
   })
 
   it('renders the current year in the copyright line', () => {

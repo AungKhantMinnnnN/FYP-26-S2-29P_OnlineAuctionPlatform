@@ -21,13 +21,13 @@ export default function PublicLayout() {
               <p className="text-xs text-slate-400">PDPA Compliant &middot; Secure Bidding &middot; C2C Marketplace</p>
             </div>
 
-            {/* Marketplace Column */}
+            {/* Explore Column */}
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-950 mb-4">Marketplace</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-950 mb-4">Explore</h4>
               <ul className="space-y-3 text-sm text-slate-500">
-                <li><Link to="/browse" className="transition-colors hover:text-accent-600">Live Auctions</Link></li>
+                <li><Link to="/" className="transition-colors hover:text-accent-600">Home</Link></li>
+                <li><Link to="/browse" className="transition-colors hover:text-accent-600">Browse Auctions</Link></li>
                 <li><Link to="/browse" className="transition-colors hover:text-accent-600">Categories</Link></li>
-                <li><Link to="/register" className="transition-colors hover:text-accent-600">Sell an Item</Link></li>
                 <li><Link to="/login" className="transition-colors hover:text-accent-600">Sign In</Link></li>
               </ul>
             </div>
@@ -38,8 +38,6 @@ export default function PublicLayout() {
               <ul className="space-y-3 text-sm text-slate-500">
                 <li className="flex items-center gap-2"><MapPin size={14} className="text-slate-400 flex-shrink-0" /> Singapore</li>
                 <li className="flex items-center gap-2"><Mail size={14} className="text-slate-400 flex-shrink-0" /> support@auctionhub.sg</li>
-                <li><Link to="/support" className="transition-colors hover:text-accent-600">Help Center</Link></li>
-                <li><Link to="/support" className="transition-colors hover:text-accent-600">Trust & Safety</Link></li>
               </ul>
             </div>
           </div>
@@ -50,8 +48,8 @@ export default function PublicLayout() {
           <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-400">
             <p>&copy; {new Date().getFullYear()} AuctionHub Inc. All rights reserved.</p>
             <div className="flex gap-4">
-              <span>Privacy Policy</span>
-              <span>Terms of Service</span>
+              <Link to="/privacy" className="transition-colors hover:text-accent-600">Privacy Policy</Link>
+              <Link to="/terms" className="transition-colors hover:text-accent-600">Terms of Service</Link>
             </div>
           </div>
         </div>

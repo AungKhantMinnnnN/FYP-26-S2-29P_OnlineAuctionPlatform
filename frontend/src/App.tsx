@@ -30,6 +30,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import SupportPage from './pages/SupportPage'
 import SupportSuccessPage from './pages/SupportSuccessPage'
 import TestimonialSuccessPage from './pages/TestimonialSuccessPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import TermsOfServicePage from './pages/TermsOfServicePage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +59,8 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsOfServicePage />} />
           </Route>
           
           {/* Onboarding (protected, standalone — no dashboard layout) */}
