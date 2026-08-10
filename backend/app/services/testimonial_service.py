@@ -7,19 +7,16 @@ from fastapi import HTTPException
 from app.models.auction import Testimonial
 from app.schemas.testimonials import TestimonialCreate
 
-# How many admin-featured testimonials show on the public landing page. Admin curates
-# the pool by toggling is_featured; this cap is what turns that toggle into "pick 3-4".
-FEATURED_DISPLAY_LIMIT = 4
-
 
 class TestimonialService:
     @staticmethod
     async def get_featured(db: AsyncSession) -> List[Testimonial]:
+        # No cap: the landing page shows every admin-featured testimonial in a
+        # horizontally scrollable row, so the is_featured toggle is the only gate.
         result = await db.execute(
             select(Testimonial)
             .where(Testimonial.is_featured.is_(True))
             .order_by(Testimonial.created_at.desc())
-            .limit(FEATURED_DISPLAY_LIMIT)
         )
         return result.scalars().all()
 
