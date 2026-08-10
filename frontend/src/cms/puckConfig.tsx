@@ -205,9 +205,8 @@ const FeatureGrid = ({ heading, subheading, features }: FeatureGridProps) => (
 
 // ── Testimonial wall (dynamic, no editable props) ──────────────────
 // Driven by admin-curated Testimonial records (TestimonialsSection.tsx's "Approve"
-// toggle), not raw feedback -- the backend already caps this to the 4 most recently
-// featured (TestimonialService.FEATURED_DISPLAY_LIMIT), so what shows here is exactly
-// what an admin chose to feature.
+// toggle) -- every featured testimonial shows here, no cap, scrolling horizontally
+// with a visible scrollbar instead of paging through a fixed set.
 const TestimonialWall = () => {
   const { data: testimonialData } = useQuery({ queryKey: ['testimonials', 'public'], queryFn: getPublicTestimonials })
   const testimonials = testimonialData ?? []
@@ -220,7 +219,9 @@ const TestimonialWall = () => {
         <h2 className="text-xl font-bold text-slate-950">What Our Community Says</h2>
         <p className="text-sm text-slate-500">Stories shared by buyers and sellers on the platform</p>
       </div>
-      <div className="flex gap-6 overflow-x-auto pb-2 snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}>
+      <div
+        className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory [scrollbar-color:theme(colors.slate.300)_theme(colors.slate.100)] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:hover:bg-slate-400"
+      >
         {testimonials.map(t => (
           <div key={t.id} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-shrink-0 flex flex-col">
             <div className="flex gap-1 mb-4">

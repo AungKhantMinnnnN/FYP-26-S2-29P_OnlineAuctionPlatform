@@ -274,8 +274,7 @@ export default function LandingPage() {
         <div
           ref={testimonialRef}
           onScroll={handleTestimonialScroll}
-          className="flex gap-6 overflow-x-auto pb-2 snap-x snap-mandatory"
-          style={{ scrollbarWidth: 'none' }}
+          className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory [scrollbar-color:theme(colors.slate.300)_theme(colors.slate.100)] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:hover:bg-slate-400"
         >
           {testimonials.map(t => (
             <div key={t.id} className="min-w-[320px] md:min-w-[400px] snap-center bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-shrink-0 flex flex-col">
