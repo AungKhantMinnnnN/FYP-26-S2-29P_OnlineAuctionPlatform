@@ -2,8 +2,11 @@
 -- Date: 2026-08-06
 --
 -- These pages are DB-driven from the reusable `site_content` table (one row per page,
--- keyed by slug). Each row's `content` JSONB holds an array of sections:
---   { "sections": [ { "id": <uuid>, "title": str, "body": str (one bullet per line),
+-- keyed by slug). Each row's `content` JSONB holds the page header, contact block and
+-- an array of sections:
+--   { "header":   { "kicker", "title", "subtitle" },
+--     "contact":  { "title", "text", "email" },
+--     "sections": [ { "id": <uuid>, "title": str, "body": str (one bullet per line),
 --                    "sortOrder": int, "isActive": bool } ] }
 --
 -- Only seeds if the slug row does not already exist, so existing/manual content and
@@ -15,6 +18,17 @@ BEGIN;
 INSERT INTO site_content (slug, content, updated_at)
 VALUES
   ('privacy', '{
+    "header": {
+      "kicker": "Privacy Policy",
+      "title": "Your Privacy Matters",
+      "subtitle": "This policy explains how AuctionHub collects, uses, and protects your personal information when you use our online auction platform.",
+      "lastUpdatedLabel": "Last updated"
+    },
+    "contact": {
+      "title": "Contact Us",
+      "text": "If you have any questions about this Privacy Policy or your personal data, please contact us at:",
+      "email": "support@auctionhub.sg"
+    },
     "sections": [
       {
         "id": "11111111-1111-1111-1111-1111111111a1",
@@ -61,6 +75,17 @@ VALUES
     ]
   }'::jsonb, NOW())
   ,('terms', '{
+    "header": {
+      "kicker": "Terms of Service",
+      "title": "How AuctionHub Works",
+      "subtitle": "These terms govern your use of the AuctionHub online auction platform. By using the platform, you agree to the terms set out below.",
+      "lastUpdatedLabel": "Last updated"
+    },
+    "contact": {
+      "title": "Contact Us",
+      "text": "Questions about these terms? Reach out to us at:",
+      "email": "support@auctionhub.sg"
+    },
     "sections": [
       {
         "id": "22222222-2222-2222-2222-2222222222b1",

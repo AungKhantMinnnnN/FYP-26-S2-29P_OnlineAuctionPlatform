@@ -2,6 +2,19 @@ import apiClient from './apiClient'
 
 export type PageKey = 'privacy' | 'terms'
 
+export type PageHeader = {
+  kicker: string
+  title: string
+  subtitle: string
+  last_updated_label: string
+}
+
+export type PageContact = {
+  title: string
+  text: string
+  email: string
+}
+
 export type PageSection = {
   id: string
   title: string
@@ -10,9 +23,24 @@ export type PageSection = {
   is_active: boolean
 }
 
-export type PageContentResponse = {
+export type PageContent = {
   slug: string
+  header: PageHeader
+  contact: PageContact
   sections: PageSection[]
+}
+
+export type PageHeaderUpdateInput = {
+  kicker?: string
+  title?: string
+  subtitle?: string
+  last_updated_label?: string
+}
+
+export type PageContactUpdateInput = {
+  title?: string
+  text?: string
+  email?: string
 }
 
 export type PageSectionCreateInput = {
@@ -29,19 +57,35 @@ export type PageSectionUpdateInput = {
 }
 
 // ── Public ──────────────────────────────────────────────────────────────────────
-// Returns only the active sections, in display order.
-export const getPageContent = async (page: PageKey): Promise<PageSection[]> => {
-  const res = await apiClient.get<PageContentResponse>(`/page-content/${page}`)
-  return res.data.sections
+// Returns the header, contact, and active sections (in display order).
+export const getPageContent = async (page: PageKey): Promise<PageContent> => {
+  const res = await apiClient.get<PageContent>(`/page-content/${page}`)
+  return res.data
 }
 
 // ── Admin ───────────────────────────────────────────────────────────────────────
-// Returns all sections (active + inactive) for editing.
-export const listPageSections = async (page: PageKey): Promise<PageSection[]> => {
-  const res = await apiClient.get<PageContentResponse>('/admin/page-content', {
+// Returns the header, contact, and all sections (active + inactive) for editing.
+export const listPageContent = async (page: PageKey): Promise<PageContent> => {
+  const res = await apiClient.get<PageContent>('/admin/page-content', {
     params: { page },
   })
-  return res.data.sections
+  return res.data
+}
+
+export const updatePageHeader = async (
+  page: PageKey,
+  input: PageHeaderUpdateInput,
+): Promise<PageContent> => {
+  const res = await apiClient.post<PageContent>(`/admin/page-content/${page}/header`, input)
+  return res.data
+}
+
+export const updatePageContact = async (
+  page: PageKey,
+  input: PageContactUpdateInput,
+): Promise<PageContent> => {
+  const res = await apiClient.post<PageContent>(`/admin/page-content/${page}/contact`, input)
+  return res.data
 }
 
 export const createPageSection = async (input: PageSectionCreateInput): Promise<PageSection> => {

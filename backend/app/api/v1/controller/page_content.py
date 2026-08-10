@@ -9,6 +9,8 @@ from app.models.auction import AdminLog, User
 from app.schemas.page_content import (
     PageContentListResponse,
     PageContentResponse,
+    PageContactUpdate,
+    PageHeaderUpdate,
     PageSection,
     PageSectionCreate,
     PageSectionOrder,
@@ -23,7 +25,7 @@ admin_router = APIRouter()
 # ── Public ──────────────────────────────────────────────────────────────────────
 @router.get("/{page}", response_model=PageContentResponse)
 async def get_page_content(page: str, db: AsyncSession = Depends(get_db)):
-    """Public: the active sections of a policies page (privacy | terms)."""
+    """Public: header, contact, and active sections of a policies page (privacy | terms)."""
     PageContentService.ensure_allowed_page(page)
     return await PageContentService.get_public(db, page)
 
@@ -35,10 +37,59 @@ async def list_page_sections(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    """Admin: all sections (active + inactive) for a page, in display order."""
+    """Admin: header, contact, and all sections (active + inactive) for a page."""
     PageContentService.ensure_allowed_page(page)
-    sections = await PageContentService.get_sections(db, page, active_only=False)
-    return {"slug": page, "sections": sections}
+    return await PageContentService.get_admin(db, page)
+
+
+# IMPORTANT: static "/{page}/header", "/{page}/contact" and "/{page}/order" routes
+# MUST be registered before the parameterised "/{page}/{section_id}" routes —
+# FastAPI matches in registration order, so otherwise "privacy/header" would bind
+# to {page}/{section_id} and fail UUID validation with a 422.
+@admin_router.post("/{page}/header", response_model=PageContentResponse)
+async def update_page_header(
+    page: str,
+    data: PageHeaderUpdate,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Admin: edit the page's kicker / title / subtitle."""
+    updated = await PageContentService.update_header(
+        db, page, data.model_dump(exclude_unset=True), admin.id,
+    )
+    full = await PageContentService.get_admin(db, page)
+    full["header"] = updated
+    await _log(db, admin.id, "page_content_header_update", page, None)
+    return full
+
+
+@admin_router.post("/{page}/contact", response_model=PageContentResponse)
+async def update_page_contact(
+    page: str,
+    data: PageContactUpdate,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Admin: edit the page's contact title / text / email."""
+    updated = await PageContentService.update_contact(
+        db, page, data.model_dump(exclude_unset=True), admin.id,
+    )
+    full = await PageContentService.get_admin(db, page)
+    full["contact"] = updated
+    await _log(db, admin.id, "page_content_contact_update", page, None)
+    return full
+
+
+@admin_router.post("/{page}/order", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_page_sections(
+    page: str,
+    data: PageSectionOrder,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Admin: set the display order of a page's sections."""
+    await PageContentService.reorder_sections(db, page, data.ordered_ids, admin.id)
+    await _log(db, admin.id, "page_content_reorder", page, None)
 
 
 @admin_router.post("", response_model=PageSection, status_code=status.HTTP_201_CREATED)
@@ -53,22 +104,6 @@ async def create_page_section(
     )
     await _log(db, admin.id, "page_content_create", data.page, section["title"])
     return _to_schema(section)
-
-
-# IMPORTANT: the static "/{page}/order" route MUST be registered before the
-# parameterised "/{page}/{section_id}" routes — FastAPI matches in registration
-# order, so otherwise "privacy/order" would bind to {page}/{section_id} and fail
-# UUID validation with a 422.
-@admin_router.post("/{page}/order", status_code=status.HTTP_204_NO_CONTENT)
-async def reorder_page_sections(
-    page: str,
-    data: PageSectionOrder,
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(get_admin_user),
-):
-    """Admin: set the display order of a page's sections."""
-    await PageContentService.reorder_sections(db, page, data.ordered_ids, admin.id)
-    await _log(db, admin.id, "page_content_reorder", page, None)
 
 
 @admin_router.post("/{page}/{section_id}", response_model=PageSection)

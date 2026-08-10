@@ -1,8 +1,11 @@
 """CRUD for DB-driven Privacy/Terms pages.
 
 These pages reuse the existing `site_content` table (one row per page, keyed by
-`slug`). A page's `content` JSONB payload holds an ordered list of sections:
-    { "sections": [ { "id", "title", "body", "sortOrder", "isActive" }, ... ] }
+`slug`). A page's `content` JSONB payload holds the page header, contact block and
+an ordered list of sections:
+    { "header":   { "kicker", "title", "subtitle" },
+      "contact":  { "title", "text", "email" },
+      "sections": [ { "id", "title", "body", "sortOrder", "isActive" }, ... ] }
 
 Sections carry a stable UUID `id` so admins can edit/delete them reliably even
 after reordering. Writes are applied directly (no draft/publish workflow).
@@ -18,7 +21,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.auction import SiteContent
 from app.schemas.page_content import ALLOWED_PAGES
 
-EMPTY_PAGE: dict = {"sections": []}
+
+def _header(row: SiteContent) -> dict:
+    content = row.content or {}
+    h = content.get("header") or {}
+    return {
+        "kicker": h.get("kicker", ""),
+        "title": h.get("title", ""),
+        "subtitle": h.get("subtitle", ""),
+        "last_updated_label": h.get("lastUpdatedLabel", ""),
+    }
+
+
+def _contact(row: SiteContent) -> dict:
+    content = row.content or {}
+    c = content.get("contact") or {}
+    return {
+        "title": c.get("title", ""),
+        "text": c.get("text", ""),
+        "email": c.get("email", ""),
+    }
 
 
 def _sections(row: SiteContent) -> list[dict]:
@@ -61,9 +83,91 @@ class PageContentService:
 
     @staticmethod
     async def get_public(db: AsyncSession, slug: str) -> dict:
-        """Public contract: active sections only, in display order."""
-        sections = await PageContentService.get_sections(db, slug, active_only=True)
-        return {"slug": slug, "sections": sections}
+        """Public contract: header, contact, and active sections in display order."""
+        row = await PageContentService._get_row(db, slug)
+        if not row:
+            return {
+                "slug": slug,
+                "header": _header(SiteContent(slug=slug, content={})),
+                "contact": _contact(SiteContent(slug=slug, content={})),
+                "sections": [],
+            }
+        sections = [s for s in _sections(row) if s["is_active"]]
+        sections = sorted(sections, key=lambda s: s["sort_order"])
+        return {
+            "slug": slug,
+            "header": _header(row),
+            "contact": _contact(row),
+            "sections": sections,
+        }
+
+    @staticmethod
+    async def get_admin(db: AsyncSession, slug: str) -> dict:
+        """Admin contract: header, contact, and all sections (active + inactive)."""
+        row = await PageContentService._get_row(db, slug)
+        if not row:
+            return {
+                "slug": slug,
+                "header": _header(SiteContent(slug=slug, content={})),
+                "contact": _contact(SiteContent(slug=slug, content={})),
+                "sections": [],
+            }
+        sections = sorted(_sections(row), key=lambda s: s["sort_order"])
+        return {
+            "slug": slug,
+            "header": _header(row),
+            "contact": _contact(row),
+            "sections": sections,
+        }
+
+    @staticmethod
+    async def _ensure_row(db: AsyncSession, page: str) -> SiteContent:
+        row = await PageContentService._get_row(db, page)
+        if not row:
+            raise HTTPException(status_code=404, detail="Page not found")
+        return row
+
+    @staticmethod
+    async def _save(db: AsyncSession, row: SiteContent, admin_id: UUID, mutator) -> None:
+        content = dict(row.content or {})
+        mutator(content)
+        row.content = content
+        row.updated_at = datetime.now(timezone.utc)
+        row.updated_by = admin_id
+        await db.commit()
+        await db.refresh(row)
+
+    @staticmethod
+    async def update_header(db: AsyncSession, page: str, update: dict, admin_id: UUID) -> dict:
+        PageContentService.ensure_allowed_page(page)
+        row = await PageContentService._ensure_row(db, page)
+
+        def mutate(content: dict) -> None:
+            header = dict(content.get("header") or {})
+            # lastUpdatedLabel is stored camelCase to match the stored JSON shape
+            for key, label in (("kicker", "kicker"), ("title", "title"), ("subtitle", "subtitle"),
+                               ("last_updated_label", "lastUpdatedLabel")):
+                if key in update and update[key] is not None:
+                    header[label] = update[key]
+            content["header"] = header
+
+        await PageContentService._save(db, row, admin_id, mutate)
+        return _header(row)
+
+    @staticmethod
+    async def update_contact(db: AsyncSession, page: str, update: dict, admin_id: UUID) -> dict:
+        PageContentService.ensure_allowed_page(page)
+        row = await PageContentService._ensure_row(db, page)
+
+        def mutate(content: dict) -> None:
+            contact = dict(content.get("contact") or {})
+            for key in ("title", "text", "email"):
+                if key in update and update[key] is not None:
+                    contact[key] = update[key]
+            content["contact"] = contact
+
+        await PageContentService._save(db, row, admin_id, mutate)
+        return _contact(row)
 
     @staticmethod
     async def create_section(
@@ -104,9 +208,7 @@ class PageContentService:
         db: AsyncSession, page: str, section_id: UUID, update: dict, admin_id: UUID,
     ) -> dict:
         PageContentService.ensure_allowed_page(page)
-        row = await PageContentService._get_row(db, page)
-        if not row:
-            raise HTTPException(status_code=404, detail="Page not found")
+        row = await PageContentService._ensure_row(db, page)
         content = dict(row.content or {})
         sections = content.get("sections") or []
         target = next((s for s in sections if str(s.get("id")) == str(section_id)), None)
@@ -134,9 +236,7 @@ class PageContentService:
     @staticmethod
     async def delete_section(db: AsyncSession, page: str, section_id: UUID, admin_id: UUID) -> None:
         PageContentService.ensure_allowed_page(page)
-        row = await PageContentService._get_row(db, page)
-        if not row:
-            raise HTTPException(status_code=404, detail="Page not found")
+        row = await PageContentService._ensure_row(db, page)
         content = dict(row.content or {})
         sections = content.get("sections") or []
         remaining = [s for s in sections if str(s.get("id")) != str(section_id)]
@@ -151,9 +251,7 @@ class PageContentService:
     @staticmethod
     async def reorder_sections(db: AsyncSession, page: str, ordered_ids: list[UUID], admin_id: UUID) -> None:
         PageContentService.ensure_allowed_page(page)
-        row = await PageContentService._get_row(db, page)
-        if not row:
-            raise HTTPException(status_code=404, detail="Page not found")
+        row = await PageContentService._ensure_row(db, page)
         content = dict(row.content or {})
         sections = content.get("sections") or []
         by_id = {str(s.get("id")): s for s in sections}

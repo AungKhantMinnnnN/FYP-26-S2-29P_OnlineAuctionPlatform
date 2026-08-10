@@ -4,11 +4,13 @@ import { Check, ChevronDown, ChevronUp, Pencil, Plus, Save, Trash2, X } from 'lu
 import {
   createPageSection,
   deletePageSection,
-  listPageSections,
+  listPageContent,
   reorderPageSections,
+  updatePageContact,
+  updatePageHeader,
   updatePageSection,
 } from '../../api/pageContentApi'
-import type { PageKey, PageSection } from '../../api/pageContentApi'
+import type { PageContent, PageKey, PageSection } from '../../api/pageContentApi'
 import { getErrorMessage } from './adminShared'
 import Modal from '../../components/Modal'
 import IconTooltip from '../../components/IconTooltip'
@@ -19,12 +21,21 @@ interface PolicyContentSectionProps {
 
 export default function PolicyContentSection({ page }: PolicyContentSectionProps) {
   const queryClient = useQueryClient()
-  const { data: sections = [] } = useQuery({
+  const { data: content } = useQuery({
     queryKey: ['page-content', page, 'admin'],
-    queryFn: () => listPageSections(page),
+    queryFn: () => listPageContent(page),
   })
+  const sections: PageSection[] = content?.sections ?? []
 
   const [error, setError] = useState('')
+
+  // Header edit modal state
+  const [showHeaderEdit, setShowHeaderEdit] = useState(false)
+  const [headerForm, setHeaderForm] = useState({ kicker: '', title: '', subtitle: '', last_updated_label: '' })
+
+  // Contact edit modal state
+  const [showContactEdit, setShowContactEdit] = useState(false)
+  const [contactForm, setContactForm] = useState({ title: '', text: '', email: '' })
 
   // New-section modal state
   const [showAdd, setShowAdd] = useState(false)
@@ -43,6 +54,59 @@ export default function PolicyContentSection({ page }: PolicyContentSectionProps
     body.split('\n').map((l) => l.trim()).filter(Boolean)
 
   const joinBullets = (bullets: string[]): string => bullets.join('\n')
+
+  const openHeaderEdit = () => {
+    if (!content) return
+    setHeaderForm({
+      kicker: content.header?.kicker ?? '',
+      title: content.header?.title ?? '',
+      subtitle: content.header?.subtitle ?? '',
+      last_updated_label: content.header?.last_updated_label ?? '',
+    })
+    setError('')
+    setShowHeaderEdit(true)
+  }
+
+  const closeHeaderEdit = () => {
+    setShowHeaderEdit(false)
+    setError('')
+  }
+
+  const headerMutation = useMutation({
+    mutationFn: (input: typeof headerForm) => updatePageHeader(page, input),
+    onSuccess: () => {
+      setError('')
+      setShowHeaderEdit(false)
+      void refresh()
+    },
+    onError: (err: any) => setError(getErrorMessage(err, 'Failed to save the header.')),
+  })
+
+  const openContactEdit = () => {
+    if (!content) return
+    setContactForm({
+      title: content.contact?.title ?? '',
+      text: content.contact?.text ?? '',
+      email: content.contact?.email ?? '',
+    })
+    setError('')
+    setShowContactEdit(true)
+  }
+
+  const closeContactEdit = () => {
+    setShowContactEdit(false)
+    setError('')
+  }
+
+  const contactMutation = useMutation({
+    mutationFn: (input: typeof contactForm) => updatePageContact(page, input),
+    onSuccess: () => {
+      setError('')
+      setShowContactEdit(false)
+      void refresh()
+    },
+    onError: (err: any) => setError(getErrorMessage(err, 'Failed to save the contact block.')),
+  })
 
   const createMutation = useMutation({
     mutationFn: () =>
