@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import apiClient from './apiClient'
 import {
   getPageContent,
-  listPageSections,
+  listPageContent,
   createPageSection,
   updatePageSection,
   deletePageSection,
@@ -27,17 +27,22 @@ describe('pageContentApi', () => {
     del.mockResolvedValue({ data: {} })
   })
 
-  it('getPageContent returns the sections of the public endpoint', async () => {
+  it('getPageContent returns the full page content of the public endpoint', async () => {
     get.mockResolvedValue({
-      data: { slug: 'privacy', sections: [{ id: '1', title: 'A', body: 'x', sort_order: 0, is_active: true }] },
+      data: {
+        slug: 'privacy',
+        header: { kicker: 'K', title: 'T', subtitle: 'S', last_updated_label: '' },
+        contact: { title: '', text: '', email: '' },
+        sections: [{ id: '1', title: 'A', body: 'x', sort_order: 0, is_active: true }],
+      },
     })
-    const sections = await getPageContent('privacy')
+    const content = await getPageContent('privacy')
     expect(get).toHaveBeenCalledWith('/page-content/privacy')
-    expect(sections).toHaveLength(1)
+    expect(content.sections).toHaveLength(1)
   })
 
-  it('listPageSections reads admin endpoint with page query param', async () => {
-    await listPageSections('terms')
+  it('listPageContent reads admin endpoint with page query param', async () => {
+    await listPageContent('terms')
     expect(get).toHaveBeenCalledWith('/admin/page-content', { params: { page: 'terms' } })
   })
 

@@ -5,21 +5,21 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import PolicyContentSection from './PolicyContentSection'
 import {
-  listPageSections,
+  listPageContent,
   createPageSection,
   updatePageSection,
   deletePageSection,
 } from '../../api/pageContentApi'
 
 vi.mock('../../api/pageContentApi', () => ({
-  listPageSections: vi.fn(),
+  listPageContent: vi.fn(),
   createPageSection: vi.fn(),
   updatePageSection: vi.fn(),
   deletePageSection: vi.fn(),
   reorderPageSections: vi.fn(),
 }))
 
-const mockList = vi.mocked(listPageSections)
+const mockList = vi.mocked(listPageContent)
 const mockCreate = vi.mocked(createPageSection)
 const mockUpdate = vi.mocked(updatePageSection)
 const mockDelete = vi.mocked(deletePageSection)
@@ -42,13 +42,20 @@ const sections = [
   { id: 's2', title: 'Security', body: 'Single line', sort_order: 1, is_active: false },
 ]
 
+const baseContent = {
+  slug: 'privacy',
+  header: { kicker: '', title: '', subtitle: '', last_updated_label: '' },
+  contact: { title: '', text: '', email: '' },
+  sections,
+}
+
 describe('PolicyContentSection', () => {
   beforeEach(() => {
     mockList.mockReset()
     mockCreate.mockReset()
     mockUpdate.mockReset()
     mockDelete.mockReset()
-    mockList.mockResolvedValue(sections)
+    mockList.mockResolvedValue(baseContent)
     mockCreate.mockResolvedValue({ id: 's3', title: 'New', body: 'Body', sort_order: 2, is_active: true })
     mockUpdate.mockResolvedValue(sections[0])
     mockDelete.mockResolvedValue()

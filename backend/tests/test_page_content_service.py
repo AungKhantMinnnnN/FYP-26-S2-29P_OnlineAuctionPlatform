@@ -51,7 +51,12 @@ async def test_get_public_empty_when_no_row():
     db = make_db()
     db.scalar.side_effect = [None]
     out = await PageContentService.get_public(db, "privacy")
-    assert out == {"slug": "privacy", "sections": []}
+    assert out == {
+        "slug": "privacy",
+        "header": {"kicker": "", "title": "", "subtitle": "", "last_updated_label": ""},
+        "contact": {"title": "", "text": "", "email": ""},
+        "sections": [],
+    }
 
 
 async def test_get_public_filters_inactive_and_sorts():

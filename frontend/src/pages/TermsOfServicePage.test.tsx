@@ -21,6 +21,13 @@ function renderPage() {
   )
 }
 
+const baseContent = {
+  slug: 'terms',
+  header: { kicker: 'How auctionhub works', title: 'How AuctionHub Works', subtitle: 'The rules of the platform.', last_updated_label: 'Last updated' },
+  contact: { title: 'Contact us', text: 'Questions? Email us.', email: 'support@auctionhub.sg' },
+  sections: [],
+}
+
 const sections = [
   { id: '1', title: 'Acceptance of Terms', body: 'Agree to terms\nSecond line', sort_order: 1, is_active: true },
   { id: '2', title: 'Termination', body: 'We may suspend your account', sort_order: 2, is_active: true },
@@ -31,15 +38,17 @@ describe('TermsOfServicePage', () => {
     mockGetPageContent.mockReset()
   })
 
-  it('renders the static header', () => {
-    mockGetPageContent.mockResolvedValue([])
+  it('renders the header from the database', async () => {
+    mockGetPageContent.mockResolvedValue(baseContent)
     renderPage()
-    expect(screen.getByText('How AuctionHub Works')).toBeInTheDocument()
-    expect(screen.getByText('Terms of Service')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('How auctionhub works')).toBeInTheDocument()
+      expect(screen.getByText('How AuctionHub Works')).toBeInTheDocument()
+    })
   })
 
   it('fetches and renders DB sections with newline-as-bullet splitting', async () => {
-    mockGetPageContent.mockResolvedValue(sections)
+    mockGetPageContent.mockResolvedValue({ ...baseContent, sections })
     renderPage()
     expect(mockGetPageContent).toHaveBeenCalledWith('terms')
 
@@ -52,10 +61,10 @@ describe('TermsOfServicePage', () => {
   })
 
   it('shows an empty state when there are no sections', async () => {
-    mockGetPageContent.mockResolvedValue([])
+    mockGetPageContent.mockResolvedValue({ ...baseContent, sections: [] })
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('These terms have no sections yet.')).toBeInTheDocument()
+      expect(screen.getByText('No sections have been added yet.')).toBeInTheDocument()
     })
   })
 
@@ -70,7 +79,7 @@ describe('TermsOfServicePage', () => {
   })
 
   it('renders the contact block', async () => {
-    mockGetPageContent.mockResolvedValue(sections)
+    mockGetPageContent.mockResolvedValue(baseContent)
     renderPage()
     await waitFor(() => {
       expect(screen.getByText('support@auctionhub.sg')).toBeInTheDocument()

@@ -21,6 +21,13 @@ function renderPage() {
   )
 }
 
+const baseContent = {
+  slug: 'privacy',
+  header: { kicker: 'Your privacy', title: 'Your Privacy Matters', subtitle: 'We protect your data.', last_updated_label: 'Last updated' },
+  contact: { title: 'Contact us', text: 'Questions? Email us.', email: 'support@auctionhub.sg' },
+  sections: [],
+}
+
 const sections = [
   { id: '1', title: 'Information We Collect', body: 'Line one\nLine two', sort_order: 1, is_active: true },
   { id: '2', title: 'Security', body: 'Single line', sort_order: 2, is_active: true },
@@ -31,15 +38,17 @@ describe('PrivacyPolicyPage', () => {
     mockGetPageContent.mockReset()
   })
 
-  it('renders the static header', () => {
-    mockGetPageContent.mockResolvedValue([])
+  it('renders the header from the database', async () => {
+    mockGetPageContent.mockResolvedValue(baseContent)
     renderPage()
-    expect(screen.getByText('Your Privacy Matters')).toBeInTheDocument()
-    expect(screen.getByText('Privacy Policy')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Your privacy')).toBeInTheDocument()
+      expect(screen.getByText('Your Privacy Matters')).toBeInTheDocument()
+    })
   })
 
   it('fetches and renders DB sections with newline-as-bullet splitting', async () => {
-    mockGetPageContent.mockResolvedValue(sections)
+    mockGetPageContent.mockResolvedValue({ ...baseContent, sections })
     renderPage()
     expect(mockGetPageContent).toHaveBeenCalledWith('privacy')
 
@@ -54,10 +63,10 @@ describe('PrivacyPolicyPage', () => {
   })
 
   it('shows an empty state when there are no sections', async () => {
-    mockGetPageContent.mockResolvedValue([])
+    mockGetPageContent.mockResolvedValue({ ...baseContent, sections: [] })
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('This policy has no sections yet.')).toBeInTheDocument()
+      expect(screen.getByText('No sections have been added yet.')).toBeInTheDocument()
     })
   })
 
@@ -72,7 +81,7 @@ describe('PrivacyPolicyPage', () => {
   })
 
   it('renders the contact block', async () => {
-    mockGetPageContent.mockResolvedValue(sections)
+    mockGetPageContent.mockResolvedValue(baseContent)
     renderPage()
     await waitFor(() => {
       expect(screen.getByText('support@auctionhub.sg')).toBeInTheDocument()
