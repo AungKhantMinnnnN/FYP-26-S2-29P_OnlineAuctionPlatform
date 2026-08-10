@@ -136,7 +136,7 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
                     user_id=winner.id,
                     amount=winning_bid.amount,
                     type=TransactionType.bid_release,
-                    reference=f"reserve_not_met:{listing_id_str}",
+                    reference=f"Reserve not met: {listing.title}",
                 ))
 
             auction_result = AuctionResult(
@@ -162,7 +162,7 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
                     user_id=seller.id,
                     amount=winning_bid.amount,
                     type=TransactionType.settlement,
-                    reference=f"auction_won:{listing_id_str}",
+                    reference=f"Sold: {listing.title}",
                 ))
 
             auction_result = AuctionResult(

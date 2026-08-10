@@ -357,7 +357,7 @@ class AdminService:
                     bidder.balance += current_highest_bid.amount
                     db.add(WalletTransaction(
                         user_id=bidder.id, amount=current_highest_bid.amount, type=TransactionType.bid_release,
-                        reference=f"Admin override: listing {listing.id} removed",
+                        reference=f"Admin override: listing '{listing.title}' removed",
                     ))
                     refunded_bid = True
                 current_highest_bid.status = BidStatus.cancelled
@@ -408,7 +408,7 @@ class AdminService:
                     winner.balance += result.final_price
                     db.add(WalletTransaction(
                         user_id=winner.id, amount=result.final_price, type=TransactionType.settlement,
-                        reference=f"Refund: listing {listing_id} restarted by admin",
+                        reference=f"Refund: listing '{listing.title}' restarted by admin",
                     ))
                     refunded = True
             await db.delete(result)
@@ -545,7 +545,7 @@ class AdminService:
                 bidder.balance += bid.amount
                 db.add(WalletTransaction(
                     user_id=bidder.id, amount=bid.amount, type=TransactionType.bid_release,
-                    reference=f"Admin override: bid {bid.id} cancelled",
+                    reference=f"Admin override: bid on '{listing.title}' cancelled",
                 ))
                 funds_released = True
 
@@ -566,7 +566,7 @@ class AdminService:
                 restored_bidder.balance -= next_highest.amount
                 db.add(WalletTransaction(
                     user_id=restored_bidder.id, amount=next_highest.amount, type=TransactionType.bid_hold,
-                    reference=f"Admin override: restored as highest bid after cancelling {bid.id}",
+                    reference=f"Admin override: restored as highest bid on '{listing.title}'",
                 ))
                 listing.current_price = next_highest.amount
             else:

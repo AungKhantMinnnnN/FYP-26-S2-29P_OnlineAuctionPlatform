@@ -144,7 +144,7 @@ class BiddingService:
                     user_id=prev_user_id,
                     amount=previous_highest_bid.amount,
                     type=TransactionType.bid_release,
-                    reference=str(previous_highest_bid.id)
+                    reference=f"Outbid on {listing.title}"
                 )
                 db.add(release_tx)
                 logger.info(f"Previous userId: [{prev_user_id}]'s bid amount [{previous_highest_bid.amount}] has been released.")
@@ -164,7 +164,7 @@ class BiddingService:
             user_id=user_uuid,
             amount=amount,
             type=TransactionType.bid_hold,
-            reference=str(new_bid.id)
+            reference=f"Bid on {listing.title}"
         )
         db.add(hold_tx)
 
