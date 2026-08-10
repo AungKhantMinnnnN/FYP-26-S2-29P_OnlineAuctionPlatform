@@ -1,5 +1,22 @@
 from fastapi import APIRouter
-from app.api.v1.controller import health, auth, auctions, testimonials, disputes, users, subscriptions, issue_types, boards, marketing, feedback, admin, internal, cms
+
+from app.api.v1.controller import (
+    admin,
+    auctions,
+    auth,
+    boards,
+    cms,
+    disputes,
+    feedback,
+    health,
+    internal,
+    issue_types,
+    marketing,
+    page_content,
+    subscriptions,
+    testimonials,
+    users,
+)
 
 api_router = APIRouter()
 
@@ -17,3 +34,5 @@ api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"]
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(internal.router)
 api_router.include_router(cms.router, prefix="/cms", tags=["cms"])
+api_router.include_router(page_content.router, prefix="/page-content", tags=["page-content"])
+api_router.include_router(page_content.admin_router, prefix="/admin/page-content", tags=["page-content-admin"])
