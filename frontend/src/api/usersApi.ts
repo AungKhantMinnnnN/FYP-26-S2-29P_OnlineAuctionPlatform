@@ -38,6 +38,7 @@ export interface ProfileUpdatePayload {
   address?: string
   city?: string
   country?: string
+  dob?: string
   bio?: string
   email_alerts_enabled?: boolean
   marketing_emails_enabled?: boolean
@@ -174,6 +175,8 @@ export interface WalletTransactionsPage {
 
 export interface WalletResponse {
   balance: number
+  total_top_ups: number
+  pending_holds: number
   transactions: WalletTransactionsPage
 }
 

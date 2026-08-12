@@ -96,6 +96,8 @@ class WalletTransactionsPage(PaginationMeta):
 
 class WalletResponse(BaseModel):
     balance: float
+    total_top_ups: float
+    pending_holds: float
     transactions: WalletTransactionsPage
 
 

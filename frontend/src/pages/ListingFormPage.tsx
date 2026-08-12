@@ -146,11 +146,13 @@ export default function ListingFormPage() {
     setSubmitError(null)
     setIsSubmitting(true)
     try {
-      const now = new Date()
-      const endTime = new Date(
-        now.getTime() + parseInt(form.duration) * 24 * 60 * 60 * 1000,
-      )
-      const payload = {
+      // Reschedule only when this save actually makes the listing go live for the first
+      // time (a brand-new listing, or publishing a draft/pending_review one) -- the backend's
+      // PATCH only touches fields present in the payload, so a plain "Save Changes" on an
+      // already-scheduled listing must omit start/end time rather than resetting them to
+      // "now" on every edit.
+      const isPublishing = status === 'active' && originalStatus !== 'active'
+      const payload: Record<string, unknown> = {
         title: form.title.trim(),
         description: form.description.trim() || null,
         condition: form.condition,
@@ -160,9 +162,15 @@ export default function ListingFormPage() {
         reserve_price: form.reserve_price ? parseFloat(form.reserve_price) : null,
         min_increment: parseFloat(form.min_increment),
         category_id: form.category_id || null,
-        start_time: now.toISOString(),
-        end_time: endTime.toISOString(),
         status,
+      }
+      if (!isEditMode || isPublishing) {
+        const now = new Date()
+        const endTime = new Date(
+          now.getTime() + parseInt(form.duration) * 24 * 60 * 60 * 1000,
+        )
+        payload.start_time = now.toISOString()
+        payload.end_time = endTime.toISOString()
       }
 
       let listingId = id

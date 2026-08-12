@@ -89,6 +89,17 @@ export default function AuctionDetailPage() {
   }, [auction])
 
   useEffect(() => {
+    // Reset before the new id's data arrives -- otherwise the previous auction's title,
+    // images, and bid history stay on screen (with no loading indicator) until the fetch
+    // resolves, and a stale `selectedImage` URL can briefly render under the new title.
+    setLoading(true)
+    setError('')
+    setAuction(null)
+    setSelectedImage(null)
+    setCurrentBid(0)
+    setBidsPlaced(0)
+    setBidHistory([])
+
     const fetchAuction = async () => {
       try {
         const [listingRes, bidsRes] = await Promise.all([

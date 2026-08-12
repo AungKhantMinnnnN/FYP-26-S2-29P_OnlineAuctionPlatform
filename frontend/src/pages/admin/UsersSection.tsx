@@ -610,6 +610,11 @@ export default function UsersSection() {
                     />
 
                     <DetailRow
+                      label="Email verified"
+                      value={userDetails.email_verified ? 'Yes' : 'No'}
+                    />
+
+                    <DetailRow
                       label="Full name"
                       value={
                         userDetails.profile
@@ -675,6 +680,14 @@ export default function UsersSection() {
                       label="Registered"
                       value={formatDate(
                         userDetails.created_at,
+                      )}
+                      preserveCapitalisation
+                    />
+
+                    <DetailRow
+                      label="Last updated"
+                      value={formatDate(
+                        userDetails.updated_at,
                       )}
                       preserveCapitalisation
                     />
