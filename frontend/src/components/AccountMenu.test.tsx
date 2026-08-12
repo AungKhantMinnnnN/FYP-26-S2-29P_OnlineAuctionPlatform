@@ -54,9 +54,10 @@ describe('AccountMenu', () => {
     expect(screen.getByText('Account')).toBeInTheDocument()
   })
 
-  it('opens the menu on a bare click event and shows Wallet/Profile/Logout', () => {
+  it('opens the menu on a bare click event and shows Dashboard/Wallet/Profile/Logout', () => {
     renderMenu({ username: 'bob' })
     fireEvent.click(screen.getByText('bob'))
+    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/dashboard')
     expect(screen.getByRole('link', { name: /wallet/i })).toHaveAttribute('href', '/wallet')
     expect(screen.getByRole('link', { name: /profile/i })).toHaveAttribute('href', '/profile')
     expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument()

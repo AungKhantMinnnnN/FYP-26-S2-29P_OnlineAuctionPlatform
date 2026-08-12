@@ -172,3 +172,20 @@ class SellerStatsResponse(BaseModel):
     total_sales: int
     total_revenue: float
 # endregion
+
+# region Quota
+class QuotaLimit(BaseModel):
+    """Per-meter usage for free tier. null for premium users (unlimited)."""
+    limit: Optional[int] = None
+    used: int = 0
+    remaining: Optional[int] = None
+    # When the rolling hourly window frees up a slot, or null when there is no
+    # active window (i.e. the user can act right now).
+    resets_at: Optional[datetime] = None
+
+
+class QuotaResponse(BaseModel):
+    tier: str
+    bids: Optional[QuotaLimit] = None
+    listings: Optional[QuotaLimit] = None
+# endregion
