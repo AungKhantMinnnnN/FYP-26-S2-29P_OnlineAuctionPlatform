@@ -32,6 +32,24 @@ export const manageSubscription = async (action: 'renew' | 'cancel'): Promise<Su
   return response.data
 }
 
+export interface QuotaLimit {
+  limit: number | null
+  used: number
+  remaining: number | null
+  resets_at: string | null
+}
+
+export interface QuotaResponse {
+  tier: 'free' | 'premium'
+  bids: QuotaLimit | null
+  listings: QuotaLimit | null
+}
+
+export const getMyQuota = async (): Promise<QuotaResponse> => {
+  const response = await apiClient.get<QuotaResponse>('/users/me/quota')
+  return response.data
+}
+
 export interface ProfileUpdatePayload {
   full_name?: string
   phone?: string

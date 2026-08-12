@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronDown, Wallet, User as UserIcon, LogOut } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, Wallet, User as UserIcon, LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 // Shared account dropdown used by both Navbar and DashboardLayout.
@@ -29,6 +29,9 @@ export default function AccountMenu() {
       {open && (
         <div className="absolute right-0 top-full w-56 pt-2">
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+            <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <LayoutDashboard size={15} /> Dashboard
+            </Link>
             <Link to="/wallet" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               <Wallet size={15} /> Wallet
             </Link>
