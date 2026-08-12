@@ -43,6 +43,15 @@ async def approve_testimonial(
     return await TestimonialService.approve_testimonial(db=db, testimonial_id=id)
 
 
+@router.post("/{id}/unfeature", response_model=TestimonialResponse)
+async def unfeature_testimonial(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return await TestimonialService.unfeature_testimonial(db=db, testimonial_id=id)
+
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_testimonial(
     id: UUID,

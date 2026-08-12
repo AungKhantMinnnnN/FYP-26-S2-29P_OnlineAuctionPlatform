@@ -12,12 +12,14 @@ Endpoints under test (backend/app/api/v1/controller/feedback.py):
   GET    /feedback/me/submitted
   POST   /feedback/
 
-Note on test data footprint: there is no delete endpoint for an individual
-ItemFeedback row anywhere in this API, so the one case that actually submits
-feedback (to prove the eligibility + submission flow works end-to-end)
-permanently leaves one feedback row (and its now-in-use FeedbackType, which
-gets deactivated rather than deleted) in the target database. This is
-inherent to the API surface, not a gap in the test — see TEST_PLAN.md.
+Note on scope: a real ItemFeedback submission requires the reviewee to have
+actually bid on the listing (seller-role) or the reviewer to have (buyer-role)
+-- see feedback_service.py's submit(). Bids are placed through the separate
+bidding-engine microservice (websocket-driven), which this HTTP-only suite
+does not cover (same limitation documented in test_admin_listings_bids.py),
+so no case here exercises a real POST /feedback/ 201 end-to-end. Every
+feedback type this file creates is hard-deleted in its `finally` block --
+none end up referenced by a real ItemFeedback row, so no permanent footprint.
 """
 import sys
 import uuid
@@ -111,13 +113,13 @@ def _():
     assert resp.status_code == 404, resp.text
 
 
-@suite.case("a seller-role feedback type: eligible for the seller, submit succeeds, duplicate is rejected")
+@suite.case("a seller-role feedback type: seller is eligible, but submitting about a user who never bid is rejected")
 def _():
     admin = auth.admin_client()
     ft = admin.post("/feedback/types", json={"name": _unique_name(), "reviewer_role": "seller"}).json()
 
     seller, seller_user, _ = auth.register_new_user()
-    buyer, buyer_user, _ = auth.register_new_user()
+    stranger, stranger_user, _ = auth.register_new_user()
 
     now = datetime.now(timezone.utc)
     listing = seller.post("/auctions/create_listing", json={
@@ -137,30 +139,22 @@ def _():
         assert ft["id"] in eligibility.json()["eligible_type_ids"]
         assert eligibility.json()["seller_id"] == seller_user["id"]
 
-        submitted = seller.post("/feedback/", json={
+        # Eligibility only checks that the reviewer IS the seller -- it says nothing
+        # about the reviewee. `stranger` never bid on this listing (bids are placed
+        # through the websocket-only bidding-engine, out of scope here -- see the
+        # module docstring), so submission must still be rejected rather than letting
+        # the seller rate an uninvolved user.
+        rejected = seller.post("/feedback/", json={
             "listing_id": listing["id"],
-            "reviewee_id": buyer_user["id"],
+            "reviewee_id": stranger_user["id"],
             "feedback_type_id": ft["id"],
             "rating": 5,
             "comment": "Submitted by the automated backend QA suite.",
         })
-        assert submitted.status_code == 201, submitted.text
-        feedback = submitted.json()
-
-        dup = seller.post("/feedback/", json={
-            "listing_id": listing["id"], "reviewee_id": buyer_user["id"],
-            "feedback_type_id": ft["id"], "rating": 4,
-        })
-        assert dup.status_code == 409, dup.text
-
-        mine = seller.get("/feedback/me/submitted")
-        assert any(f["id"] == feedback["id"] for f in mine.json())
+        assert rejected.status_code == 400, rejected.text
     finally:
         seller.delete(f"/auctions/{listing['id']}")
-        # A real ItemFeedback row now references this type, so hard-delete would 409
-        # (no delete endpoint for ItemFeedback, per TESTING.md) -- deactivate instead so
-        # it at least drops out of the public/active feedback-types list.
-        admin.patch(f"/feedback/types/{ft['id']}", json={"is_active": False})
+        admin.delete(f"/feedback/types/{ft['id']}")
 
 
 @suite.case("submit_feedback for a buyer-role type without ever bidding is rejected with 403")

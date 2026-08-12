@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Check, Star, Trash2 } from 'lucide-react'
-import { approveTestimonial, deleteTestimonial, getAdminTestimonials } from '../../api/adminApi'
+import { Check, Star, Trash2, X } from 'lucide-react'
+import { approveTestimonial, deleteTestimonial, getAdminTestimonials, unfeatureTestimonial } from '../../api/adminApi'
 import { formatDate, getErrorMessage } from './adminShared'
 import type { TestimonialResponse } from '../../api/supportApi'
 
@@ -10,7 +10,7 @@ export default function TestimonialsSection() {
   const [testimonials, setTestimonials] = useState<TestimonialResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const reload = async () => {
@@ -28,18 +28,18 @@ export default function TestimonialsSection() {
     void reload()
   }, [])
 
-  const handleApprove = async (id: string) => {
+  const handleToggleFeatured = async (id: string, featured: boolean) => {
     setError('')
-    setApprovingId(id)
+    setTogglingId(id)
 
     try {
-      await approveTestimonial(id)
+      await (featured ? approveTestimonial(id) : unfeatureTestimonial(id))
       await reload()
       queryClient.invalidateQueries({ queryKey: ['feedback', 'public'] })
     } catch (error: any) {
-      setError(getErrorMessage(error, 'Failed to approve testimonial.'))
+      setError(getErrorMessage(error, featured ? 'Failed to approve testimonial.' : 'Failed to unfeature testimonial.'))
     } finally {
-      setApprovingId(null)
+      setTogglingId(null)
     }
   }
 
@@ -99,15 +99,25 @@ export default function TestimonialsSection() {
               <p className="mt-2 text-xs text-slate-400">Submitted {formatDate(t.created_at)}</p>
 
               <div className="mt-3 flex justify-end gap-2">
-                {!t.is_featured && (
+                {t.is_featured ? (
                   <button
                     type="button"
-                    disabled={approvingId === t.id}
-                    onClick={() => void handleApprove(t.id)}
+                    disabled={togglingId === t.id}
+                    onClick={() => void handleToggleFeatured(t.id, false)}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-60"
+                  >
+                    <X size={14} />
+                    {togglingId === t.id ? 'Unfeaturing…' : 'Unfeature'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={togglingId === t.id}
+                    onClick={() => void handleToggleFeatured(t.id, true)}
                     className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-accent-700 hover:bg-accent-50 disabled:opacity-60"
                   >
                     <Check size={14} />
-                    {approvingId === t.id ? 'Approving…' : 'Approve for display'}
+                    {togglingId === t.id ? 'Approving…' : 'Approve for display'}
                   </button>
                 )}
                 <button

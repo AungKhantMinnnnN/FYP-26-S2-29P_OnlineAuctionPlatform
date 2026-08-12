@@ -274,6 +274,11 @@ export const approveTestimonial = async (id: string): Promise<TestimonialRespons
   return res.data
 }
 
+export const unfeatureTestimonial = async (id: string): Promise<TestimonialResponse> => {
+  const res = await apiClient.post<TestimonialResponse>(`/testimonials/${id}/unfeature`)
+  return res.data
+}
+
 export const deleteTestimonial = async (id: string): Promise<void> => {
   await apiClient.delete(`/testimonials/${id}`)
 }
