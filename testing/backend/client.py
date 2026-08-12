@@ -1,7 +1,19 @@
 """Thin requests.Session wrapper scoped to the API Gateway's base URL."""
+import time
+
 import requests
 
 import config
+
+# backend/app/core/config.py RATE_LIMIT_CREATE_LISTING allows 10 calls per 60s
+# per IP. run_all.py runs every module in one process against one IP, and
+# several modules (auctions, feedback, watchlist) call create_listing as setup
+# for unrelated cases, so the shared budget trips well before any single
+# module's calls do. Pacing every create_listing call here -- the one choke
+# point all of them pass through -- keeps the suite under the limit regardless
+# of which modules run or in what order.
+_CREATE_LISTING_MIN_INTERVAL = 7.0
+_last_create_listing_call = 0.0
 
 
 class ApiClient:
@@ -20,6 +32,8 @@ class ApiClient:
         return path if path.startswith("http") else f"{self.base_url}{path}"
 
     def request(self, method, path, **kwargs):
+        if method == "POST" and path.rstrip("/") == "/auctions/create_listing":
+            _pace_create_listing()
         headers = self._headers(kwargs.pop("headers", None))
         kwargs.setdefault("timeout", config.TIMEOUT)
         return self.session.request(method, self._url(path), headers=headers, **kwargs)
@@ -41,3 +55,12 @@ class ApiClient:
 
     def with_token(self, token):
         return ApiClient(token=token)
+
+
+def _pace_create_listing():
+    global _last_create_listing_call
+    now = time.monotonic()
+    wait = _last_create_listing_call + _CREATE_LISTING_MIN_INTERVAL - now
+    if wait > 0:
+        time.sleep(wait)
+    _last_create_listing_call = time.monotonic()
