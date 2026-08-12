@@ -3,8 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { puckConfig } from './puckConfig'
-import { getAuctions } from '../api/auctionsApi'
 import { getFormMetadata } from '../api/auctionsApi'
+import { getTrending } from '../api/recommendationsApi'
 import { getPublicTestimonials } from '../api/supportApi'
 import { getMarketingVideoUrl } from '../api/marketingApi'
 import { getMyWatchlist } from '../api/usersApi'
@@ -16,9 +16,9 @@ vi.mock('../context/AuthContext', () => ({
 }))
 
 vi.mock('../api/auctionsApi', () => ({
-  getAuctions: vi.fn(),
   getFormMetadata: vi.fn(),
 }))
+vi.mock('../api/recommendationsApi', () => ({ getTrending: vi.fn() }))
 vi.mock('../api/supportApi', () => ({ getPublicTestimonials: vi.fn() }))
 vi.mock('../api/marketingApi', () => ({ getMarketingVideoUrl: vi.fn() }))
 vi.mock('../api/usersApi', () => ({ getMyWatchlist: vi.fn() }))
@@ -42,7 +42,7 @@ describe('puckConfig blocks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseAuth.mockReturnValue({ isAuthenticated: false, user: null })
-    vi.mocked(getAuctions).mockResolvedValue({ items: [], total: 0, page: 1, size: 20, pages: 0 })
+    vi.mocked(getTrending).mockResolvedValue({ items: [], count: 0, type: 'global' })
     vi.mocked(getFormMetadata).mockResolvedValue({ categories: [], conditions: [], biddingTypes: [], durations: [] })
     vi.mocked(getPublicTestimonials).mockResolvedValue([])
     vi.mocked(getMarketingVideoUrl).mockResolvedValue(null)
@@ -90,15 +90,17 @@ describe('puckConfig blocks', () => {
 
     it('marks a listing as watched when its id is in the watchlist (authenticated user)', async () => {
       mockUseAuth.mockReturnValue({ isAuthenticated: true, user: { id: 'u1' } })
-      vi.mocked(getAuctions).mockResolvedValue({
+      vi.mocked(getTrending).mockResolvedValue({
         items: [
           {
-            id: 'l1', seller_id: 's1', title: 'Watch', condition: 'used', bidding_type: 'english',
-            status: 'active', start_time: '2026-01-01', end_time: '2026-02-01', created_at: '2026-01-01',
-            updated_at: '2026-01-01', images: [],
+            id: 'l1', seller_id: 's1', category_id: null, title: 'Watch', description: null, brand: null,
+            condition: 'used', condition_confidence: null, bidding_type: 'english',
+            starting_price: 10, reserve_price: null, current_price: 10, min_increment: 1,
+            status: 'active', is_draft: false, start_time: '2026-01-01', end_time: '2026-02-01',
+            created_at: '2026-01-01', updated_at: '2026-01-01', images: [], seller: null, score: 1,
           },
         ],
-        total: 1, page: 1, size: 20, pages: 1,
+        count: 1, type: 'global',
       })
       vi.mocked(getMyWatchlist).mockResolvedValue({ items: [], listing_ids: ['l1'] })
       renderBlock('TrendingAuctions')
@@ -107,7 +109,7 @@ describe('puckConfig blocks', () => {
 
     it('does not fetch the watchlist at all for a logged-out visitor', async () => {
       renderBlock('TrendingAuctions')
-      await waitFor(() => expect(getAuctions).toHaveBeenCalled())
+      await waitFor(() => expect(getTrending).toHaveBeenCalled())
       expect(getMyWatchlist).not.toHaveBeenCalled()
     })
   })

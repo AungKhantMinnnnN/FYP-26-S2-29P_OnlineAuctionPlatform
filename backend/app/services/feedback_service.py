@@ -134,6 +134,15 @@ class FeedbackService:
         listing = await db.scalar(select(Listing).where(Listing.id == data.listing_id))
         if ft.reviewer_role == "buyer" and data.reviewee_id != listing.seller_id:
             raise HTTPException(status_code=400, detail="Reviewee must be the listing seller for buyer feedback types.")
+        if ft.reviewer_role == "seller":
+            reviewee_has_bid = await db.scalar(
+                select(exists().where(Bid.listing_id == data.listing_id, Bid.bidder_id == data.reviewee_id))
+            )
+            if not reviewee_has_bid:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Reviewee must have bid on this listing for seller feedback types.",
+                )
 
         existing = await db.scalar(
             select(ItemFeedback).where(

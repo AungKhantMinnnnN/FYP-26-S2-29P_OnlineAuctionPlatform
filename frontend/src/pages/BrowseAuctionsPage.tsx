@@ -104,7 +104,7 @@ export default function BrowseAuctionsPage() {
     seller: { name: 'Seller', rating: null, ratingCount: 0 },
     bids: 0,
     watchers: 0,
-    status: 'active',
+    status: item.status,
     description: '',
     image: item.images?.find(i => i.is_primary)?.image_url ?? item.images?.[0]?.image_url ?? undefined
   })

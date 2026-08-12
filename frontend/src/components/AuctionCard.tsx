@@ -91,10 +91,10 @@ export default function AuctionCard({ auction, showWatchlist = true, isWatched =
           {auction.title}
         </Link>
         <div className="mb-3 flex items-center gap-1 text-xs text-slate-500">
-          {auction.seller.ratingCount > 0 ? (
+          {auction.seller.ratingCount > 0 && auction.seller.rating != null ? (
             <>
               <Star size={12} className="fill-amber-400 text-amber-400" />
-              <span className="font-medium text-slate-700">{auction.seller.rating!.toFixed(1)}</span>
+              <span className="font-medium text-slate-700">{auction.seller.rating.toFixed(1)}</span>
               <span>({auction.seller.ratingCount})</span>
             </>
           ) : (

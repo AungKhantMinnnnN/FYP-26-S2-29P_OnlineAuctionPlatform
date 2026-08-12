@@ -100,7 +100,12 @@ class BiddingService:
             logger.error(f"Listing ID: [{listing_id}] Bid amount must be at least {min_required:.2f}")
             return {"success": False, "error": f"Bid amount must be at least {min_required:.2f}"}
 
-        result = await db.execute(select(User).where(User.id == user_uuid))
+        # FOR UPDATE: the per-listing Redis lock doesn't stop this same user's balance being
+        # touched concurrently by a bid/settlement on a *different* listing -- without a row
+        # lock here, two concurrent transactions can both read the pre-update balance and the
+        # second commit silently overwrites the first (lost update), letting a user's holds
+        # exceed their real balance.
+        result = await db.execute(select(User).where(User.id == user_uuid).with_for_update())
         current_user = result.scalars().first()
         if not current_user:
             logger.error("User not found")
@@ -135,7 +140,7 @@ class BiddingService:
             prev_user_id = previous_highest_bid.bidder_id
             outbid_user_id = str(prev_user_id)
 
-            result = await db.execute(select(User).where(User.id == prev_user_id))
+            result = await db.execute(select(User).where(User.id == prev_user_id).with_for_update())
             prev_user = result.scalars().first()
 
             if prev_user:

@@ -25,6 +25,8 @@ export interface AdminUserDetails extends AdminUserSummary {
   balance: number
   suspended_at: string | null
   suspension_reason: string | null
+  email_verified: boolean
+  updated_at: string
   profile: AdminUserProfile | null
 }
 

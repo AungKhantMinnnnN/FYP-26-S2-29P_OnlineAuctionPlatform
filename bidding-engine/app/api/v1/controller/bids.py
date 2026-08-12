@@ -62,7 +62,7 @@ async def websocket_endpoint(
             data = await websocket.receive_text()
 
             # Throttle message floods before touching the DB or Redis lock.
-            if not manager.allow_message(user_id):
+            if not await manager.allow_message(user_id):
                 logger.warning(f"ListingId: [{listing_id}] UserId: [{user_id}] rate limited")
                 await websocket.send_text(json.dumps({
                     "type": "error",

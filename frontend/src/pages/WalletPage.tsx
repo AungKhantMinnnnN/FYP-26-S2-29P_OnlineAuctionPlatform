@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowDownLeft, ArrowUpRight, CreditCard, Plus, ShieldCheck, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, CreditCard, Plus, ShieldCheck, Wallet } from 'lucide-react'
 import DashboardStatCard from '../components/DashboardStatCard'
 import DataTable from '../components/DataTable'
 import PrimaryButton from '../components/PrimaryButton'
@@ -21,18 +21,26 @@ const TYPE_LABEL: Record<string, string> = {
 export default function WalletPage({ mode }: WalletPageProps) {
   const { refreshUser } = useAuth()
   const [balance, setBalance] = useState(0)
+  const [totalTopUps, setTotalTopUps] = useState(0)
+  const [pendingHolds, setPendingHolds] = useState(0)
   const [transactions, setTransactions] = useState<WalletTransactionItem[]>([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [amount, setAmount] = useState(mode === 'top-up' ? '100' : '')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchWallet = async () => {
+  const fetchWallet = async (targetPage: number) => {
+    setLoading(true)
     try {
-      const data = await getMyWallet()
+      const data = await getMyWallet({ page: targetPage })
       setBalance(data.balance)
+      setTotalTopUps(data.total_top_ups)
+      setPendingHolds(data.pending_holds)
       setTransactions(data.transactions.items)
+      setTotalPages(data.transactions.pages || 1)
       setLoadError(false)
     } catch {
       setLoadError(true)
@@ -41,15 +49,7 @@ export default function WalletPage({ mode }: WalletPageProps) {
     }
   }
 
-  useEffect(() => { fetchWallet() }, [])
-
-  const totalTopUps = transactions
-    .filter((t) => t.type === 'topup')
-    .reduce((sum, t) => sum + t.amount, 0)
-
-  const pendingHolds = transactions
-    .filter((t) => t.type === 'bid_hold')
-    .reduce((sum, t) => sum + t.amount, 0)
+  useEffect(() => { fetchWallet(page) }, [page])
 
   const handleTopUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,11 +61,17 @@ export default function WalletPage({ mode }: WalletPageProps) {
     setSubmitting(true)
     setMessage('')
     try {
-      const result = await topUpWallet(value)
-      setBalance(result.balance)
-      setTransactions((prev) => [result.transaction, ...prev])
+      await topUpWallet(value)
       setAmount('')
       setMessage(`Successfully topped up $${value.toFixed(2)}.`)
+      // Refetch page 1 rather than patching local state -- a top-up changes balance and
+      // total_top_ups together, and prepending locally would show the new row on whatever
+      // page the user happens to be viewing instead of only the most recent page.
+      if (page === 1) {
+        await fetchWallet(1)
+      } else {
+        setPage(1)
+      }
       await refreshUser()
     } catch {
       setMessage('Top up failed. Please try again.')
@@ -140,6 +146,25 @@ export default function WalletPage({ mode }: WalletPageProps) {
         />
         {!loading && transactions.length === 0 && (
           <p className="py-8 text-center text-sm text-slate-400">No transactions yet. Top up your wallet to get started.</p>
+        )}
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-sm font-medium text-slate-700">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/apiClient';
@@ -19,6 +19,7 @@ export interface User {
     address?: string;
     city?: string;
     country?: string;
+    dob?: string | null;
     bio?: string;
     email_alerts_enabled?: boolean;
     marketing_emails_enabled?: boolean;
@@ -54,6 +55,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // Bumped whenever something else (login()) authoritatively sets `user` -- lets the
+  // initial mount check below detect it's now stale and skip applying its own result,
+  // even though its request started before login() and can resolve after it.
+  const authVersion = useRef(0);
 
   const logout = useCallback(async () => {
     setUser(null);
@@ -71,12 +76,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Session lives in an httpOnly cookie, so the only way to check login state is to ask
     // the server. A 401 here just means "not logged in," not an error to surface.
     let isMounted = true;
+    const versionAtStart = authVersion.current;
     apiClient.get<User>('/auth/get_current_user')
       .then((response) => {
-        if (isMounted) setUser(response.data);
+        if (isMounted && authVersion.current === versionAtStart) setUser(response.data);
       })
       .catch(() => {
-        if (isMounted) setUser(null);
+        if (isMounted && authVersion.current === versionAtStart) setUser(null);
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -95,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password: password,
       });
       const profileResponse = await apiClient.get<User>('/auth/get_current_user');
+      authVersion.current += 1;
       queryClient.clear();
       setUser(profileResponse.data);
       setLoading(false);
