@@ -15,6 +15,11 @@ from app.models.auction import (
     SubscriptionTierConfig, UserProfiles, UserInterest, Categories,
     UserInteraction, InteractionAction,
 )
+from app.core.logger import get_logger
+from app.core.redis import async_redis
+from app.services.auction_service import AuctionService
+
+logger = get_logger("user_service")
 
 
 def _primary_image_url(listing: Listing) -> Optional[str]:
@@ -437,6 +442,71 @@ class UserService:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid action. Must be 'renew' or 'cancel'.",
         )
+    # endregion
+
+    # region Quota
+    # Number of bids a free-tier user can place per rolling hour. Kept in sync
+    # with bidding-engine/app/services/bidding_service.py:13 (FREE_BID_HOURLY_LIMIT);
+    # the listing limit is read from AuctionService so the two services can't drift.
+    FREE_BID_HOURLY_LIMIT = 10
+
+    @staticmethod
+    async def get_quota(db: AsyncSession, user: User, redis=None) -> dict:
+        """Free-tier usage meters (rolling hourly windows) for the dashboard.
+
+        Bids use the Redis counter the bidding-engine increments
+        (`bidcount:free_tier:{user_id}`, TTL 3600s) — the reset instant is when
+        that key expires. Listings are counted from the listings the seller
+        created in the trailing hour; the first free slot comes back when the
+        oldest of those exits the window. Premium users are unlimited.
+        """
+        if user.subscription_tier != SubscriptionTier.free:
+            return {"tier": user.subscription_tier.value, "bids": None, "listings": None}
+
+        redis = redis or async_redis
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        bid_key = f"bidcount:free_tier:{user.id}"
+        bid_used = 0
+        bid_resets_in_seconds: float | None = None
+        try:
+            raw = await redis.get(bid_key)
+            bid_used = int(raw) if raw else 0
+            ttl = await redis.ttl(bid_key)
+            if ttl and ttl > 0:
+                bid_resets_in_seconds = ttl
+        except Exception as e:  # noqa: BLE001 - quota must not fail if Redis is down
+            logger.warning(f"get_quota: Redis unavailable for bid quota, reporting empty: {e}")
+
+        bid_limit = UserService.FREE_BID_HOURLY_LIMIT
+        bids = {
+            "limit": bid_limit,
+            "used": bid_used,
+            "remaining": max(bid_limit - bid_used, 0),
+            "resets_at": now + datetime.timedelta(seconds=bid_resets_in_seconds)
+            if bid_resets_in_seconds else None,
+        }
+
+        one_hour_ago = now - datetime.timedelta(hours=1)
+        used_count = await db.scalar(
+            select(func.count()).select_from(Listing).where(
+                Listing.seller_id == user.id, Listing.created_at >= one_hour_ago
+            )
+        )
+        oldest = await db.scalar(
+            select(func.min(Listing.created_at)).where(
+                Listing.seller_id == user.id, Listing.created_at >= one_hour_ago
+            )
+        )
+        listing_limit = AuctionService.FREE_LISTING_HOURLY_LIMIT
+        listings = {
+            "limit": listing_limit,
+            "used": used_count or 0,
+            "remaining": max(listing_limit - (used_count or 0), 0),
+            "resets_at": (oldest + datetime.timedelta(hours=1)) if oldest else None,
+        }
+
+        return {"tier": user.subscription_tier.value, "bids": bids, "listings": listings}
     # endregion
 
     # region Stats

@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 interface DashboardStatCardProps {
   title: string
   value: string | number
   icon?: LucideIcon
-  trend?: string
+  trend?: ReactNode
 }
 
 export default function DashboardStatCard({ title, value, icon: Icon, trend }: DashboardStatCardProps) {

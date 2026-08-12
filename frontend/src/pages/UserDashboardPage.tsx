@@ -10,9 +10,22 @@ import EmptyState from '../components/EmptyState'
 import { useAuth } from '../context/AuthContext'
 import { getAuctions } from '../api/auctionsApi'
 import type { AuctionListing } from '../api/auctionsApi'
-import { getMyBids, getMyWatchlist } from '../api/usersApi'
+import { getMyBids, getMyWatchlist, getMyQuota } from '../api/usersApi'
 import { getTrending } from '../api/recommendationsApi'
 import type { TrendingListing } from '../api/recommendationsApi'
+import { useCountdown } from '../hooks/useCountdown'
+
+function QuotaReset({ resetsAt }: { resetsAt: string | null }) {
+  const seconds = useCountdown(resetsAt)
+  if (!seconds || seconds <= 0) return <span>Available now</span>
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0')
+  const ss = String(seconds % 60).padStart(2, '0')
+  return (
+    <span title={resetsAt ? `Resets at ${new Date(resetsAt).toLocaleTimeString()}` : undefined}>
+      resets in {mm}:{ss}
+    </span>
+  )
+}
 
 const mapListingToCard = (listing: AuctionListing) => ({
   id: listing.id,
@@ -80,6 +93,16 @@ export default function UserDashboardPage() {
     queryFn: () => getTrending({ limit: 3 }),
   })
 
+  const { data: quotaData } = useQuery({
+    queryKey: ['users', 'me', 'quota'],
+    queryFn: getMyQuota,
+    enabled: !!user,
+  })
+
+  const isPremium = user?.subscription_tier === 'premium'
+  const bidsRemaining = quotaData?.tier === 'free' ? quotaData.bids?.remaining : null
+  const listingsRemaining = quotaData?.tier === 'free' ? quotaData.listings?.remaining : null
+
   const watchlistIds = new Set(watchlistData?.listing_ids ?? [])
   const liveAuctions = (liveAuctionsData?.items ?? []).map(mapListingToCard)
   const bids = bidsData?.items ?? []
@@ -124,11 +147,23 @@ export default function UserDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <DashboardStatCard title="Active Bids" value={activeBidsCount} icon={Gavel} trend={`${activeBidsCount} auctions`} />
         <DashboardStatCard title="Watchlist" value={watchlistItems.length} icon={Heart} trend={`${watchlistItems.length} saved`} />
         <DashboardStatCard title="Balance" value={`$${balance.toFixed(2)}`} icon={Wallet} trend="Available" />
         <DashboardStatCard title="Wins" value={winsCount} icon={Trophy} trend="All time" />
+        <DashboardStatCard
+          title="Bids Left"
+          value={isPremium ? 'Unlimited' : (bidsRemaining ?? '—')}
+          icon={Gavel}
+          trend={isPremium ? 'Premium plan' : <QuotaReset resetsAt={quotaData?.bids?.resets_at ?? null} />}
+        />
+        <DashboardStatCard
+          title="Listings Left"
+          value={isPremium ? 'Unlimited' : (listingsRemaining ?? '—')}
+          icon={PlusCircle}
+          trend={isPremium ? 'Premium plan' : <QuotaReset resetsAt={quotaData?.listings?.resets_at ?? null} />}
+        />
       </div>
 
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">

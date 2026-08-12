@@ -14,6 +14,7 @@ import {
   getMyInterests,
   updateMyInterests,
   getMyStats,
+  getMyQuota,
 } from './usersApi'
 
 vi.mock('./apiClient', () => ({
@@ -42,6 +43,11 @@ describe('usersApi', () => {
   it('manageSubscription posts the action', async () => {
     await manageSubscription('renew')
     expect(post).toHaveBeenCalledWith('/users/me/subscription', { action: 'renew' })
+  })
+
+  it('getMyQuota reads the /users/me/quota endpoint', async () => {
+    await getMyQuota()
+    expect(get).toHaveBeenCalledWith('/users/me/quota')
   })
 
   it('updateProfile posts the full payload as-is', async () => {

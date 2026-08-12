@@ -12,7 +12,7 @@ from app.schemas.user import (
     WatchlistAddRequest, WatchlistAddResponse, WalletResponse, TopUpRequest, TopUpResponse,
     SubscriptionActionRequest, SubscriptionResponse,
     ProfileUpdateRequest, ProfileResponse, InterestsResponse, InterestsUpdateRequest,
-    SellerStatsResponse,
+    SellerStatsResponse, QuotaResponse,
 )
 from app.services.user_service import UserService
 from app.services.interaction_service import log_interaction
@@ -137,3 +137,11 @@ async def get_my_stats(
     current_user: User = Depends(get_current_user),
 ):
     return await UserService.get_seller_stats(db=db, user_id=current_user.id)
+
+
+@router.get("/me/quota", response_model=QuotaResponse)
+async def get_my_quota(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await UserService.get_quota(db=db, user=current_user)
