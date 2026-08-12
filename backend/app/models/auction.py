@@ -101,7 +101,9 @@ class UserProfiles(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
-    full_name = Column(String, nullable=False)
+    # Matches the real DB (docker/postgres/init.sql) and actual usage: user_service.py
+    # creates a bare UserProfiles(user_id=user.id) row with no full_name on first save.
+    full_name = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     address = Column(String)
     city = Column(String(100))

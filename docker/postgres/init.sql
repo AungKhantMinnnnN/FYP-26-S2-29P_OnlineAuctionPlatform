@@ -159,7 +159,7 @@ CREATE TABLE disputes (
     reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
     issue_type_id UUID REFERENCES issue_types(id) ON DELETE SET NULL,
-    subject VARCHAR(255) NOT NULL,
+    subject VARCHAR(255),
     category VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     status dispute_status NOT NULL DEFAULT 'open',
