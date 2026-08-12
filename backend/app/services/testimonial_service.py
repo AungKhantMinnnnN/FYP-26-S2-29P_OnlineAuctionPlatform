@@ -37,15 +37,23 @@ class TestimonialService:
         return result.scalars().all()
 
     @staticmethod
-    async def approve_testimonial(db: AsyncSession, testimonial_id: UUID) -> Testimonial:
+    async def _set_featured(db: AsyncSession, testimonial_id: UUID, featured: bool) -> Testimonial:
         result = await db.execute(select(Testimonial).where(Testimonial.id == testimonial_id))
         testimonial = result.scalars().first()
         if not testimonial:
             raise HTTPException(status_code=404, detail="Testimonial not found")
-        testimonial.is_featured = True
+        testimonial.is_featured = featured
         await db.commit()
         await db.refresh(testimonial)
         return testimonial
+
+    @staticmethod
+    async def approve_testimonial(db: AsyncSession, testimonial_id: UUID) -> Testimonial:
+        return await TestimonialService._set_featured(db, testimonial_id, True)
+
+    @staticmethod
+    async def unfeature_testimonial(db: AsyncSession, testimonial_id: UUID) -> Testimonial:
+        return await TestimonialService._set_featured(db, testimonial_id, False)
 
     @staticmethod
     async def delete_testimonial(db: AsyncSession, testimonial_id: UUID) -> None:

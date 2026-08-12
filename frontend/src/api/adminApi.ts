@@ -58,7 +58,10 @@ export interface AdminStatsResponse {
 export interface SystemLogEntry {
   id: string
   timestamp: string
-  level: 'info' | 'warning' | 'error' | 'debug'
+  // Backend regex-parses raw log lines and lowercases whatever level name appears (see
+  // admin_service.py) -- no app code emits anything outside the four listed today, but
+  // third-party/uvicorn output could, so this stays a plain string rather than a closed union.
+  level: string
   service: string
   message: string
 }
@@ -268,6 +271,11 @@ export const getAdminTestimonials = async (): Promise<TestimonialResponse[]> => 
 
 export const approveTestimonial = async (id: string): Promise<TestimonialResponse> => {
   const res = await apiClient.post<TestimonialResponse>(`/testimonials/${id}/approve`)
+  return res.data
+}
+
+export const unfeatureTestimonial = async (id: string): Promise<TestimonialResponse> => {
+  const res = await apiClient.post<TestimonialResponse>(`/testimonials/${id}/unfeature`)
   return res.data
 }
 

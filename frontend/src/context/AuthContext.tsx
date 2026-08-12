@@ -50,6 +50,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Cross-tab logout signal: localStorage writes fire a `storage` event in every OTHER tab
+// of the same origin (never the tab that wrote it), so this is enough to notify siblings
+// without a server round trip. The value only needs to change, not carry meaning.
+const LOGOUT_STORAGE_KEY = 'auctionhub:logout-broadcast';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -64,12 +69,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     queryClient.clear();
     try {
+      localStorage.setItem(LOGOUT_STORAGE_KEY, String(Date.now()));
+    } catch {
+      // Private-browsing/storage-disabled: this tab still logs out fine, other tabs just
+      // won't hear about it -- not worth failing the logout over.
+    }
+    try {
       await apiClient.post('/auth/logout');
     } catch (error) {
       // Clearing local state is what matters for the UI; a failed request just leaves
       // a cookie the server will reject as expired anyway.
       console.error('Logout request failed:', error);
     }
+  }, [queryClient]);
+
+  useEffect(() => {
+    // Without this, logging out in one tab leaves every other open tab showing a "logged
+    // in" UI (stale balance, role, subscription tier) until it happens to make an API call
+    // that 401s.
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key !== LOGOUT_STORAGE_KEY) return;
+      setUser(null);
+      queryClient.clear();
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [queryClient]);
 
   useEffect(() => {
