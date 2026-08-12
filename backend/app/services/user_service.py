@@ -10,7 +10,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.models.auction import (
-    User, Bid, Listing, ListingStatus, ListingImages, AuctionResult,
+    User, Bid, BidStatus, Listing, ListingStatus, ListingImages, AuctionResult,
     Watchlist, WalletTransaction, TransactionType, SubscriptionTier,
     SubscriptionTierConfig, UserProfiles, UserInterest, Categories,
     UserInteraction, InteractionAction,
@@ -40,14 +40,16 @@ class UserService:
         size: int,
         result_filter: str,
     ) -> dict:
-        # Per-listing dedupe: get each listing the user has bid on, with their max bid + placement time
+        # Per-listing dedupe: get each listing the user has bid on, with their max bid + placement time.
+        # Only accepted bids -- a cancelled/rejected bid holds no funds and shouldn't be able
+        # to surface as the user's "highest bid" or mark them as currently leading.
         sub_stmt = (
             select(
                 Bid.listing_id.label("listing_id"),
                 func.max(Bid.amount).label("my_highest_bid"),
                 func.max(Bid.placed_at).label("last_placed_at"),
             )
-            .where(Bid.bidder_id == user.id)
+            .where(Bid.bidder_id == user.id, Bid.status == BidStatus.accepted)
             .group_by(Bid.listing_id)
             .subquery()
         )
@@ -251,8 +253,23 @@ class UserService:
 
         pages = max(1, math.ceil(total / size)) if total else 0
 
+        # Summed over every transaction the user has, not just the current page -- these
+        # feed summary stat cards that must reflect the whole account, not whichever page
+        # happens to be loaded.
+        totals_stmt = select(
+            func.coalesce(
+                func.sum(WalletTransaction.amount).filter(WalletTransaction.type == TransactionType.topup), 0.0
+            ),
+            func.coalesce(
+                func.sum(WalletTransaction.amount).filter(WalletTransaction.type == TransactionType.bid_hold), 0.0
+            ),
+        ).where(WalletTransaction.user_id == user.id)
+        total_top_ups, pending_holds = (await db.execute(totals_stmt)).one()
+
         return {
             "balance": user.balance,
+            "total_top_ups": total_top_ups,
+            "pending_holds": pending_holds,
             "transactions": {
                 "items": items,
                 "total": total,

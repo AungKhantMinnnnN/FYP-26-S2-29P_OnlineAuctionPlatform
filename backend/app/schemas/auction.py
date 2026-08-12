@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
-from app.models.auction import ItemConditions, BiddingType, ListingStatus
+from app.models.auction import ItemConditions, BiddingType, ListingStatus, BidStatus
 
 class CategoryResponse(BaseModel):
     id: UUID
@@ -94,7 +94,7 @@ class BidResponse(BaseModel):
     listing_id: UUID
     bidder_id: UUID
     amount: float
-    status: str
+    status: BidStatus
     placed_at: datetime
     bidder: Optional[UserSellerResponse] = None
 

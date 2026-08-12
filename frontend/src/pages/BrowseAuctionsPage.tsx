@@ -104,7 +104,7 @@ export default function BrowseAuctionsPage() {
     seller: { name: 'Seller', rating: null, ratingCount: 0 },
     bids: 0,
     watchers: 0,
-    status: 'active',
+    status: item.status,
     description: '',
     image: item.images?.find(i => i.is_primary)?.image_url ?? item.images?.[0]?.image_url ?? undefined
   })
@@ -202,7 +202,7 @@ export default function BrowseAuctionsPage() {
         {mobileFilters && <div className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm md:hidden" onClick={() => setMobileFilters(false)} />}
 
         <div className="flex-1 min-w-0 flex flex-col">
-          {user && !searchQuery && (
+          {user && !searchQuery && !categoryParam && !conditionParam && !minPriceParam && !maxPriceParam && (
             <section className="mb-8">
               <div className="flex items-center gap-2 mb-4">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent-50 text-accent-700">

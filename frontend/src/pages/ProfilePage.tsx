@@ -85,21 +85,30 @@ export default function ProfilePage() {
   const [address, setAddress] = useState(user?.profile?.address || '')
   const [city, setCity] = useState(user?.profile?.city || '')
   const [country, setCountry] = useState(user?.profile?.country || '')
+  const [dob, setDob] = useState(user?.profile?.dob || '')
   const [bio, setBio] = useState(user?.profile?.bio || '')
   const [profileMessage, setProfileMessage] = useState<string | null>(null)
+  // refreshUser() re-fires after every unrelated action on this page (toggling a
+  // notification, changing password, renewing/cancelling the subscription), each producing
+  // a new `user` object -- without this guard, the sync effect below would snap in-progress,
+  // unsaved edits back to the server's last-saved values whenever any of those fire.
+  const [isProfileDirty, setIsProfileDirty] = useState(false)
 
   useEffect(() => {
+    if (isProfileDirty) return
     setFullName(user?.profile?.full_name || '')
     setPhone(user?.profile?.phone || '')
     setAddress(user?.profile?.address || '')
     setCity(user?.profile?.city || '')
     setCountry(user?.profile?.country || '')
+    setDob(user?.profile?.dob || '')
     setBio(user?.profile?.bio || '')
-  }, [user])
+  }, [user, isProfileDirty])
 
   const runSaveProfile = async () => {
-    await updateProfile({ full_name: fullName, phone, address, city, country, bio })
+    await updateProfile({ full_name: fullName, phone, address, city, country, dob: dob || undefined, bio })
     await refreshUser()
+    setIsProfileDirty(false)
     setProfileMessage('Profile updated successfully.')
   }
 
@@ -354,17 +363,18 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex-1 space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <FormInput label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                      <FormInput label="Full Name" value={fullName} onChange={(e) => { setFullName(e.target.value); setIsProfileDirty(true) }} />
                       <FormInput label="Username" value={user?.username || ''} disabled />
                     </div>
                     <FormInput label="Email" type="email" value={user?.email || ''} disabled />
-                    <FormInput label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    <FormInput label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+                    <FormInput label="Phone" value={phone} onChange={(e) => { setPhone(e.target.value); setIsProfileDirty(true) }} />
+                    <FormInput label="Address" value={address} onChange={(e) => { setAddress(e.target.value); setIsProfileDirty(true) }} />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <FormInput label="City" placeholder="e.g. Singapore" value={city} onChange={(e) => setCity(e.target.value)} />
-                      <FormInput label="Country" placeholder="e.g. Singapore" value={country} onChange={(e) => setCountry(e.target.value)} />
+                      <FormInput label="City" placeholder="e.g. Singapore" value={city} onChange={(e) => { setCity(e.target.value); setIsProfileDirty(true) }} />
+                      <FormInput label="Country" placeholder="e.g. Singapore" value={country} onChange={(e) => { setCountry(e.target.value); setIsProfileDirty(true) }} />
                     </div>
-                    <TextAreaField label="Bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
+                    <FormInput label="Date of Birth" type="date" value={dob} onChange={(e) => { setDob(e.target.value); setIsProfileDirty(true) }} />
+                    <TextAreaField label="Bio" value={bio} onChange={(e) => { setBio(e.target.value); setIsProfileDirty(true) }} rows={3} />
 
                     {profileMessage && <p className="text-sm font-medium text-accent-700">{profileMessage}</p>}
 

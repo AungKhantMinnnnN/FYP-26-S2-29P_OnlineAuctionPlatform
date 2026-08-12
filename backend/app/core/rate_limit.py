@@ -31,11 +31,15 @@ def rate_limiter(key_prefix: str, limit: int, window_seconds: int):
             pipe.zadd(key, {str(now): now})
             pipe.expire(key, window_seconds * 2)
             results = await pipe.execute()
+            # zcard (results[1]) runs before this request's own zadd in the pipeline, so it
+            # counts prior requests only -- the current one is already queued to be added
+            # regardless of this check, so it must count against itself: reject once the
+            # prior count already fills the limit, not one past it.
             count = results[1]
         except Exception as e:
             logger.warning(f"rate limiter: Redis unavailable, allowing request: {e}")
             return
-        if count > limit:
+        if count >= limit:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many requests. Please try again later.",

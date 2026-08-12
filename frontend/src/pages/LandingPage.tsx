@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { Zap, ChevronLeft, ChevronRight, Shield, TrendingUp, Play, Star, Check, BarChart3, BadgeCheck, Headphones, Mail } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
-import { getAuctions, getFormMetadata } from '../api/auctionsApi'
-import type { AuctionListing } from '../api/auctionsApi'
+import { getFormMetadata } from '../api/auctionsApi'
+import { getTrending } from '../api/recommendationsApi'
+import type { TrendingListing } from '../api/recommendationsApi'
 import { getPublicTestimonials } from '../api/supportApi'
 import { getMarketingVideoUrl } from '../api/marketingApi'
 import { getMyWatchlist } from '../api/usersApi'
@@ -22,9 +23,9 @@ export default function LandingPage() {
     queryFn: getMarketingVideoUrl,
   })
 
-  const { data: auctionsData, isLoading } = useQuery({
-    queryKey: ['auctions', 'landing'],
-    queryFn: () => getAuctions({ size: 20 })
+  const { data: trendingData, isLoading } = useQuery({
+    queryKey: ['trending', 'landing'],
+    queryFn: () => getTrending({ limit: 10 })
   })
 
   const { data: metadata } = useQuery({
@@ -46,28 +47,26 @@ export default function LandingPage() {
   })
   const testimonials = testimonialData ?? []
 
-  const mapToCardType = (listing: AuctionListing) => ({
-    id: listing.id,
-    title: listing.title,
-    category: 'Other',
-    condition: listing.condition,
-    currentBid: listing.current_price || 0,
-    startingPrice: listing.starting_price || 0,
-    endTime: new Date(listing.end_time),
-    seller: {
-      name: listing.seller?.username || 'Seller',
-      rating: listing.seller?.rating_avg ?? null,
-      ratingCount: listing.seller?.rating_count ?? 0,
-    },
+  // Real bid-activity ranking, not just newest listings -- recommendations-engine's /recs/trending
+  // already excludes ended/removed/draft listings and carries the real status through.
+  const mapTrendingToCard = (item: TrendingListing) => ({
+    id: item.id,
+    title: item.title,
+    category: 'Trending',
+    condition: item.condition,
+    currentBid: item.current_price || 0,
+    startingPrice: item.starting_price || 0,
+    endTime: item.end_time ? new Date(item.end_time) : new Date(),
+    // recommendation-engine's TrendingListing doesn't carry rating data
+    seller: { name: item.seller?.username || 'Seller', rating: null, ratingCount: 0 },
     bids: 0,
     watchers: 0,
-    status: listing.status,
-    description: listing.description || '',
-    image: listing.images.length > 0 ? listing.images[0].image_url : undefined
+    status: item.status,
+    description: item.description || '',
+    image: item.images?.find(i => i.is_primary)?.image_url ?? item.images?.[0]?.image_url ?? undefined,
   })
 
-  const auctionsList = auctionsData ? auctionsData.items.map(mapToCardType) : []
-  const trending = auctionsList.slice(0, 10)
+  const trending = trendingData ? trendingData.items.map(mapTrendingToCard) : []
 
   const testimonialRef = useRef<HTMLDivElement>(null)
   const [activeTestimonial, setActiveTestimonial] = useState(0)

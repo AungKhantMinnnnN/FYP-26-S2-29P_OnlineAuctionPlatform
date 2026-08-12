@@ -269,7 +269,7 @@ export default function CollectorBoardPage() {
                     {activeBoard.items.map((item) => (
                       <div key={item.id} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                         <div className="aspect-square overflow-hidden bg-slate-100">
-                          {item.listing.image_url ? (
+                          {item.listing?.image_url ? (
                             <img
                               src={item.listing.image_url}
                               alt={item.listing.title}
@@ -282,10 +282,16 @@ export default function CollectorBoardPage() {
                           )}
                         </div>
                         <div className="p-3">
-                          <p className="truncate text-xs font-semibold text-slate-800">{item.listing.title}</p>
-                          <p className="mt-0.5 text-xs font-bold text-accent-700">
-                            ${item.listing.final_price.toFixed(2)}
-                          </p>
+                          {item.listing ? (
+                            <>
+                              <p className="truncate text-xs font-semibold text-slate-800">{item.listing.title}</p>
+                              <p className="mt-0.5 text-xs font-bold text-accent-700">
+                                ${item.listing.final_price.toFixed(2)}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="truncate text-xs font-medium text-slate-400">Listing no longer available</p>
+                          )}
                         </div>
                         <button
                           onClick={() => handleRemoveItem(item)}

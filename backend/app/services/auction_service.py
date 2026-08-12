@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
 from app.models.auction import (
-    Listing, ListingStatus, Bid, ListingImages, Categories, ItemConditions, BiddingType,
+    Listing, ListingStatus, Bid, BidStatus, ListingImages, Categories, ItemConditions, BiddingType,
     AuctionDuration, User, SubscriptionTier, ProhibitedKeyword, FlaggedListingAttempt,
 )
 from app.schemas.auction import ListingCreate, ListingUpdate
@@ -105,10 +105,14 @@ class AuctionService:
 
     @staticmethod
     async def get_auction_bids(db: AsyncSession, auction_id: UUID) -> List[Bid]:
+        # Only accepted bids hold funds / reflect the real price history -- a cancelled or
+        # rejected bid (e.g. an admin override) must not resurface as the top bid here.
         query = select(Bid).options(
             selectinload(Bid.bidder)
-        ).where(Bid.listing_id == auction_id).order_by(Bid.amount.desc())
-        
+        ).where(
+            Bid.listing_id == auction_id, Bid.status == BidStatus.accepted
+        ).order_by(Bid.amount.desc())
+
         result = await db.execute(query)
         return result.scalars().all()
 
@@ -164,6 +168,16 @@ class AuctionService:
         await AuctionService._check_prohibited_keywords(
             db, user_id, listing_in.title, listing_in.description, listing_in.brand
         )
+
+        # 'ended'/'removed' are terminal states the system reaches only via settlement or
+        # moderation -- same restriction update_listing/update_listing_status already
+        # enforce, just missing here, which let a client hand-craft a listing that skips
+        # moderation and bidding entirely.
+        if listing_in.status in (ListingStatus.ended, ListingStatus.removed):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Status '{listing_in.status.value}' cannot be set at creation",
+            )
 
         listing = Listing(
             seller_id=user_id,

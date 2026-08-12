@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
@@ -96,6 +97,21 @@ async def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account is no longer available",
         )
+
+    # manage_subscription always sets an expiry when granting premium (renew) and clears
+    # it on cancel, so a premium row with a past expiry is a lapsed subscription that was
+    # never explicitly downgraded -- do it lazily here, the one place every authenticated
+    # request passes through, rather than requiring a scheduled job.
+    if (
+        user.subscription_tier == SubscriptionTier.premium
+        and user.subscription_expires_at is not None
+        and user.subscription_expires_at <= datetime.now(timezone.utc)
+    ):
+        user.subscription_tier = SubscriptionTier.free
+        user.subscription_expires_at = None
+        user.updated_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(user)
 
     return user
 

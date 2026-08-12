@@ -26,7 +26,9 @@ export interface BoardItem {
   note: string | null
   sort_order: number
   added_at: string
-  listing: BoardListingSnapshot
+  // null when the underlying auction result/listing has since been removed -- see
+  // board_service.py's _listing_snapshot(), which returns None for an orphaned item.
+  listing: BoardListingSnapshot | null
 }
 
 export interface BoardDetail {

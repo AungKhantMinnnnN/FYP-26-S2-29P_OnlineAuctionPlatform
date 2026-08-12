@@ -116,10 +116,13 @@ async def _execute_settlement(db: AsyncSession, listing: Listing) -> None:
         broadcast_payload = _build_broadcast(listing, winner_id=None, final_price=listing.starting_price, outcome="no_bids")
 
     else:
-        winner_result = await db.execute(select(User).where(User.id == winning_bid.bidder_id))
+        # FOR UPDATE: same lost-update risk as bidding_service.py's balance mutations -- the
+        # per-listing lock doesn't stop a concurrent bid/settlement on a *different* listing
+        # from touching this same user's balance at the same time.
+        winner_result = await db.execute(select(User).where(User.id == winning_bid.bidder_id).with_for_update())
         winner = winner_result.scalars().first()
 
-        seller_result = await db.execute(select(User).where(User.id == listing.seller_id))
+        seller_result = await db.execute(select(User).where(User.id == listing.seller_id).with_for_update())
         seller = seller_result.scalars().first()
 
         # No reserve price set (NULL) means "no reserve" — any bid meets it.
