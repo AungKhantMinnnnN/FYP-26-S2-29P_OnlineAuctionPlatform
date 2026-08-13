@@ -18,6 +18,17 @@ const TYPE_LABEL: Record<string, string> = {
   settlement: 'Settlement',
 }
 
+// `amount` is stored as a positive magnitude for topup/bid_hold/bid_release —
+// only `settlement` carries a meaningfully signed value from the backend
+// (positive payout to a seller, negative subscription charge). Bid holds
+// reserve funds out of the available balance, so they display as a
+// deduction even though the stored amount itself is positive.
+function isDeduction(t: WalletTransactionItem): boolean {
+  if (t.type === 'bid_hold') return true
+  if (t.type === 'settlement') return t.amount < 0
+  return false
+}
+
 export default function WalletPage({ mode }: WalletPageProps) {
   const { refreshUser } = useAuth()
   const [balance, setBalance] = useState(0)
@@ -137,8 +148,8 @@ export default function WalletPage({ mode }: WalletPageProps) {
             <span key={`${t.id}-type`} className="inline-flex items-center gap-2 font-medium capitalize">
               <ShieldCheck size={15} className="text-accent-600" /> {TYPE_LABEL[t.type] ?? t.type}
             </span>,
-            <span key={`${t.id}-amount`} className={t.amount >= 0 ? 'font-semibold text-emerald-600' : 'font-semibold text-red-600'}>
-              {t.amount >= 0 ? '+' : ''}${Math.abs(t.amount).toFixed(2)}
+            <span key={`${t.id}-amount`} className={isDeduction(t) ? 'font-semibold text-red-600' : 'font-semibold text-emerald-600'}>
+              {isDeduction(t) ? '-' : '+'}${Math.abs(t.amount).toFixed(2)}
             </span>,
             t.reference ?? '—',
             new Date(t.created_at).toLocaleDateString(),
