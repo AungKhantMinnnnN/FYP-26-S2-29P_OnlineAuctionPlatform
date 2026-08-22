@@ -1,6 +1,21 @@
+---
+title: Recommendation Engine — Algorithm & Implementation Documentation
+type: technical-reference
+tags:
+  - fyp
+  - auction-platform
+  - recommendation-engine
+  - algorithm
+  - machine-learning
+  - cold-start
+status: current
+created: 2026-08-21
+---
+
 # Recommendation Engine — Algorithm & Implementation Documentation
 
-Living design doc for this service's recommendation/ML logic. 
+> [!info] Document purpose
+> Living design doc for this service's recommendation/ML logic.
 
 Business mandate: solve cold-start via onboarding interests, blend collaborative + content-based filtering ("Hybrid CF/RCBF") for the activity hub feed.
 

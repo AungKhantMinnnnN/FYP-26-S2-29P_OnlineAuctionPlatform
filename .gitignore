@@ -2,8 +2,8 @@
 .env
 .env.*
 !.env.example
-!.env.teammate
 !.env.staging.example
+# .env.teammate intentionally untracked — contains live credentials, do not submit
 
 # Python
 __pycache__/

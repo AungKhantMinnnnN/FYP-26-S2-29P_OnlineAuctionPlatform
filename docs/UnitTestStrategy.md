@@ -1,7 +1,21 @@
+---
+title: Unit Test Strategy
+type: technical-reference
+tags:
+  - fyp
+  - auction-platform
+  - testing
+  - pytest
+  - unit-tests
+status: current
+created: 2026-08-21
+---
+
 # Unit Test Strategy
 
-Test strategy for the three Python services (`backend`, `bidding-engine`,
-`recommendation-engine`). The frontend has no test framework configured and is out of scope.
+> [!info] Document purpose
+> Test strategy for the three Python services (`backend`, `bidding-engine`,
+> `recommendation-engine`). The frontend has no test framework configured and is out of scope.
 
 CI gates every PR on `ruff`, `mypy`, and `pytest` per service — see
 [Running & CI](#running--ci).

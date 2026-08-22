@@ -5,7 +5,7 @@ Stateless and side-effect-free: DataFrames/Series in, DataFrames/Series out. No 
 access or caching, so these stay fast and testable independent of the rest of the app.
 
 Scoring pipeline applied in rank_listings():
-  popularity × (1 + 0.5·urgency) × (1 + 0.5·segment) × (1 + 0.5·category)
+popularity × (1 + 0.5·urgency) × (1 + 0.5·segment) × (1 + 0.5·category)
             × (1 + 0.5·cf) × (1 + 0.4·brand) × (1 + 0.3·price) × (1 + 0.2·condition)
 
 Multiplicative, not additive — a listing needs real popularity before any

@@ -1,6 +1,21 @@
+---
+title: Bidding Engine — Algorithm & Implementation Reference
+type: technical-reference
+tags:
+  - fyp
+  - auction-platform
+  - bidding-engine
+  - algorithm
+  - websockets
+  - redis
+status: current
+created: 2026-08-21
+---
+
 # Bidding Engine — Algorithm & Implementation Reference
 
-Living design doc for this service's real-time bidding logic. 
+> [!info] Document purpose
+> Living design doc for this service's real-time bidding logic. 
 
 ---
 
